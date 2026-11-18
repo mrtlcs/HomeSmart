@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Bảng Điều Khiển HomeSmart",
+        "description": "Bạn có muốn thêm bảng điều khiển HomeSmart chuẩn thương mại không cần YAML vào thanh bên Home Assistant không?"
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "HomeSmart đã được cài đặt. Chỉ cần một phiên bản duy nhất."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Cài Đặt HomeSmart",
+        "description": "Bố cục, chủ đề màu kính mờ và kích thước thẻ có thể được tùy biến trực tiếp trong thanh chỉnh sửa trực quan của HomeSmart."
+      }
+    }
+  }
+}

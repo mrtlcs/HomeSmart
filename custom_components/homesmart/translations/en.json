@@ -1,0 +1,21 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "HomeSmart Dashboard",
+        "description": "Do you want to add the HomeSmart commercial-grade dashboard panel to your Home Assistant sidebar?"
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "HomeSmart is already configured. Only a single instance is required."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "HomeSmart Settings",
+        "description": "Dashboard layouts, themes, and card sizes can be configured directly inside the HomeSmart panel visual editor."
+      }
+    }
+  }
+}

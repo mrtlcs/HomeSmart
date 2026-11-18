@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>HomeSmart - Commercial-Grade Dashboard Preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Figtree:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        width: 100%;
+        height: 100%;
+        background: #000;
+        font-family: 'Figtree', 'Outfit', sans-serif;
+        color: #fff;
+        overflow-x: hidden;
+      }
+      #app {
+        width: 100%;
+        min-height: 100vh;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <homesmart-panel id="dashboard"></homesmart-panel>
+    </div>
+
+    <script type="module">
+      import './src/homesmart-panel.ts';
+      import { MockHassMachine } from './src/mock/mock-hass.ts';
+
+      const panel = document.getElementById('dashboard');
+      const mockHass = new MockHassMachine();
+
+      // Subscribe to real-time state machine updates
+      mockHass.subscribe((hass) => {
+        panel.hass = hass;
+      });
+
+      console.log('✅ HomeSmart Dev Preview Initialized with Mock Home Assistant!');
+    </script>
+  </body>
+</html>

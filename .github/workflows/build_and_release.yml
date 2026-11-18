@@ -1,0 +1,45 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build Frontend & Package Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm ci || npm install
+
+      - name: Compile Frontend Bundle
+        working-directory: frontend
+        run: npm run build
+
+      - name: Archive Integration Release
+        run: |
+          cd custom_components/homesmart
+          zip -r ../../homesmart.zip .
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            homesmart.zip
+            custom_components/homesmart/frontend/homesmart-panel.js
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
