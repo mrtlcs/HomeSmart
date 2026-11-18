@@ -40,6 +40,8 @@ import './components/card-2x2-media-cam';
 import './components/visual-editor-bar';
 import './components/confirm-dialog';
 import './components/oled-screensaver';
+import './components/squircle-device-card';
+import './components/weather-modal';
 
 const DEFAULT_CONFIG: HomeSmartConfig = {
   version: 1,
@@ -86,6 +88,7 @@ export class HomeSmartPanel extends LitElement {
   @state() private showHidden = false;
   @state() private viewport: ViewportMetrics = calculateViewportMetrics();
   @state() private screensaverActive = false;
+  @state() private weatherModalOpen = false;
 
   // Protected card modal state
   @state() private confirmModalOpen = false;
@@ -264,6 +267,199 @@ export class HomeSmartPanel extends LitElement {
         color: var(--hs-text-muted, rgba(255, 255, 255, 0.45));
         font-size: 15px;
       }
+
+      /* HomeDeck Pro Rooms View: Two-Column Sidebar & Grid */
+      .rooms-workspace {
+        display: flex;
+        width: 100%;
+        min-height: calc(100vh - 120px);
+        padding: 16px 32px 32px;
+        gap: 36px;
+        box-sizing: border-box;
+      }
+
+      .rooms-sidebar {
+        width: 220px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .sidebar-clock-group {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .sidebar-date {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.8px;
+        color: var(--hs-text-muted, rgba(255, 255, 255, 0.45));
+        text-transform: uppercase;
+        font-family: var(--hs-font-display, sans-serif);
+      }
+
+      .sidebar-clock-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .sidebar-clock {
+        font-size: clamp(34px, 4vw, 44px);
+        font-weight: 800;
+        color: #ffffff;
+        line-height: 1;
+        letter-spacing: -1.5px;
+        font-family: var(--hs-font-display, sans-serif);
+      }
+
+      .sidebar-dot {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: var(--hs-accent, #38bdf8);
+      }
+
+      .rooms-nav-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .room-pill-btn {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        border-radius: 99px;
+        background: transparent;
+        border: none;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        text-align: left;
+        outline: none;
+      }
+
+      .room-pill-btn:hover {
+        background: rgba(255, 255, 255, 0.08);
+        color: #ffffff;
+        transform: translateX(2px);
+      }
+
+      .room-pill-btn.active {
+        background: #ffffff;
+        color: #111418;
+        font-weight: 700;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+      }
+
+      .room-pill-icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .room-pill-name {
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .room-pill-badge {
+        background: rgba(255, 255, 255, 0.18);
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        padding: 2px 7px;
+        border-radius: 99px;
+      }
+
+      .room-pill-btn.active .room-pill-badge {
+        background: #111418;
+        color: #ffffff;
+      }
+
+      .rooms-main {
+        flex: 1;
+        min-width: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      }
+
+      .rooms-main-header {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+
+      .rooms-eyebrow {
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.8px;
+        text-transform: uppercase;
+        color: var(--hs-text-muted, rgba(255, 255, 255, 0.45));
+        font-family: var(--hs-font-display, sans-serif);
+      }
+
+      .rooms-title {
+        font-size: clamp(26px, 3.2vw, 36px);
+        font-weight: 800;
+        color: #ffffff;
+        font-family: var(--hs-font-display, sans-serif);
+        margin: 0;
+        line-height: 1.1;
+      }
+
+      .rooms-device-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+        gap: 14px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+
+      @media (max-width: 860px) {
+        .rooms-workspace {
+          flex-direction: column;
+          padding: 12px 16px;
+          gap: 20px;
+        }
+        .rooms-sidebar {
+          width: 100%;
+          gap: 12px;
+        }
+        .rooms-nav-list {
+          flex-direction: row;
+          overflow-x: auto;
+          padding-bottom: 6px;
+          scrollbar-width: none;
+        }
+        .rooms-nav-list::-webkit-scrollbar {
+          display: none;
+        }
+        .room-pill-btn {
+          flex-shrink: 0;
+          padding: 8px 14px;
+        }
+        .rooms-device-grid {
+          grid-template-columns: repeat(auto-fill, minmax(115px, 1fr));
+          gap: 10px;
+        }
+      }
     `,
   ];
 
@@ -373,6 +569,10 @@ export class HomeSmartPanel extends LitElement {
     this.addEventListener('trigger-quick-scene', (e: any) => {
       const { sceneId } = e.detail;
       this.handleQuickScene(sceneId);
+    });
+
+    this.addEventListener('open-weather-modal', () => {
+      this.weatherModalOpen = true;
     });
   }
 
@@ -533,6 +733,15 @@ export class HomeSmartPanel extends LitElement {
           @confirm-cancel="${() => (this.confirmModalOpen = false)}"
         ></homesmart-confirm-dialog>
 
+        <!-- Weather Forecast Modal -->
+        <homesmart-weather-modal
+          .open="${this.weatherModalOpen}"
+          .weatherEntity="${weatherEntity}"
+          .hass="${this.hass}"
+          .locale="${this.config.locale}"
+          @close-weather-modal="${() => (this.weatherModalOpen = false)}"
+        ></homesmart-weather-modal>
+
         <!-- OLED Screensaver for Tablets & TV -->
         <homesmart-oled-screensaver
           .active="${this.screensaverActive}"
@@ -634,30 +843,101 @@ export class HomeSmartPanel extends LitElement {
   }
 
   /**
-   * Tab 2: Rooms View (Full Grid of All Rooms)
+   * Tab 2: Rooms View (HomeDeck Pro Two-Column Layout)
+   * Left: Date & Time, Vertical Room Pills
+   * Right: Room Eyebrow Status, Big Room Title, Squircle Device Grid
    */
   private renderRoomsTabView(areas: DiscoveredArea[]) {
-    return html`
-      <div class="tab-view-container">
-        <h2 class="section-heading">
-          ${renderIcon('devices', 24)}
-          <span>${t('tab_rooms', this.config.locale)}</span>
-        </h2>
+    if (areas.length === 0) {
+      return html`<div class="empty-notice">${t('no_entities', this.config.locale)}</div>`;
+    }
 
-        ${areas.map(
-          (area) => html`
-            <section class="grid-area-section">
-              <div class="area-title-bar">
-                <div class="area-heading">
-                  ${renderIcon(area.icon, 24)}
-                  <span class="area-title-text">${area.name}</span>
-                </div>
-                <span class="area-count-chip">${area.entities.length}</span>
-              </div>
-              ${this.renderAreaBentoGrid(area)}
-            </section>
-          `
-        )}
+    // Determine selected area or default to first area
+    const activeArea =
+      areas.find((a) => a.id === this.selectedAreaId) || areas[0];
+
+    // Compute active lights in selected room
+    let lightsOn = 0;
+    for (const ent of activeArea.entities) {
+      if (ent.domain === 'light') {
+        const stateObj = this.hass?.states[ent.entity_id];
+        if (stateObj?.state === 'on') lightsOn++;
+      }
+    }
+
+    const now = new Date();
+    const timeStr = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
+    const dateStr = now.toLocaleDateString(
+      this.config.locale === 'vi' ? 'vi-VN' : 'en-US',
+      { weekday: 'long', day: 'numeric', month: 'long' }
+    ).toUpperCase();
+
+    const eyebrow =
+      lightsOn === 0
+        ? t('everything_off', this.config.locale)
+        : `${lightsOn} ${t('lights_active', this.config.locale).toUpperCase()}`;
+
+    return html`
+      <div class="rooms-workspace">
+        <!-- Left Sidebar: Date, Clock & Vertical Room Navigation Pills -->
+        <aside class="rooms-sidebar">
+          <div class="sidebar-clock-group">
+            <span class="sidebar-date">${dateStr}</span>
+            <div class="sidebar-clock-row">
+              <span class="sidebar-clock">${timeStr}</span>
+              <span class="sidebar-dot">＝</span>
+            </div>
+          </div>
+
+          <nav class="rooms-nav-list" aria-label="Rooms Navigation">
+            ${areas.map((area) => {
+              const isSelected = area.id === activeArea.id;
+              let areaLightsOn = 0;
+              for (const e of area.entities) {
+                if (
+                  e.domain === 'light' &&
+                  this.hass?.states[e.entity_id]?.state === 'on'
+                ) {
+                  areaLightsOn++;
+                }
+              }
+
+              return html`
+                <button
+                  class="room-pill-btn ${isSelected ? 'active' : ''}"
+                  @click="${() => (this.selectedAreaId = area.id)}"
+                  type="button"
+                >
+                  <span class="room-pill-icon">${renderIcon(area.icon, 18)}</span>
+                  <span class="room-pill-name">${area.name}</span>
+                  ${areaLightsOn > 0
+                    ? html`<span class="room-pill-badge">${areaLightsOn}</span>`
+                    : ''}
+                </button>
+              `;
+            })}
+          </nav>
+        </aside>
+
+        <!-- Right Main: Eyebrow, Room Title & Squircle Device Grid -->
+        <section class="rooms-main">
+          <header class="rooms-main-header">
+            <span class="rooms-eyebrow">${eyebrow}</span>
+            <h1 class="rooms-title">${activeArea.name}</h1>
+          </header>
+
+          <div class="rooms-device-grid">
+            ${activeArea.entities.map(
+              (entity) => html`
+                <homesmart-squircle-device-card
+                  .hass="${this.hass}"
+                  .entity="${entity}"
+                  .locale="${this.config.locale}"
+                ></homesmart-squircle-device-card>
+              `
+            )}
+          </div>
+        </section>
       </div>
     `;
   }

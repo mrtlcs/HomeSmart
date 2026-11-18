@@ -24,27 +24,27 @@ export class MockHassMachine {
   }
 
   private initMockData(): void {
-    // 1. Vietnamese Areas
+    // 1. Vietnamese Areas (HomeDeck Pro Authentic Demo)
     this.areas = {
+      bep: {
+        area_id: 'bep',
+        name: 'Bếp',
+        icon: 'mdi:silverware-fork-knife',
+      },
       phong_khach: {
         area_id: 'phong_khach',
-        name: 'Phòng Khách',
+        name: 'Phòng khách',
         icon: 'mdi:sofa',
       },
-      phong_ngu: {
-        area_id: 'phong_ngu',
-        name: 'Phòng Ngủ Master',
-        icon: 'mdi:bed',
+      ban_cong: {
+        area_id: 'ban_cong',
+        name: 'Ban công',
+        icon: 'mdi:tree',
       },
       phong_bep: {
         area_id: 'phong_bep',
-        name: 'Phòng Bếp',
+        name: 'Phòng bếp',
         icon: 'mdi:silverware-fork-knife',
-      },
-      phong_tam: {
-        area_id: 'phong_tam',
-        name: 'Phòng Tắm Thông Minh',
-        icon: 'mdi:shower',
       },
       an_ninh: {
         area_id: 'an_ninh',
@@ -55,29 +55,180 @@ export class MockHassMachine {
 
     // 2. Mock States
     this.states = {
-      // --- Phòng Khách ---
-      'light.den_phong_khach': {
-        entity_id: 'light.den_phong_khach',
-        state: 'on',
+      // --- Phòng Khách (Matching HomeDeck Pro Rooms View Screenshot) ---
+      'cover.man_ru_1': {
+        entity_id: 'cover.man_ru_1',
+        state: 'open',
         attributes: {
-          friendly_name: 'Đèn Trần Phòng Khách',
-          icon: 'mdi:lightbulb-on',
-          brightness: 215, // ~84%
-          supported_color_modes: ['brightness'],
+          friendly_name: 'Màn rủ',
+          icon: 'mdi:curtains-open',
+          current_position: 100,
         },
       },
-      'light.den_chum_phong_khach': {
-        entity_id: 'light.den_chum_phong_khach',
+      'cover.man_ru_2': {
+        entity_id: 'cover.man_ru_2',
+        state: 'open',
+        attributes: {
+          friendly_name: 'Màn rủ',
+          icon: 'mdi:curtains-open',
+          current_position: 100,
+        },
+      },
+      'media_player.tv_phong_khach': {
+        entity_id: 'media_player.tv_phong_khach',
         state: 'off',
         attributes: {
-          friendly_name: 'Đèn Chùm Pha Lê',
+          friendly_name: 'TV phòng khách',
+          icon: 'mdi:television-ambient-light',
+        },
+      },
+      'vacuum.x40_master': {
+        entity_id: 'vacuum.x40_master',
+        state: 'docked',
+        attributes: {
+          friendly_name: 'X40 Master',
+          icon: 'mdi:robot',
+          status: 'docked',
+        },
+      },
+      'select.ban_do_da_chon': {
+        entity_id: 'select.ban_do_da_chon',
+        state: 'Bản đồ',
+        attributes: {
+          friendly_name: 'Bản đồ đã chọn',
+          icon: 'mdi:list',
+          options: ['Bản đồ', 'Tầng 1', 'Tầng 2'],
+        },
+      },
+      'select.chat_lieu_san_1': {
+        entity_id: 'select.chat_lieu_san_1',
+        state: 'tile',
+        attributes: {
+          friendly_name: 'Chất liệu sàn Phòng 1',
+          icon: 'mdi:list',
+          options: ['tile', 'wood'],
+        },
+      },
+      'select.chat_lieu_san_2': {
+        entity_id: 'select.chat_lieu_san_2',
+        state: 'tile',
+        attributes: {
+          friendly_name: 'Chất liệu sàn Phòng 2',
+          icon: 'mdi:list',
+          options: ['tile', 'wood'],
+        },
+      },
+      'select.chat_lieu_san_3': {
+        entity_id: 'select.chat_lieu_san_3',
+        state: 'wood',
+        attributes: {
+          friendly_name: 'Chất liệu sàn Phòng 3',
+          icon: 'mdi:list',
+          options: ['wood', 'tile'],
+        },
+      },
+      'select.chat_lieu_san_4': {
+        entity_id: 'select.chat_lieu_san_4',
+        state: 'wood',
+        attributes: {
+          friendly_name: 'Chất liệu sàn Phòng 4',
+          icon: 'mdi:list',
+          options: ['wood', 'tile'],
+        },
+      },
+      'select.chat_lieu_san_5': {
+        entity_id: 'select.chat_lieu_san_5',
+        state: 'wood',
+        attributes: {
+          friendly_name: 'Chất liệu sàn Phòng 5',
+          icon: 'mdi:list',
+          options: ['wood', 'tile'],
+        },
+      },
+      'select.chat_lieu_san_6': {
+        entity_id: 'select.chat_lieu_san_6',
+        state: 'wood',
+        attributes: {
+          friendly_name: 'Chất liệu sàn Phòng 6',
+          icon: 'mdi:list',
+          options: ['wood', 'tile'],
+        },
+      },
+      'select.chat_lieu_san_7': {
+        entity_id: 'select.chat_lieu_san_7',
+        state: 'tile',
+        attributes: {
+          friendly_name: 'Chất liệu sàn Phòng 7',
+          icon: 'mdi:list',
+          options: ['tile', 'wood'],
+        },
+      },
+      'select.che_do_cleangenius': {
+        entity_id: 'select.che_do_cleangenius',
+        state: 'CleanGenius',
+        attributes: {
+          friendly_name: 'Chế độ CleanGenius',
+          icon: 'mdi:list',
+          options: ['CleanGenius', 'Tự động', 'Thủ công'],
+        },
+      },
+      'select.che_do_giat_gie': {
+        entity_id: 'select.che_do_giat_gie',
+        state: 'lau',
+        attributes: {
+          friendly_name: 'Chế độ giặt giẻ lau',
+          icon: 'mdi:list',
+          options: ['lau', 'giặt sâu', 'tiết kiệm'],
+        },
+      },
+      'select.che_do_lam_sach': {
+        entity_id: 'select.che_do_lam_sach',
+        state: 'mopping_after...',
+        attributes: {
+          friendly_name: 'Chế độ làm sạch',
+          icon: 'mdi:list',
+          options: ['mopping_after...', 'vacuum_then_mop'],
+        },
+      },
+      'select.che_do_do_rac': {
+        entity_id: 'select.che_do_do_rac',
+        state: 'high_frequency',
+        attributes: {
+          friendly_name: 'Chế độ tự động đổ rác',
+          icon: 'mdi:list',
+          options: ['high_frequency', 'standard', 'low'],
+        },
+      },
+      'select.cleangenius': {
+        entity_id: 'select.cleangenius',
+        state: 'off',
+        attributes: {
+          friendly_name: 'CleanGenius',
+          icon: 'mdi:list',
+          options: ['off', 'daily', 'deep'],
+        },
+      },
+      'select.do_am_gie_lau': {
+        entity_id: 'select.do_am_gie_lau',
+        state: 'moist',
+        attributes: {
+          friendly_name: 'Độ ẩm giẻ lau',
+          icon: 'mdi:list',
+          options: ['moist', 'wet', 'dry'],
+        },
+      },
+      'light.den_phong_khach': {
+        entity_id: 'light.den_phong_khach',
+        state: 'off',
+        attributes: {
+          friendly_name: 'Đèn Trần Phòng Khách',
           icon: 'mdi:lightbulb-outline',
           brightness: 0,
         },
       },
       'climate.dieu_hoa_phong_khach': {
         entity_id: 'climate.dieu_hoa_phong_khach',
-        state: 'cool',
+        state: 'off',
         attributes: {
           friendly_name: 'Điều Hòa Daikin Inverter',
           icon: 'mdi:air-conditioner',
@@ -85,38 +236,6 @@ export class MockHassMachine {
           temperature: 22.0,
           min_temp: 16,
           max_temp: 30,
-          hvac_modes: ['off', 'cool', 'heat', 'fan_only', 'auto'],
-          hvac_action: 'cooling',
-        },
-      },
-      'cover.rem_cua_phong_khach': {
-        entity_id: 'cover.rem_cua_phong_khach',
-        state: 'open',
-        attributes: {
-          friendly_name: 'Rèm Cửa Ban Công',
-          icon: 'mdi:curtains-open',
-          current_position: 75,
-        },
-      },
-      'fan.quat_tran_phong_khach': {
-        entity_id: 'fan.quat_tran_phong_khach',
-        state: 'on',
-        attributes: {
-          friendly_name: 'Quạt Trần Panasonic',
-          icon: 'mdi:fan',
-          percentage: 60,
-        },
-      },
-      'media_player.tv_phong_khach': {
-        entity_id: 'media_player.tv_phong_khach',
-        state: 'playing',
-        attributes: {
-          friendly_name: 'Sony Bravia OLED 65"',
-          icon: 'mdi:television-ambient-light',
-          media_title: 'Lối Nhỏ (Acoustic)',
-          media_artist: 'Đen Vâu ft. Phương Anh Đào',
-          entity_picture: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&w=400&q=80',
-          volume_level: 0.45,
         },
       },
       'switch.may_loc_khong_khi': {
@@ -275,41 +394,63 @@ export class MockHassMachine {
         },
       },
 
-      // --- Weather ---
+      // --- Weather (Matching HomeDeck Pro Weather Forecast Screenshot) ---
       'weather.nha': {
         entity_id: 'weather.nha',
-        state: 'sunny',
+        state: 'rainy',
         attributes: {
-          friendly_name: 'Thời Tiết Hà Nội',
-          temperature: 29,
-          humidity: 68,
+          friendly_name: 'Nhà',
+          temperature: 27,
+          humidity: 86,
+          wind_speed: 9,
+          wind_speed_unit: 'km/h',
+          precipitation_probability: 30,
+          forecast: [
+            { datetime: '2026-11-18T10:00:00', condition: 'rainy', temperature: 28, templow: 20, precipitation_probability: 30 },
+            { datetime: '2026-11-19T10:00:00', condition: 'cloudy', temperature: 22, templow: 19 },
+            { datetime: '2026-11-20T10:00:00', condition: 'cloudy', temperature: 20, templow: 17 },
+            { datetime: '2026-11-21T10:00:00', condition: 'partlycloudy', temperature: 20, templow: 16 },
+            { datetime: '2026-11-22T10:00:00', condition: 'sunny', temperature: 24, templow: 18 },
+            { datetime: '2026-11-23T10:00:00', condition: 'partlycloudy', temperature: 25, templow: 19 },
+          ],
         },
       },
     };
 
     // 3. Entity -> Area mappings
     this.entities = {
-      // Khách
-      'light.den_phong_khach': { entity_id: 'light.den_phong_khach', area_id: 'phong_khach' },
-      'light.den_chum_phong_khach': { entity_id: 'light.den_chum_phong_khach', area_id: 'phong_khach' },
-      'climate.dieu_hoa_phong_khach': { entity_id: 'climate.dieu_hoa_phong_khach', area_id: 'phong_khach' },
-      'cover.rem_cua_phong_khach': { entity_id: 'cover.rem_cua_phong_khach', area_id: 'phong_khach' },
-      'fan.quat_tran_phong_khach': { entity_id: 'fan.quat_tran_phong_khach', area_id: 'phong_khach' },
-      'media_player.tv_phong_khach': { entity_id: 'media_player.tv_phong_khach', area_id: 'phong_khach' },
-      'switch.may_loc_khong_khi': { entity_id: 'switch.may_loc_khong_khi', area_id: 'phong_khach' },
-      'sensor.nhiet_do_phong_khach': { entity_id: 'sensor.nhiet_do_phong_khach', area_id: 'phong_khach' },
-      'sensor.do_am_phong_khach': { entity_id: 'sensor.do_am_phong_khach', area_id: 'phong_khach' },
-
-      // Ngủ
-      'light.den_ngu_master': { entity_id: 'light.den_ngu_master', area_id: 'phong_ngu' },
-      'climate.dieu_hoa_phong_ngu': { entity_id: 'climate.dieu_hoa_phong_ngu', area_id: 'phong_ngu' },
-      'cover.rem_cua_phong_ngu': { entity_id: 'cover.rem_cua_phong_ngu', area_id: 'phong_ngu' },
-      'switch.robot_hut_bui': { entity_id: 'switch.robot_hut_bui', area_id: 'phong_ngu' },
-
       // Bếp
-      'light.den_bep': { entity_id: 'light.den_bep', area_id: 'phong_bep' },
-      'light.den_ban_an': { entity_id: 'light.den_ban_an', area_id: 'phong_bep' },
-      'switch.may_hut_mui': { entity_id: 'switch.may_hut_mui', area_id: 'phong_bep' },
+      'light.den_bep': { entity_id: 'light.den_bep', area_id: 'bep' },
+      'light.den_ban_an': { entity_id: 'light.den_ban_an', area_id: 'bep' },
+      'switch.may_hut_mui': { entity_id: 'switch.may_hut_mui', area_id: 'bep' },
+
+      // Phòng Khách (Matching Screenshot Layout)
+      'cover.man_ru_1': { entity_id: 'cover.man_ru_1', area_id: 'phong_khach' },
+      'cover.man_ru_2': { entity_id: 'cover.man_ru_2', area_id: 'phong_khach' },
+      'media_player.tv_phong_khach': { entity_id: 'media_player.tv_phong_khach', area_id: 'phong_khach' },
+      'vacuum.x40_master': { entity_id: 'vacuum.x40_master', area_id: 'phong_khach' },
+      'select.ban_do_da_chon': { entity_id: 'select.ban_do_da_chon', area_id: 'phong_khach' },
+      'select.chat_lieu_san_1': { entity_id: 'select.chat_lieu_san_1', area_id: 'phong_khach' },
+      'select.chat_lieu_san_2': { entity_id: 'select.chat_lieu_san_2', area_id: 'phong_khach' },
+      'select.chat_lieu_san_3': { entity_id: 'select.chat_lieu_san_3', area_id: 'phong_khach' },
+      'select.chat_lieu_san_4': { entity_id: 'select.chat_lieu_san_4', area_id: 'phong_khach' },
+      'select.chat_lieu_san_5': { entity_id: 'select.chat_lieu_san_5', area_id: 'phong_khach' },
+      'select.chat_lieu_san_6': { entity_id: 'select.chat_lieu_san_6', area_id: 'phong_khach' },
+      'select.chat_lieu_san_7': { entity_id: 'select.chat_lieu_san_7', area_id: 'phong_khach' },
+      'select.che_do_cleangenius': { entity_id: 'select.che_do_cleangenius', area_id: 'phong_khach' },
+      'select.che_do_giat_gie': { entity_id: 'select.che_do_giat_gie', area_id: 'phong_khach' },
+      'select.che_do_lam_sach': { entity_id: 'select.che_do_lam_sach', area_id: 'phong_khach' },
+      'select.che_do_do_rac': { entity_id: 'select.che_do_do_rac', area_id: 'phong_khach' },
+      'select.cleangenius': { entity_id: 'select.cleangenius', area_id: 'phong_khach' },
+      'select.do_am_gie_lau': { entity_id: 'select.do_am_gie_lau', area_id: 'phong_khach' },
+      'light.den_phong_khach': { entity_id: 'light.den_phong_khach', area_id: 'phong_khach' },
+      'climate.dieu_hoa_phong_khach': { entity_id: 'climate.dieu_hoa_phong_khach', area_id: 'phong_khach' },
+
+      // Ban công
+      'switch.tuoi_cay_ban_cong': { entity_id: 'switch.tuoi_cay_ban_cong', area_id: 'ban_cong' },
+
+      // Phòng bếp
+      'switch.may_loc_nuoc': { entity_id: 'switch.may_loc_nuoc', area_id: 'phong_bep' },
 
       // Tắm
       'light.den_guong_tam': { entity_id: 'light.den_guong_tam', area_id: 'phong_tam' },

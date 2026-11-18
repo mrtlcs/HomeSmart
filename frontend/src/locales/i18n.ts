@@ -78,6 +78,21 @@ export const translations = {
     close_btn: 'Đóng',
     power_btn: 'Nguồn',
 
+    // Weather Forecast Modal
+    weather_forecast: 'Dự báo thời tiết',
+    next_hours: 'VÀI GIỜ TỚI',
+    next_days: '6 NGÀY TỚI',
+    humidity: 'Độ ẩm',
+    wind: 'Gió',
+    sunrise: 'Bình minh',
+    sunset: 'Hoàng hôn',
+    everything_off: 'TẤT CẢ ĐANG TẮT',
+    vacuum_docked: 'Đã vào dock',
+    vacuum_cleaning: 'Đang dọn dẹp',
+    clean: 'Bắt đầu',
+    dock: 'Về sạc',
+    map: 'Bản đồ',
+
     // Themes
     theme_midnight: 'Midnight Deck (Chuẩn HomeDeck)',
     theme_aurora: 'Bắc Cực Quang (Aurora)',
@@ -200,6 +215,21 @@ export const translations = {
     stop_btn: 'Stop',
     close_btn: 'Close',
     power_btn: 'Power',
+
+    // Weather Forecast Modal
+    weather_forecast: 'Weather forecast',
+    next_hours: 'NEXT HOURS',
+    next_days: 'NEXT 6 DAYS',
+    humidity: 'Humidity',
+    wind: 'Wind',
+    sunrise: 'Sunrise',
+    sunset: 'Sunset',
+    everything_off: 'EVERYTHING OFF',
+    vacuum_docked: 'Docked',
+    vacuum_cleaning: 'Cleaning',
+    clean: 'Clean',
+    dock: 'Dock',
+    map: 'Map',
 
     // Themes
     theme_midnight: 'Midnight Deck (HomeDeck Style)',

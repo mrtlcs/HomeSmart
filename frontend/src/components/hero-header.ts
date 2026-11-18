@@ -198,6 +198,18 @@ export class HomeSmartHeroHeader extends LitElement {
       color: #ffffff;
       font-size: 13px;
       font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .weather-pill:hover {
+      background: rgba(255, 255, 255, 0.14);
+      border-color: rgba(255, 255, 255, 0.25);
+      transform: translateY(-1px);
+    }
+
+    .weather-pill:active {
+      transform: scale(0.96);
     }
 
     .weather-temp {
@@ -357,8 +369,14 @@ export class HomeSmartHeroHeader extends LitElement {
           <div class="top-controls-row">
             <div class="avatar-btn" title="User Profile">${this.userName.charAt(0).toUpperCase()}</div>
 
-            <div class="weather-pill">
-              ${renderIcon('weather-sunny', 18)}
+            <div
+              class="weather-pill"
+              @click="${this.handleWeatherClick}"
+              role="button"
+              tabindex="0"
+              title="Weather forecast"
+            >
+              ${renderIcon(this.getWeatherIcon(String(weatherState)), 18)}
               <span class="weather-temp">${weatherTemp}°</span>
               <span class="weather-desc">${weatherState}</span>
             </div>
@@ -414,5 +432,24 @@ export class HomeSmartHeroHeader extends LitElement {
         composed: true,
       })
     );
+  }
+
+  private handleWeatherClick(): void {
+    this.dispatchEvent(
+      new CustomEvent('open-weather-modal', {
+        bubbles: true,
+        composed: true,
+      })
+    );
+  }
+
+  private getWeatherIcon(state: string): string {
+    const s = (state || '').toLowerCase();
+    if (s.includes('rain') || s.includes('mưa')) return 'rain';
+    if (s.includes('cloud') || s.includes('mây')) return 'cloud';
+    if (s.includes('storm') || s.includes('sấm')) return 'storm';
+    if (s.includes('snow') || s.includes('tuyết')) return 'snow';
+    if (s.includes('partly')) return 'partly';
+    return 'sun';
   }
 }
