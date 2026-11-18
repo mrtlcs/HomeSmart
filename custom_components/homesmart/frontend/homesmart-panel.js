@@ -6870,7 +6870,10 @@ let $ = class extends y {
         const o = await this._hass.callWS({
           type: "homesmart/config/get"
         });
-        o && typeof o == "object" && (this.config = { ...bt, ...o }, this.setAttribute("data-theme", this.config.theme), this.updateViewport());
+        if (o && typeof o == "object") {
+          const e = !o.layout || o.layout === "auto" || o.layout === "sidebar" ? "deck" : o.layout;
+          this.config = { ...bt, ...o, layout: e }, this.setAttribute("data-theme", this.config.theme), this.updateViewport();
+        }
       } catch (o) {
         console.warn("[HomeSmart] Using default config, HA store not initialized:", o);
       }

@@ -60,7 +60,7 @@ CARD_SIZE_2X2 = "2x2"
 DEFAULT_CONFIG = {
     "version": 1,
     "theme": THEME_MIDNIGHT,
-    "layout": LAYOUT_AUTO,
+    "layout": LAYOUT_DECK,
     "locale": "vi",
     "screensaver": {
         "enabled": True,

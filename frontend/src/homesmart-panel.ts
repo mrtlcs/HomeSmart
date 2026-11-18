@@ -614,7 +614,12 @@ export class HomeSmartPanel extends LitElement {
         type: 'homesmart/config/get',
       });
       if (stored && typeof stored === 'object') {
-        this.config = { ...DEFAULT_CONFIG, ...stored };
+        // Auto-migrate legacy layout from v1.0.0 ('auto' or 'sidebar') to 'deck'
+        const layout =
+          !stored.layout || stored.layout === 'auto' || stored.layout === 'sidebar'
+            ? 'deck'
+            : stored.layout;
+        this.config = { ...DEFAULT_CONFIG, ...stored, layout };
         this.setAttribute('data-theme', this.config.theme);
         this.updateViewport();
       }

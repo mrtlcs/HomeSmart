@@ -63,7 +63,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
             cache_headers=False,
         )
 
-    # Register Custom Panel
+    # Read manifest version for cache busting
+    manifest_version = "1.2.1"
+    try:
+        import json
+        manifest_file = Path(__file__).parent / "manifest.json"
+        with open(manifest_file, encoding="utf-8") as f:
+            manifest_version = json.load(f).get("version", "1.2.1")
+    except Exception:
+        pass
+
+    # Register Custom Panel with cache-busting version query parameter
     async_register_built_in_panel(
         hass,
         component_name="custom",
@@ -73,7 +83,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         config={
             "_panel_custom": {
                 "name": "homesmart-panel",
-                "module_url": f"{STATIC_PATH}/{FRONTEND_FILE_NAME}",
+                "module_url": f"{STATIC_PATH}/{FRONTEND_FILE_NAME}?v={manifest_version}",
             }
         },
         require_admin=False,

@@ -74,16 +74,13 @@ export function resolveEffectiveLayout(
   configuredLayout: LayoutMode,
   metrics: ViewportMetrics
 ): LayoutMode {
-  if (configuredLayout !== 'auto') {
+  if (configuredLayout && configuredLayout !== 'auto') {
     return configuredLayout;
   }
 
-  // When 'auto' is selected, choose best layout for screen
+  // When 'auto' is selected, choose HomeDeck Pro deck layout by default
   if (metrics.isTV) {
     return 'tv';
   }
-  if (metrics.device === 'phone') {
-    return 'focus';
-  }
-  return 'sidebar';
+  return 'deck';
 }
