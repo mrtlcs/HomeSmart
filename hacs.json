@@ -1,5 +1,7 @@
 {
   "name": "HomeSmart",
+  "homeassistant": "2024.1.0",
   "render_readme": true,
-  "filename": "homesmart-panel.js"
+  "zip_release": true,
+  "filename": "homesmart.zip"
 }

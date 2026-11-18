@@ -7,6 +7,7 @@
   "issue_tracker": "https://github.com/mrtlcs/HomeSmart/issues",
   "iot_class": "local_push",
   "version": "1.2.1",
+  "integration_type": "dashboard",
   "requirements": [],
   "dependencies": ["frontend", "http", "websocket_api"]
 }
