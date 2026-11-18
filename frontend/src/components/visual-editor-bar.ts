@@ -108,6 +108,7 @@ export class HomeSmartVisualEditorBar extends LitElement {
       display: inline-block;
     }
 
+    .dot-midnight { background: #38bdf8; }
     .dot-aurora { background: #00f2fe; }
     .dot-ocean { background: #0072ff; }
     .dot-wine { background: #ff4b72; }
@@ -178,6 +179,7 @@ export class HomeSmartVisualEditorBar extends LitElement {
     if (!this.open) return html``;
 
     const themes: { id: ThemeId; dotClass: string; name: string }[] = [
+      { id: 'midnight', dotClass: 'dot-midnight', name: 'Midnight' },
       { id: 'aurora', dotClass: 'dot-aurora', name: 'Aurora' },
       { id: 'ocean', dotClass: 'dot-ocean', name: 'Ocean' },
       { id: 'wine', dotClass: 'dot-wine', name: 'Wine' },
@@ -188,6 +190,7 @@ export class HomeSmartVisualEditorBar extends LitElement {
 
     const layouts: { id: LayoutMode; label: string }[] = [
       { id: 'auto', label: 'Auto' },
+      { id: 'deck', label: 'HomeDeck' },
       { id: 'sidebar', label: 'Sidebar' },
       { id: 'focus', label: 'Focus' },
       { id: 'grid', label: 'Grid' },

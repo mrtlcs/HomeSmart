@@ -16,6 +16,7 @@ WS_TYPE_CONFIG_GET = "homesmart/config/get"
 WS_TYPE_CONFIG_SAVE = "homesmart/config/save"
 
 # Themes
+THEME_MIDNIGHT = "midnight"
 THEME_AURORA = "aurora"
 THEME_OCEAN = "ocean"
 THEME_WINE = "wine"
@@ -24,6 +25,7 @@ THEME_EMERALD = "emerald"
 THEME_SUNSET = "sunset"
 
 THEMES = [
+    THEME_MIDNIGHT,
     THEME_AURORA,
     THEME_OCEAN,
     THEME_WINE,
@@ -38,6 +40,7 @@ LAYOUT_SIDEBAR = "sidebar"
 LAYOUT_FOCUS = "focus"
 LAYOUT_GRID = "grid"
 LAYOUT_TV = "tv"
+LAYOUT_DECK = "deck"
 
 LAYOUTS = [
     LAYOUT_AUTO,
@@ -45,6 +48,7 @@ LAYOUTS = [
     LAYOUT_FOCUS,
     LAYOUT_GRID,
     LAYOUT_TV,
+    LAYOUT_DECK,
 ]
 
 # Card sizes
@@ -55,7 +59,7 @@ CARD_SIZE_2X2 = "2x2"
 # Default configuration dictionary
 DEFAULT_CONFIG = {
     "version": 1,
-    "theme": THEME_AURORA,
+    "theme": THEME_MIDNIGHT,
     "layout": LAYOUT_AUTO,
     "locale": "vi",
     "screensaver": {

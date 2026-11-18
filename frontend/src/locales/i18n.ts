@@ -16,6 +16,33 @@ export const translations = {
     no_entities: 'Không tìm thấy thiết bị nào trong khu vực này.',
     tap_to_wake: 'Chạm màn hình hoặc nhấn phím bất kỳ để đánh thức',
 
+    // HomeDeck Pro Hero Header
+    home_status: 'TRẠNG THÁI NHÀ',
+    lights_on_at_home: 'đèn đang bật trong nhà',
+    all_lights_off: 'Tất cả đèn đang tắt',
+    scenes_title: 'NGỮ CẢNH',
+    scene_away: 'Ra ngoài',
+    scene_home: 'Về nhà',
+    scene_sleep: 'Đi ngủ',
+    scene_movie: 'Xem phim',
+    turn_all_on: 'Bật tất cả',
+    turn_all_off: 'Tắt tất cả',
+
+    // Floating Capsule Dock
+    tab_home: 'Home',
+    tab_rooms: 'Rooms',
+    tab_media: 'Media',
+    tab_security: 'Security',
+
+    // Deck Cards
+    security_title: 'AN NINH',
+    everything_secure: 'An toàn tuyệt đối',
+    security_alert: 'Cảnh báo an ninh!',
+    monitored_items: 'thiết bị giám sát',
+    active_count: 'đang bật',
+    room_detail_title: 'Chi tiết phòng',
+    close: 'Đóng',
+
     // States
     state_on: 'Bật',
     state_off: 'Tắt',
@@ -52,6 +79,7 @@ export const translations = {
     power_btn: 'Nguồn',
 
     // Themes
+    theme_midnight: 'Midnight Deck (Chuẩn HomeDeck)',
     theme_aurora: 'Bắc Cực Quang (Aurora)',
     theme_ocean: 'Đại Dương Xanh (Ocean)',
     theme_wine: 'Rượu Vang Đỏ (Wine)',
@@ -65,6 +93,7 @@ export const translations = {
     layout_focus: 'Tập trung (Focus)',
     layout_grid: 'Lưới Bento cân xứng',
     layout_tv: 'Màn hình TV (10-Foot UI)',
+    layout_deck: 'HomeDeck Thẻ Dọc',
 
     // Visual Editor
     visual_editor: 'Tùy Biến Giao Diện',
@@ -110,6 +139,33 @@ export const translations = {
     no_entities: 'No devices found in this area.',
     tap_to_wake: 'Tap screen or press any key to wake',
 
+    // HomeDeck Pro Hero Header
+    home_status: 'HOME STATUS',
+    lights_on_at_home: 'lights on at home',
+    all_lights_off: 'All lights are off',
+    scenes_title: 'SCENES',
+    scene_away: 'Away',
+    scene_home: 'Home',
+    scene_sleep: 'Sleep',
+    scene_movie: 'Movie',
+    turn_all_on: 'Turn all on',
+    turn_all_off: 'Turn all off',
+
+    // Floating Capsule Dock
+    tab_home: 'Home',
+    tab_rooms: 'Rooms',
+    tab_media: 'Media',
+    tab_security: 'Security',
+
+    // Deck Cards
+    security_title: 'SECURITY',
+    everything_secure: 'Everything secure',
+    security_alert: 'Security alert!',
+    monitored_items: 'Monitored Items',
+    active_count: 'active',
+    room_detail_title: 'Room Devices',
+    close: 'Close',
+
     // States
     state_on: 'On',
     state_off: 'Off',
@@ -146,6 +202,7 @@ export const translations = {
     power_btn: 'Power',
 
     // Themes
+    theme_midnight: 'Midnight Deck (HomeDeck Style)',
     theme_aurora: 'Aurora Borealis',
     theme_ocean: 'Deep Ocean',
     theme_wine: 'Ruby Wine',
@@ -159,6 +216,7 @@ export const translations = {
     layout_focus: 'Focus Mode',
     layout_grid: 'Bento Grid',
     layout_tv: 'TV Console (10-Foot UI)',
+    layout_deck: 'HomeDeck Tall Cards',
 
     // Visual Editor
     visual_editor: 'Visual Customizer',

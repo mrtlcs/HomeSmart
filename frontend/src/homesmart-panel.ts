@@ -10,6 +10,7 @@ import {
   CardSize,
   DiscoveredArea,
   DiscoveredEntity,
+  DockTabId,
   HomeAssistant,
   HomeSmartConfig,
   LayoutMode,
@@ -25,6 +26,12 @@ import { DPadNavigator } from './engine/dpad-navigation';
 import { renderIcon } from './components/icons';
 
 // Import child components
+import './components/hero-header';
+import './components/deck-room-card';
+import './components/deck-security-card';
+import './components/deck-device-card';
+import './components/floating-dock';
+import './components/room-detail-sheet';
 import './components/sidebar-nav';
 import './components/card-1x1';
 import './components/card-2x1-slider';
@@ -36,8 +43,8 @@ import './components/oled-screensaver';
 
 const DEFAULT_CONFIG: HomeSmartConfig = {
   version: 1,
-  theme: 'aurora',
-  layout: 'auto',
+  theme: 'midnight',
+  layout: 'deck',
   locale: 'vi',
   screensaver: {
     enabled: true,
@@ -71,7 +78,10 @@ export class HomeSmartPanel extends LitElement {
   }
 
   @state() private config: HomeSmartConfig = { ...DEFAULT_CONFIG };
+  @state() private currentDockTab: DockTabId = 'home';
   @state() private selectedAreaId: string = '';
+  @state() private selectedDetailArea: DiscoveredArea | null = null;
+  @state() private roomDetailOpen = false;
   @state() private editMode = false;
   @state() private showHidden = false;
   @state() private viewport: ViewportMetrics = calculateViewportMetrics();
@@ -112,78 +122,68 @@ export class HomeSmartPanel extends LitElement {
         display: flex;
         flex-direction: column;
         min-width: 0;
-        padding: 24px;
+        padding-bottom: 96px; /* Space for floating bottom dock */
         box-sizing: border-box;
         overflow-y: auto;
       }
 
-      .main-content.phone {
-        padding: 16px 14px 90px; /* Space for mobile bottom bar */
+      .main-content.sidebar-layout {
+        padding: 24px;
+        padding-bottom: 40px;
       }
 
-      /* TV Layout Header */
-      .tv-header {
+      /* HomeDeck Pro Deck Cards Container */
+      .deck-scroll-container {
         display: flex;
-        align-items: center;
-        gap: 12px;
+        align-items: stretch;
+        gap: 16px;
+        padding: 12px 32px 32px;
         overflow-x: auto;
-        padding-bottom: 16px;
-        margin-bottom: 20px;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        overflow-y: hidden;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
       }
 
-      .tv-tab-item {
-        padding: 12px 22px;
-        border-radius: 18px;
-        background: rgba(255, 255, 255, 0.08);
-        border: 1px solid rgba(255, 255, 255, 0.14);
-        color: #fff;
-        font-size: 16px;
-        font-weight: 700;
-        cursor: pointer;
+      .deck-card-wrapper {
+        flex: 0 0 168px;
+        height: 290px;
+        scroll-snap-align: start;
+      }
+
+      @media (max-width: 768px) {
+        .deck-scroll-container {
+          padding: 8px 16px 24px;
+          gap: 12px;
+        }
+        .deck-card-wrapper {
+          flex: 0 0 148px;
+          height: 260px;
+        }
+      }
+
+      /* Grid of categories / rooms view */
+      .tab-view-container {
+        padding: 8px 32px 32px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      @media (max-width: 768px) {
+        .tab-view-container {
+          padding: 8px 16px 24px;
+        }
+      }
+
+      .section-heading {
         display: flex;
         align-items: center;
         gap: 10px;
-        white-space: nowrap;
-        transition: all 0.2s ease;
-      }
-
-      .tv-tab-item:hover,
-      .tv-tab-item.active {
-        background: var(--hs-active-gradient, linear-gradient(135deg, #00f2fe 0%, #4facfe 100%));
-        color: #05040d;
-        box-shadow: 0 0 20px var(--hs-glow-color, rgba(0, 242, 254, 0.45));
-      }
-
-      /* Focus Layout Header */
-      .focus-header {
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        overflow-x: auto;
-        padding-bottom: 14px;
-        margin-bottom: 16px;
-      }
-
-      .focus-tab {
-        padding: 8px 16px;
-        border-radius: 14px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: var(--hs-text-secondary, rgba(255, 255, 255, 0.7));
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        white-space: nowrap;
-      }
-
-      .focus-tab.active {
-        background: var(--hs-accent, #00f2fe);
-        color: #000;
-        font-weight: 700;
+        font-size: 20px;
+        font-weight: 800;
+        color: #ffffff;
+        font-family: var(--hs-font-display, sans-serif);
+        margin: 0;
       }
 
       /* Area Title Bar */
@@ -254,7 +254,6 @@ export class HomeSmartPanel extends LitElement {
         grid-column: span 2;
       }
 
-      /* Grid Mode (All Areas stacked) */
       .grid-area-section {
         margin-bottom: 36px;
       }
@@ -301,6 +300,20 @@ export class HomeSmartPanel extends LitElement {
   private setupListeners(): void {
     this.addEventListener('area-selected', (e: any) => {
       this.selectedAreaId = e.detail.areaId;
+    });
+
+    this.addEventListener('switch-dock-tab', (e: any) => {
+      this.currentDockTab = e.detail.tab;
+    });
+
+    this.addEventListener('open-room-detail', (e: any) => {
+      this.selectedDetailArea = e.detail.area;
+      this.roomDetailOpen = true;
+    });
+
+    this.addEventListener('close-room-detail', () => {
+      this.roomDetailOpen = false;
+      this.selectedDetailArea = null;
     });
 
     this.addEventListener('toggle-edit-mode', () => {
@@ -350,6 +363,16 @@ export class HomeSmartPanel extends LitElement {
     this.addEventListener('screensaver-dismiss', () => {
       this.screensaverActive = false;
       this.resetIdleTimer();
+    });
+
+    this.addEventListener('master-toggle-all-lights', (e: any) => {
+      const { turnOn } = e.detail;
+      this.handleMasterToggleAllLights(turnOn);
+    });
+
+    this.addEventListener('trigger-quick-scene', (e: any) => {
+      const { sceneId } = e.detail;
+      this.handleQuickScene(sceneId);
     });
   }
 
@@ -408,11 +431,43 @@ export class HomeSmartPanel extends LitElement {
     });
   }
 
+  private handleMasterToggleAllLights(turnOn: boolean): void {
+    if (!this.hass) return;
+    const areas = runAutoDiscovery(this.hass, this.config, true);
+    const service = turnOn ? 'turn_on' : 'turn_off';
+
+    for (const area of areas) {
+      for (const ent of area.entities) {
+        if (ent.domain === 'light') {
+          this.hass.callService('light', service, { entity_id: ent.entity_id });
+        }
+      }
+    }
+  }
+
+  private handleQuickScene(sceneId: string): void {
+    if (!this.hass) return;
+    // Map sceneId to Home Assistant scene if existing
+    const sceneEntityId = `scene.${sceneId}`;
+    if (this.hass.states[sceneEntityId]) {
+      this.hass.callService('scene', 'turn_on', { entity_id: sceneEntityId });
+    } else {
+      // Fallback scene behaviors
+      if (sceneId === 'away' || sceneId === 'sleep') {
+        this.handleMasterToggleAllLights(false);
+      } else if (sceneId === 'home') {
+        this.handleMasterToggleAllLights(true);
+      }
+    }
+  }
+
   render() {
     const areas = runAutoDiscovery(this.hass, this.config, this.showHidden);
     const summary = computeAreaSummary(areas);
-    const effectiveLayout = resolveEffectiveLayout(this.config.layout, this.viewport);
-    const weatherEntity = this.hass?.states ? Object.values(this.hass.states).find((e) => e.entity_id.startsWith('weather.')) : undefined;
+    const isSidebarLayout = this.config.layout === 'sidebar';
+    const weatherEntity = this.hass?.states
+      ? Object.values(this.hass.states).find((e) => e.entity_id.startsWith('weather.'))
+      : undefined;
 
     return html`
       <div class="homesmart-shell theme-${this.config.theme}" data-theme="${this.config.theme}">
@@ -425,8 +480,8 @@ export class HomeSmartPanel extends LitElement {
         ></homesmart-visual-editor-bar>
 
         <div class="app-layout">
-          <!-- Sidebar: Shown when in 'sidebar' layout OR 'auto' on tablet/desktop -->
-          ${effectiveLayout === 'sidebar'
+          <!-- Optional Left Sidebar (only when user explicitly chooses 'sidebar' layout) -->
+          ${isSidebarLayout
             ? html`
                 <homesmart-sidebar-nav
                   .areas="${areas}"
@@ -441,25 +496,31 @@ export class HomeSmartPanel extends LitElement {
             : ''}
 
           <!-- Main Content Viewport -->
-          <main class="main-content ${this.viewport.device}">
-            ${this.renderLayoutView(effectiveLayout, areas)}
+          <main class="main-content ${isSidebarLayout ? 'sidebar-layout' : ''} ${this.viewport.device}">
+            ${isSidebarLayout
+              ? this.renderSidebarMainContent(areas)
+              : this.renderDeckApp(areas, summary, weatherEntity)}
           </main>
         </div>
 
-        <!-- Phone Bottom Bar: Shown when on phone in non-sidebar mode -->
-        ${this.viewport.device === 'phone' && effectiveLayout !== 'sidebar'
+        <!-- Floating Bottom Capsule Dock (HomeDeck Pro Style) -->
+        ${!isSidebarLayout
           ? html`
-              <homesmart-sidebar-nav
-                .areas="${areas}"
-                .selectedAreaId="${this.selectedAreaId}"
-                .device="${this.viewport.device}"
-                .locale="${this.config.locale}"
-                .lightsOn="${summary.lightsOn}"
-                .totalActive="${summary.totalActive}"
+              <homesmart-floating-dock
+                .activeTab="${this.currentDockTab}"
                 .editMode="${this.editMode}"
-              ></homesmart-sidebar-nav>
+                .locale="${this.config.locale}"
+              ></homesmart-floating-dock>
             `
           : ''}
+
+        <!-- Room Detail Slide Sheet -->
+        <homesmart-room-detail-sheet
+          .hass="${this.hass}"
+          .area="${this.selectedDetailArea}"
+          .open="${this.roomDetailOpen}"
+          .locale="${this.config.locale}"
+        ></homesmart-room-detail-sheet>
 
         <!-- Security Protected Confirmation Modal -->
         <homesmart-confirm-dialog
@@ -482,91 +543,222 @@ export class HomeSmartPanel extends LitElement {
     `;
   }
 
-  private renderLayoutView(layout: LayoutMode, areas: DiscoveredArea[]) {
-    switch (layout) {
-      case 'tv':
-        return this.renderTvLayout(areas);
-      case 'focus':
-        return this.renderFocusLayout(areas);
-      case 'grid':
-        return this.renderGridLayout(areas);
-      case 'sidebar':
+  /**
+   * HomeDeck Pro Layout View
+   */
+  private renderDeckApp(
+    areas: DiscoveredArea[],
+    summary: { lightsOn: number; totalActive: number },
+    weatherEntity?: any
+  ) {
+    switch (this.currentDockTab) {
+      case 'rooms':
+        return this.renderRoomsTabView(areas);
+      case 'media':
+        return this.renderMediaTabView(areas);
+      case 'security':
+        return this.renderSecurityTabView(areas);
+      case 'home':
       default:
-        return this.renderSidebarMainContent(areas);
+        return this.renderHomeDeckView(areas, summary, weatherEntity);
     }
   }
 
   /**
-   * TV Console (10-Foot UI) Layout
+   * Tab 1: Home View (Deck Carousel + Hero Header)
    */
-  private renderTvLayout(areas: DiscoveredArea[]) {
-    const activeArea =
-      areas.find((a) => a.id === this.selectedAreaId) || areas[0] || null;
+  private renderHomeDeckView(
+    areas: DiscoveredArea[],
+    summary: { lightsOn: number; totalActive: number },
+    weatherEntity?: any
+  ) {
+    // Find primary media/TV device to feature on home deck
+    let heroDevice: DiscoveredEntity | null = null;
+    for (const area of areas) {
+      for (const ent of area.entities) {
+        if (ent.domain === 'media_player') {
+          heroDevice = ent;
+          break;
+        }
+      }
+      if (heroDevice) break;
+    }
 
     return html`
-      <div class="tv-header">
+      <!-- Top Hero Header -->
+      <homesmart-hero-header
+        .hass="${this.hass}"
+        .locale="${this.config.locale}"
+        .lightsOnCount="${summary.lightsOn}"
+        .weatherEntity="${weatherEntity}"
+      ></homesmart-hero-header>
+
+      <!-- Horizontal Deck Cards Row (HomeDeck Style) -->
+      <div class="deck-scroll-container">
+        <!-- Room Cards -->
         ${areas.map(
           (area) => html`
-            <button
-              class="tv-tab-item ${activeArea?.id === area.id ? 'active' : ''}"
-              @click="${() => (this.selectedAreaId = area.id)}"
-            >
-              ${renderIcon(area.icon, 22)}
-              <span>${area.name}</span>
-            </button>
-          `
-        )}
-      </div>
-
-      ${activeArea ? this.renderAreaBentoGrid(activeArea) : html`<div class="empty-notice">${t('no_entities', this.config.locale)}</div>`}
-    `;
-  }
-
-  /**
-   * Focus Mode Layout (Single Room with Top Tab Switcher)
-   */
-  private renderFocusLayout(areas: DiscoveredArea[]) {
-    const activeArea =
-      areas.find((a) => a.id === this.selectedAreaId) || areas[0] || null;
-
-    return html`
-      <div class="focus-header">
-        ${areas.map(
-          (area) => html`
-            <button
-              class="focus-tab ${activeArea?.id === area.id ? 'active' : ''}"
-              @click="${() => (this.selectedAreaId = area.id)}"
-            >
-              ${renderIcon(area.icon, 16)}
-              <span>${area.name}</span>
-            </button>
-          `
-        )}
-      </div>
-
-      ${activeArea ? this.renderAreaBentoGrid(activeArea) : html`<div class="empty-notice">${t('no_entities', this.config.locale)}</div>`}
-    `;
-  }
-
-  /**
-   * Grid Mode Layout (All Areas stacked in Bento groups)
-   */
-  private renderGridLayout(areas: DiscoveredArea[]) {
-    return html`
-      ${areas.map(
-        (area) => html`
-          <section class="grid-area-section">
-            <div class="area-title-bar">
-              <div class="area-heading">
-                ${renderIcon(area.icon, 26)}
-                <span class="area-title-text">${area.name}</span>
-              </div>
-              <span class="area-count-chip">${area.entities.length}</span>
+            <div class="deck-card-wrapper">
+              <homesmart-deck-room-card
+                .hass="${this.hass}"
+                .area="${area}"
+                .locale="${this.config.locale}"
+              ></homesmart-deck-room-card>
             </div>
-            ${this.renderAreaBentoGrid(area)}
-          </section>
-        `
-      )}
+          `
+        )}
+
+        <!-- Security Deck Card -->
+        <div class="deck-card-wrapper">
+          <homesmart-deck-security-card
+            .hass="${this.hass}"
+            .areas="${areas}"
+            .locale="${this.config.locale}"
+          ></homesmart-deck-security-card>
+        </div>
+
+        <!-- Featured TV / Primary Device Deck Card -->
+        ${heroDevice
+          ? html`
+              <div class="deck-card-wrapper">
+                <homesmart-deck-device-card
+                  .hass="${this.hass}"
+                  .entity="${heroDevice}"
+                  .locale="${this.config.locale}"
+                ></homesmart-deck-device-card>
+              </div>
+            `
+          : ''}
+      </div>
+    `;
+  }
+
+  /**
+   * Tab 2: Rooms View (Full Grid of All Rooms)
+   */
+  private renderRoomsTabView(areas: DiscoveredArea[]) {
+    return html`
+      <div class="tab-view-container">
+        <h2 class="section-heading">
+          ${renderIcon('devices', 24)}
+          <span>${t('tab_rooms', this.config.locale)}</span>
+        </h2>
+
+        ${areas.map(
+          (area) => html`
+            <section class="grid-area-section">
+              <div class="area-title-bar">
+                <div class="area-heading">
+                  ${renderIcon(area.icon, 24)}
+                  <span class="area-title-text">${area.name}</span>
+                </div>
+                <span class="area-count-chip">${area.entities.length}</span>
+              </div>
+              ${this.renderAreaBentoGrid(area)}
+            </section>
+          `
+        )}
+      </div>
+    `;
+  }
+
+  /**
+   * Tab 3: Media & Entertainment View
+   */
+  private renderMediaTabView(areas: DiscoveredArea[]) {
+    const mediaEntities: DiscoveredEntity[] = [];
+    for (const a of areas) {
+      for (const e of a.entities) {
+        if (e.domain === 'media_player') {
+          mediaEntities.push(e);
+        }
+      }
+    }
+
+    return html`
+      <div class="tab-view-container">
+        <h2 class="section-heading">
+          ${renderIcon('television-ambient-light', 24)}
+          <span>${t('tab_media', this.config.locale)}</span>
+        </h2>
+
+        ${mediaEntities.length > 0
+          ? html`
+              <div class="bento-grid">
+                ${mediaEntities.map(
+                  (entity) => html`
+                    <div class="card-item size-2x2">
+                      <homesmart-card-2x2-media-cam
+                        .hass="${this.hass}"
+                        .entity="${entity}"
+                        .editMode="${this.editMode}"
+                        .locale="${this.config.locale}"
+                      ></homesmart-card-2x2-media-cam>
+                    </div>
+                  `
+                )}
+              </div>
+            `
+          : html`<div class="empty-notice">${t('no_entities', this.config.locale)}</div>`}
+      </div>
+    `;
+  }
+
+  /**
+   * Tab 4: Security View
+   */
+  private renderSecurityTabView(areas: DiscoveredArea[]) {
+    const securityEntities: DiscoveredEntity[] = [];
+    for (const a of areas) {
+      for (const e of a.entities) {
+        if (
+          e.domain === 'lock' ||
+          e.domain === 'camera' ||
+          e.domain === 'binary_sensor' ||
+          (e.domain === 'cover' && e.entity_id.includes('gara'))
+        ) {
+          securityEntities.push(e);
+        }
+      }
+    }
+
+    return html`
+      <div class="tab-view-container">
+        <h2 class="section-heading">
+          ${renderIcon('shield-check', 24)}
+          <span>${t('tab_security', this.config.locale)}</span>
+        </h2>
+
+        ${securityEntities.length > 0
+          ? html`
+              <div class="bento-grid">
+                ${securityEntities.map(
+                  (entity) => html`
+                    <div class="card-item size-${entity.size}">
+                      ${entity.domain === 'camera'
+                        ? html`
+                            <homesmart-card-2x2-media-cam
+                              .hass="${this.hass}"
+                              .entity="${entity}"
+                              .editMode="${this.editMode}"
+                              .locale="${this.config.locale}"
+                            ></homesmart-card-2x2-media-cam>
+                          `
+                        : html`
+                            <homesmart-card-1x1
+                              .hass="${this.hass}"
+                              .entity="${entity}"
+                              .editMode="${this.editMode}"
+                              .locale="${this.config.locale}"
+                            ></homesmart-card-1x1>
+                          `}
+                    </div>
+                  `
+                )}
+              </div>
+            `
+          : html`<div class="empty-notice">${t('no_entities', this.config.locale)}</div>`}
+      </div>
     `;
   }
 
@@ -575,8 +767,22 @@ export class HomeSmartPanel extends LitElement {
    */
   private renderSidebarMainContent(areas: DiscoveredArea[]) {
     if (this.selectedAreaId === '') {
-      // Show All Areas stacked
-      return this.renderGridLayout(areas);
+      return html`
+        ${areas.map(
+          (area) => html`
+            <section class="grid-area-section">
+              <div class="area-title-bar">
+                <div class="area-heading">
+                  ${renderIcon(area.icon, 26)}
+                  <span class="area-title-text">${area.name}</span>
+                </div>
+                <span class="area-count-chip">${area.entities.length}</span>
+              </div>
+              ${this.renderAreaBentoGrid(area)}
+            </section>
+          `
+        )}
+      `;
     }
 
     const currentArea = areas.find((a) => a.id === this.selectedAreaId);

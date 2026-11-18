@@ -84,9 +84,18 @@ export interface HomeAssistant {
   themes?: any;
 }
 
-export type ThemeId = 'aurora' | 'ocean' | 'wine' | 'graphite' | 'emerald' | 'sunset';
+export type ThemeId = 'midnight' | 'aurora' | 'ocean' | 'wine' | 'graphite' | 'emerald' | 'sunset';
 
-export type LayoutMode = 'auto' | 'sidebar' | 'focus' | 'grid' | 'tv';
+export type LayoutMode = 'auto' | 'sidebar' | 'focus' | 'grid' | 'tv' | 'deck';
+
+export type DockTabId = 'home' | 'rooms' | 'media' | 'security';
+
+export interface QuickScene {
+  id: string;
+  name: string;
+  icon: string;
+  entity_id?: string;
+}
 
 export type CardSize = '1x1' | '2x1' | '2x2';
 

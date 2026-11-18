@@ -352,6 +352,21 @@ export class MockHassMachine {
   }
 
   public async callService(domain: string, service: string, serviceData?: Record<string, any>): Promise<any> {
+    if (domain === 'scene') {
+      const sceneId = serviceData?.entity_id || '';
+      if (sceneId.includes('away') || sceneId.includes('sleep')) {
+        for (const [id, ent] of Object.entries(this.states)) {
+          if (id.startsWith('light.')) ent.state = 'off';
+        }
+      } else if (sceneId.includes('home')) {
+        for (const [id, ent] of Object.entries(this.states)) {
+          if (id.startsWith('light.')) ent.state = 'on';
+        }
+      }
+      this.notify();
+      return { success: true };
+    }
+
     const entityId = serviceData?.entity_id;
     if (!entityId || !this.states[entityId]) return;
 
