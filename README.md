@@ -137,7 +137,7 @@ homesmart/
 ### Method 1: Via HACS (Recommended)
 1. Open **HACS** in your Home Assistant sidebar.
 2. Click **Integrations** > Three dots in top right > **Custom repositories**.
-3. Paste repository URL: `https://github.com/homesmart/homesmart`.
+3. Paste repository URL: `https://github.com/mrtlcs/HomeSmart`.
 4. Category: **Integration**. Click **Add**.
 5. Find **HomeSmart**, click **Download**, and restart Home Assistant.
 6. Go to **Settings** > **Devices & Services** > **Add Integration** > Search **HomeSmart**.
