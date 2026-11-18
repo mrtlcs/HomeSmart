@@ -1,5 +1,5 @@
 /**
- * HomeSmart - HomeDeck Pro Floating Capsule Dock & Edit FAB
+ * HomeSmart - Floating Capsule Dock & Edit FAB
  * Centered floating pill dock with smooth active slider and bottom-right edit button
  */
 

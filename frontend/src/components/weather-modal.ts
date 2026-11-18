@@ -1,6 +1,6 @@
 /**
  * HomeSmart - Weather Forecast Modal Component
- * Replicates the Apple Weather / HomeDeck Pro frosted glass modal
+ * Frosted glass weather forecast popover modal
  * Features:
  * - Current weather hero with big temp, icon, condition, High/Low
  * - Metric chips: Humidity, Wind, Sunrise, Sunset

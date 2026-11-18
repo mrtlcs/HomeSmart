@@ -78,7 +78,7 @@ export function resolveEffectiveLayout(
     return configuredLayout;
   }
 
-  // When 'auto' is selected, choose HomeDeck Pro deck layout by default
+  // When 'auto' is selected, choose HomeSmart deck layout by default
   if (metrics.isTV) {
     return 'tv';
   }

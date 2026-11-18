@@ -1,6 +1,6 @@
 /**
  * HomeSmart - Main Dashboard Panel Custom Element <homesmart-panel>
- * Inspired by Steam Deck / Console UI and HomeDeck Pro
+ * Independent Console & Glassmorphic Dashboard Panel
  */
 
 import { css, html, LitElement } from 'lit';
@@ -135,7 +135,7 @@ export class HomeSmartPanel extends LitElement {
         padding-bottom: 40px;
       }
 
-      /* HomeDeck Pro Deck Cards Container */
+      /* Deck Cards Container */
       .deck-scroll-container {
         display: flex;
         align-items: stretch;
@@ -268,7 +268,7 @@ export class HomeSmartPanel extends LitElement {
         font-size: 15px;
       }
 
-      /* HomeDeck Pro Rooms View: Two-Column Sidebar & Grid */
+      /* Rooms View: Two-Column Sidebar & Grid */
       .rooms-workspace {
         display: flex;
         width: 100%;
@@ -708,7 +708,7 @@ export class HomeSmartPanel extends LitElement {
           </main>
         </div>
 
-        <!-- Floating Bottom Capsule Dock (HomeDeck Pro Style) -->
+        <!-- Floating Bottom Capsule Dock -->
         ${!isSidebarLayout
           ? html`
               <homesmart-floating-dock
@@ -758,7 +758,7 @@ export class HomeSmartPanel extends LitElement {
   }
 
   /**
-   * HomeDeck Pro Layout View
+   * HomeSmart Deck Layout View
    */
   private renderDeckApp(
     areas: DiscoveredArea[],
@@ -774,14 +774,14 @@ export class HomeSmartPanel extends LitElement {
         return this.renderSecurityTabView(areas);
       case 'home':
       default:
-        return this.renderHomeDeckView(areas, summary, weatherEntity);
+        return this.renderHomeView(areas, summary, weatherEntity);
     }
   }
 
   /**
    * Tab 1: Home View (Deck Carousel + Hero Header)
    */
-  private renderHomeDeckView(
+  private renderHomeView(
     areas: DiscoveredArea[],
     summary: { lightsOn: number; totalActive: number },
     weatherEntity?: any
@@ -807,7 +807,7 @@ export class HomeSmartPanel extends LitElement {
         .weatherEntity="${weatherEntity}"
       ></homesmart-hero-header>
 
-      <!-- Horizontal Deck Cards Row (HomeDeck Style) -->
+      <!-- Horizontal Deck Cards Row -->
       <div class="deck-scroll-container">
         <!-- Room Cards -->
         ${areas.map(
@@ -848,7 +848,7 @@ export class HomeSmartPanel extends LitElement {
   }
 
   /**
-   * Tab 2: Rooms View (HomeDeck Pro Two-Column Layout)
+   * Tab 2: Rooms View (Two-Column Layout)
    * Left: Date & Time, Vertical Room Pills
    * Right: Room Eyebrow Status, Big Room Title, Squircle Device Grid
    */

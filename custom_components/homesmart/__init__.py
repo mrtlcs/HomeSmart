@@ -64,12 +64,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         )
 
     # Read manifest version for cache busting
-    manifest_version = "1.2.1"
+    manifest_version = "1.2.3"
     try:
         import json
         manifest_file = Path(__file__).parent / "manifest.json"
         with open(manifest_file, encoding="utf-8") as f:
-            manifest_version = json.load(f).get("version", "1.2.1")
+            manifest_version = json.load(f).get("version", "1.2.3")
     except Exception:
         pass
 

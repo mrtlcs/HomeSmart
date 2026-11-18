@@ -1,5 +1,5 @@
 /**
- * HomeSmart - HomeDeck Pro Tall Security Card Component
+ * HomeSmart - Tall Security Card Component
  * Displays system-wide security overview with monitored items count
  */
 

@@ -1,6 +1,6 @@
 /**
  * HomeSmart - Glassmorphism Themes & Typography CSS
- * Enhanced with HomeDeck Pro Midnight Blue & Atmospheric Spotlight
+ * Enhanced with Midnight Blue & Atmospheric Spotlight
  */
 
 import { css } from 'lit';
@@ -33,7 +33,7 @@ export const themeStyles = css`
   }
 
   /* ========================================================
-     THEME 0: MIDNIGHT DECK (HOMEDECK PRO EXACT INSPIRATION)
+     THEME 0: MIDNIGHT DECK (SIGNATURE DEEP NAVY)
      Deep Navy / Sapphire with Right Atmospheric Soft Spotlight
      ======================================================== */
   :host([data-theme='midnight']),

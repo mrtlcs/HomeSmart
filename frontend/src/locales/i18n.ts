@@ -16,7 +16,7 @@ export const translations = {
     no_entities: 'Không tìm thấy thiết bị nào trong khu vực này.',
     tap_to_wake: 'Chạm màn hình hoặc nhấn phím bất kỳ để đánh thức',
 
-    // HomeDeck Pro Hero Header
+    // Hero Header
     home_status: 'TRẠNG THÁI NHÀ',
     lights_on_at_home: 'đèn đang bật trong nhà',
     all_lights_off: 'Tất cả đèn đang tắt',
@@ -94,7 +94,7 @@ export const translations = {
     map: 'Bản đồ',
 
     // Themes
-    theme_midnight: 'Midnight Deck (Chuẩn HomeDeck)',
+    theme_midnight: 'Midnight Deck (Tối Giản)',
     theme_aurora: 'Bắc Cực Quang (Aurora)',
     theme_ocean: 'Đại Dương Xanh (Ocean)',
     theme_wine: 'Rượu Vang Đỏ (Wine)',
@@ -108,7 +108,7 @@ export const translations = {
     layout_focus: 'Tập trung (Focus)',
     layout_grid: 'Lưới Bento cân xứng',
     layout_tv: 'Màn hình TV (10-Foot UI)',
-    layout_deck: 'HomeDeck Thẻ Dọc',
+    layout_deck: 'Thẻ Dọc (Deck View)',
 
     // Visual Editor
     visual_editor: 'Tùy Biến Giao Diện',
@@ -154,7 +154,7 @@ export const translations = {
     no_entities: 'No devices found in this area.',
     tap_to_wake: 'Tap screen or press any key to wake',
 
-    // HomeDeck Pro Hero Header
+    // Hero Header
     home_status: 'HOME STATUS',
     lights_on_at_home: 'lights on at home',
     all_lights_off: 'All lights are off',
@@ -232,7 +232,7 @@ export const translations = {
     map: 'Map',
 
     // Themes
-    theme_midnight: 'Midnight Deck (HomeDeck Style)',
+    theme_midnight: 'Midnight Deck (Minimalist)',
     theme_aurora: 'Aurora Borealis',
     theme_ocean: 'Deep Ocean',
     theme_wine: 'Ruby Wine',
@@ -246,7 +246,7 @@ export const translations = {
     layout_focus: 'Focus Mode',
     layout_grid: 'Bento Grid',
     layout_tv: 'TV Console (10-Foot UI)',
-    layout_deck: 'HomeDeck Tall Cards',
+    layout_deck: 'Deck View (Tall Cards)',
 
     // Visual Editor
     visual_editor: 'Visual Customizer',

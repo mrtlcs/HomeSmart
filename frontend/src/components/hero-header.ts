@@ -1,5 +1,5 @@
 /**
- * HomeSmart - HomeDeck Pro Hero Header Component
+ * HomeSmart - Hero Header Component
  * Clock, Date, Live Home Status, Quick Scenes & Master Action Toggles
  */
 

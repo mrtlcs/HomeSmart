@@ -24,7 +24,7 @@ export class MockHassMachine {
   }
 
   private initMockData(): void {
-    // 1. Vietnamese Areas (HomeDeck Pro Authentic Demo)
+    // 1. Vietnamese Areas
     this.areas = {
       bep: {
         area_id: 'bep',
@@ -55,7 +55,7 @@ export class MockHassMachine {
 
     // 2. Mock States
     this.states = {
-      // --- Phòng Khách (Matching HomeDeck Pro Rooms View Screenshot) ---
+      // --- Phòng Khách ---
       'cover.man_ru_1': {
         entity_id: 'cover.man_ru_1',
         state: 'open',
@@ -394,7 +394,7 @@ export class MockHassMachine {
         },
       },
 
-      // --- Weather (Matching HomeDeck Pro Weather Forecast Screenshot) ---
+      // --- Weather ---
       'weather.nha': {
         entity_id: 'weather.nha',
         state: 'rainy',

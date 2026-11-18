@@ -29,7 +29,7 @@ class HomeSmartStorage:
                 # Deep merge defaults with stored data to ensure newly added keys are present
                 merged = dict(DEFAULT_CONFIG)
                 merged.update(stored)
-                # Auto-migrate legacy layout from v1.0.0 ('auto' or 'sidebar') to 'deck' (HomeDeck Pro style)
+                # Auto-migrate legacy layout from v1.0.0 ('auto' or 'sidebar') to 'deck' (HomeSmart Deck style)
                 if merged.get("layout") in ("auto", "sidebar", None):
                     merged["layout"] = DEFAULT_CONFIG["layout"]
                 if "screensaver" in stored and isinstance(stored["screensaver"], dict):

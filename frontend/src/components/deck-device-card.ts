@@ -1,5 +1,5 @@
 /**
- * HomeSmart - HomeDeck Pro Tall Device Card Component (TV / Primary Switch)
+ * HomeSmart - Tall Device Card Component (TV / Primary Switch)
  * Features iconic centered circular power toggle and bottom device label
  */
 

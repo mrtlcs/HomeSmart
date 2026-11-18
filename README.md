@@ -1,18 +1,18 @@
 # HomeSmart 🏠✨
 
 > **Commercial-Grade, Zero-YAML Dashboard Panel for Home Assistant**  
-> *Inspired by Steam Deck / Console UI & HomeDeck Pro — 100% Free & Open-Source.*
+> *Modern Glassmorphic & Console UI — 100% Free & Open-Source.*
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-1.0.0-emerald.svg)]()
+[![Version](https://img.shields.io/badge/Version-1.2.3-emerald.svg)]()
 [![HA Version](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg)]()
 
 ---
 
 ## 🌟 Overview
 
-**HomeSmart** (`domain: homesmart`) is a standalone custom panel integration for Home Assistant designed from the ground up for modern smart homes. It brings the sleek, glassmorphic aesthetic of gaming consoles (Steam Deck, PlayStation 5 UI) and premium commercial dashboard systems directly into Home Assistant — **with zero YAML configuration, zero paywalls, and unlimited areas & devices.**
+**HomeSmart** (`domain: homesmart`) is a standalone custom panel integration for Home Assistant designed from the ground up for modern smart homes. It brings sleek, glassmorphic aesthetics and high-performance tactile interfaces directly into Home Assistant — **with zero YAML configuration, zero paywalls, and unlimited areas & devices.**
 
 Whether viewed on a **Wall-Mounted Tablet**, a **Smartphone**, a **Desktop Command Center**, or an **Android TV with Remote D-Pad Navigation**, HomeSmart automatically adapts its Bento grid layout, font math, and interaction zones.
 

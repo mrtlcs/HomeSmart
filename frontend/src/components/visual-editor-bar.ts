@@ -190,7 +190,7 @@ export class HomeSmartVisualEditorBar extends LitElement {
 
     const layouts: { id: LayoutMode; label: string }[] = [
       { id: 'auto', label: 'Auto' },
-      { id: 'deck', label: 'HomeDeck' },
+      { id: 'deck', label: 'Deck' },
       { id: 'sidebar', label: 'Sidebar' },
       { id: 'focus', label: 'Focus' },
       { id: 'grid', label: 'Grid' },

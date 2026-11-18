@@ -1,5 +1,5 @@
 /**
- * HomeSmart - HomeDeck Pro Tall Room Card Component
+ * HomeSmart - Tall Room Card Component
  * Tall rounded rectangular deck card with icon, status, and room details trigger
  */
 

@@ -1,5 +1,5 @@
 /**
- * HomeSmart - Squircle Device Card Component (HomeDeck Pro Rooms View Style)
+ * HomeSmart - Squircle Device Card Component
  * Compact 1:1 squircle device card (~135px x 135px) with:
  * - Cover 3-button pill [^] [▢] [v]
  * - Vacuum 2-button pill [▶] [🏠]
