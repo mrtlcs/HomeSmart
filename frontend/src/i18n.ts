@@ -1261,6 +1261,8 @@ const addedMessages: Record<string, Record<string, string>> = {
     keepAwakeAuto: "Automatic (Echo Show)",
     keepAwakeOn: "Always",
     keepAwakeOff: "Off",
+    language: "Language",
+    deviceCatLanguage: "Language",
     deviceLanguage: "Interface language",
     deviceLanguageDescription: "Select language for this device or automatically match Home Assistant.",
     languageAuto: "Auto",

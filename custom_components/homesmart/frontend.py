@@ -56,7 +56,7 @@ async def async_register_frontend(hass: HomeAssistant) -> None:
         domain_data[_STATIC_REGISTERED] = True
 
     if _panel_exists(hass):
-        return
+        frontend.async_remove_panel(hass, PANEL_PATH)
 
     tag = await hass.async_add_executor_job(_bundle_tag, frontend_dir / "homesmart-panel.js")
     await panel_custom.async_register_panel(

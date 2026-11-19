@@ -705,6 +705,8 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
   const spotify = Object.values(hass.states).find((state) => state.entity_id.startsWith("media_player.") && (state.entity_id.includes("spotify") || state.attributes.source === "Spotify" || String(state.attributes.friendly_name ?? "").toLowerCase().includes("spotify")));
   const sources = Array.isArray(spotify?.attributes.source_list) ? spotify.attributes.source_list.map(String) : [];
   return <>
+    <h3 className="st-category">{t("language")}</h3>
+    <Row description={t("deviceLanguageDescription")} label={t("deviceLanguage")}><HDSegmented ariaLabel={t("deviceLanguage")} onChange={(val) => setDeviceLanguage(val as "auto" | "vi" | "en")} options={[{ value: "auto", label: t("languageAuto") }, { value: "vi", label: "Tiếng Việt" }, { value: "en", label: "English" }]} value={devLang} /></Row>
     <h3 className="st-category">{t("deviceCatLook")}</h3>
     <Row description={t("deviceLayoutDescription")} label={t("deviceLayout")}><HDSelect ariaLabel={t("deviceLayout")} onChange={setDeviceViewMode} options={[{ value: "", label: t("useGeneral"), thumb: layoutThumb(general) }, ...VIEW_MODES.map((mode) => ({ value: mode.id, label: `${t(mode.name)}${pro_(FREE_VIEW_MODES.includes(mode.id))}`, thumb: layoutThumb(mode.id) }))]} value={view} /></Row>
     {kids
@@ -712,7 +714,6 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
       : <Row label={t("deviceBackground")}><HDSelect ariaLabel={t("deviceBackground")} onChange={setDeviceBackground} options={[{ value: "", label: t("useGeneral"), thumb: backgroundThumb(generalBackground) }, ...BACKGROUNDS.map(([preset, label]) => ({ value: preset, label: `${t(label)}${pro_(FREE_BACKGROUNDS.includes(preset))}`, thumb: backgroundThumb(preset) }))]} value={background} /></Row>}
     <TextSizeRow t={t} value={textSize} />
     <Row description={t("deviceUiSizeDescription")} label={t("deviceUiSize")}><HDSegmented ariaLabel={t("deviceUiSize")} onChange={(size) => setUiSize(size as SizeChoice)} options={sizes} value={interfaceSize} /></Row>
-    <Row description={t("deviceLanguageDescription")} label={t("deviceLanguage")}><HDSegmented ariaLabel={t("deviceLanguage")} onChange={(val) => setDeviceLanguage(val as "auto" | "vi" | "en")} options={[{ value: "auto", label: t("languageAuto") }, { value: "vi", label: "Tiếng Việt" }, { value: "en", label: "English" }]} value={devLang} /></Row>
     <h3 className="st-category">{t("deviceCatMotion")}</h3>
     <Row description={t("motionUiDescription")} label={t("motionUi")}><Switch checked={motion.ui} label={t("motionUi")} onChange={(ui) => setMotion({ ui })} /></Row>
     <Row description={t("animationsDescription")} label={t("motionCards")}>{pro ? <Switch checked={motion.cards} label={t("motionCards")} onChange={(cards) => setMotion({ cards })} /> : <button className="hd-pill" onClick={onUpsell} type="button"><HDIcon name="lock" size={14} />Pro</button>}</Row>
