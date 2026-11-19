@@ -615,7 +615,12 @@ def normalize_config(value: Any) -> homesmartConfig:
     if not isinstance(value, dict):
         return config
 
-    config["onboarding_complete"] = bool(value.get("onboarding_complete", False))
+    if "onboarding_complete" in value:
+        config["onboarding_complete"] = bool(value["onboarding_complete"])
+    elif any(k in value for k in ("theme", "layout", "custom_cards", "hidden_entities", "area_order", "selected_rooms")):
+        config["onboarding_complete"] = True
+    else:
+        config["onboarding_complete"] = False
 
     accent_color = value.get("accent_color")
     if isinstance(accent_color, str) and re.fullmatch(r"#[0-9a-fA-F]{6}", accent_color):

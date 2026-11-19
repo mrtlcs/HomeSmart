@@ -89,10 +89,17 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const load = useCallback(async () => {
     setError(false);
     try {
-      const [discovery, savedConfig] = await Promise.all([discoverRooms(hass), getConfig(hass)]);
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error("Timeout waiting for HomeSmart data")), 8000);
+      });
+      const [discovery, savedConfig] = await Promise.race([
+        Promise.all([discoverRooms(hass), getConfig(hass)]),
+        timeoutPromise,
+      ]);
       setData(discovery);
       setConfig(savedConfig);
-    } catch {
+    } catch (err) {
+      console.error("[HomeSmart] Load error:", err);
       setError(true);
     }
     try {
@@ -368,6 +375,14 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
       <main className="screen center-state">
         <span className="loader-mark"><HDIcon name="home" size={26} /></span>
         <p>{t("loading")}</p>
+        <button
+          className="secondary-button"
+          style={{ marginTop: 20, opacity: 0.85 }}
+          onClick={() => void load()}
+          type="button"
+        >
+          <HDIcon name="refresh" size={16} /> {t("refresh")}
+        </button>
       </main>
     );
   }

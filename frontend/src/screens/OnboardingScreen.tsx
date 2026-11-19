@@ -36,19 +36,23 @@ function PreviewChoice({ checked, icon, label, value, onChange }: { checked: boo
 function Toggle({ checked, description, label, onChange }: { checked: boolean; description?: string; label: string; onChange: (checked: boolean) => void }) { return <label className={description ? "onboarding-toggle onboarding-toggle--described" : "onboarding-toggle"}><span>{label}{description && <small>{description}</small>}</span><input checked={checked} onChange={(event) => onChange(event.target.checked)} type="checkbox" /></label>; }
 
 export function OnboardingScreen({ config, data, hass, onComplete, t }: OnboardingScreenProps) {
-  const initialRooms = useMemo(() => config.selected_rooms.length > 0 ? config.selected_rooms : data.rooms.map((room) => room.id), [config.selected_rooms, data.rooms]);
+  const initialRooms = useMemo(() => (Array.isArray(config.selected_rooms) && config.selected_rooms.length > 0) ? config.selected_rooms : (data?.rooms ?? []).map((room) => room.id), [config.selected_rooms, data?.rooms]);
   const weatherEntities = useMemo(() => Object.values(hass.states).filter((state) => state.entity_id.startsWith("weather.") && !["unknown", "unavailable"].includes(state.state)), [hass.states]);
   const [step, setStep] = useState(0);
   const [selectedRooms, setSelectedRooms] = useState(initialRooms);
-  const [accentColor, setAccentColor] = useState(config.accent_color);
-  const [background, setBackground] = useState(config.background);
-  const [home, setHome] = useState(config.home);
-  const [globalActions, setGlobalActions] = useState(config.global_actions);
-  const [weather, setWeather] = useState(() => ({ ...config.weather, entity_id: config.weather.entity_id === "auto" || weatherEntities.some((entity) => entity.entity_id === config.weather.entity_id) ? config.weather.entity_id : "auto" }));
-  const [navigation, setNavigation] = useState(config.navigation);
-  const [viewMode, setViewMode] = useState(config.view_mode);
+  const [accentColor, setAccentColor] = useState(config.accent_color ?? "#f4edd9");
+  const [background, setBackground] = useState(config.background ?? { preset: "adaptive_ember" as const, animated: true, include_devices: true });
+  const [home, setHome] = useState(config.home ?? { show_clock: true, show_weather: true, show_presence: true, ha_notifications: true, status_sensor: "", presence_people: [], badges: [] });
+  const [globalActions, setGlobalActions] = useState(config.global_actions ?? { lights_on: true, lights_off: true });
+  const [weather, setWeather] = useState(() => ({
+    ...(config.weather ?? {}),
+    entity_id: config.weather?.entity_id ?? "auto",
+    forecast_type: config.weather?.forecast_type ?? "daily",
+  }));
+  const [navigation, setNavigation] = useState(config.navigation ?? { rooms: true, scenes: true, media: true, security: true, cameras: true, plan: false });
+  const [viewMode, setViewMode] = useState(config.view_mode ?? "grid");
   const [kidsScene, setKidsScene] = useState(config.kids_background ?? "sky");
-  const [screensaver, setScreensaver] = useState(config.screensaver);
+  const [screensaver, setScreensaver] = useState(config.screensaver ?? { enabled: false, delay: 180 });
   // Choices kept on this device (like in Settings → Device): they apply right away.
   const [hideHaSidebar, setHideHaSidebar] = useState(hideSidebarPreferred);
   const awake = useDevicePref(keepAwakeMode);

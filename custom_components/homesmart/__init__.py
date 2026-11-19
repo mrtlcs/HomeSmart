@@ -23,6 +23,8 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up HomeSmart from a config entry."""
+    hass.data.setdefault(DOMAIN, {})
+    async_register_websocket_commands(hass)
     await async_load_config(hass)
     await async_register_frontend(hass)
     entry.async_on_unload(async_start_refresh(hass))

@@ -70,7 +70,7 @@ class HomeSmartPanel extends HTMLElement {
 
   private renderPanel() {
     if (!this._hass) return;
-    this.root.render(<App hass={this._hass} key={this._panel?.config?.version ?? "homesmart"} version={this._panel?.config?.version} />);
+    this.root.render(<App hass={this._hass} version={this._panel?.config?.version} />);
   }
 }
 

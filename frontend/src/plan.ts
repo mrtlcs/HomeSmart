@@ -47,7 +47,8 @@ export function isControllable(entity: Pick<DiscoveredEntity, "domain">): boolea
 
 export function selectedRoomIds(config: HomeSmartConfig, rooms: Room[]): string[] {
   const ids = rooms.map((room) => room.id);
-  const chosen = config.selected_rooms.filter((id) => ids.includes(id));
+  const selected = Array.isArray(config?.selected_rooms) ? config.selected_rooms : [];
+  const chosen = selected.filter((id) => ids.includes(id));
   return chosen.length > 0 ? chosen : ids;
 }
 

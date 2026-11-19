@@ -137,6 +137,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
   }));
   const [draft, setDraft] = useState<HomeSmartConfig>(initial);
   const [saving, setSaving] = useState(false);
+  const devLang = useDevicePref(deviceLanguage);
   // Every weather service, including those that are down, so a broken one can be seen and replaced.
   const weatherEntities = useMemo(() => Object.values(hass.states).filter((state) => state.entity_id.startsWith("weather.")), [hass.states]);
 
@@ -474,6 +475,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
 
         {section === "system" && <section className="st-panel">
           <h2>{t("sectionSystem")}</h2>
+          <Row description={t("deviceLanguageDescription")} label={t("language")}><HDSegmented ariaLabel={t("language")} onChange={(val) => setDeviceLanguage(val as "auto" | "vi" | "en")} options={[{ value: "auto", label: t("languageAuto") }, { value: "vi", label: "Tiếng Việt" }, { value: "en", label: "English" }]} value={devLang} /></Row>
           <Row description={t("reloadDevicesDescription")} label={t("reloadDevices")}><button className="hd-pill" onClick={onReload} type="button"><HDIcon name="refresh" size={16} />{t("refresh")}</button></Row>
           <BackupRows draft={draft} onImport={(imported) => setDraft((current) => ({ ...current, ...imported }))} t={t} version={version} />
           <Row description={t("restartSetupDescription")} label={t("restartSetup")}><button className="hd-pill" disabled={saving} onClick={() => void save({ ...draft, onboarding_complete: false }).then(onClose)} type="button">{t("restartSetup")}</button></Row>

@@ -9,6 +9,11 @@ export const EMPTY_ENERGY: HomeSmartConfig["energy"] = { consumption: "", grid_i
 function withDefaults(config: HomeSmartConfig): HomeSmartConfig {
   return {
     ...config,
+    onboarding_complete: config.onboarding_complete ?? true,
+    selected_rooms: config.selected_rooms ?? [],
+    favorites: config.favorites ?? [],
+    pages: config.pages ?? [],
+    accent_color: config.accent_color ?? "#f4edd9",
     layouts: config.layouts ?? {},
     rooms: config.rooms ?? {},
     names: config.names ?? {},
@@ -36,6 +41,51 @@ function withDefaults(config: HomeSmartConfig): HomeSmartConfig {
     doorbell: { enabled: false, trigger: "", camera: "", seconds: 60, ...(config.doorbell as Partial<HomeSmartConfig["doorbell"]> | undefined) },
     energy: { ...EMPTY_ENERGY, ...(config.energy as Partial<HomeSmartConfig["energy"]> | undefined) },
     agenda: { show_calendar: true, calendars: [], show_todo: true, todo_entity: "", todo_no_date: false, today_card: false, ...(config.agenda as Partial<HomeSmartConfig["agenda"]> | undefined) },
+    home: {
+      show_clock: true,
+      show_weather: true,
+      show_presence: true,
+      ha_notifications: true,
+      status_sensor: "",
+      presence_people: [],
+      badges: [],
+      ...(config.home as Partial<HomeSmartConfig["home"]> | undefined),
+    },
+    global_actions: {
+      lights_on: true,
+      lights_off: true,
+      ...(config.global_actions as Partial<HomeSmartConfig["global_actions"]> | undefined),
+    },
+    navigation: {
+      rooms: true,
+      scenes: true,
+      media: true,
+      security: true,
+      cameras: true,
+      plan: false,
+      ...(config.navigation as Partial<HomeSmartConfig["navigation"]> | undefined),
+    },
+    layout: {
+      density: "comfortable",
+      featured_room: null,
+      ...(config.layout as Partial<HomeSmartConfig["layout"]> | undefined),
+    },
+    background: {
+      preset: "adaptive_ember",
+      animated: true,
+      include_devices: true,
+      ...(config.background as Partial<HomeSmartConfig["background"]> | undefined),
+    },
+    weather: {
+      entity_id: "auto",
+      forecast_type: "daily",
+      ...(config.weather as Partial<HomeSmartConfig["weather"]> | undefined),
+    },
+    preferences: {
+      clock: "auto",
+      temperature_unit: "auto",
+      ...(config.preferences as Partial<HomeSmartConfig["preferences"]> | undefined),
+    },
   };
 }
 

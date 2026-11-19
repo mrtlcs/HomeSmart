@@ -47,7 +47,13 @@ def websocket_get_rooms(
     msg: dict[str, Any],
 ) -> None:
     """Return the normalized Areas -> Devices -> Entities model."""
-    connection.send_result(msg["id"], discover_home(hass))
+    try:
+        connection.send_result(msg["id"], discover_home(hass))
+    except Exception:
+        connection.send_result(
+            msg["id"],
+            {"version": "1.3.2", "rooms": [], "counts": {"rooms": 0, "devices": 0, "entities": 0}},
+        )
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/config"})
@@ -58,7 +64,11 @@ async def websocket_get_config(
     msg: dict[str, Any],
 ) -> None:
     """Return local homesmart configuration."""
-    connection.send_result(msg["id"], await async_load_config(hass))
+    try:
+        connection.send_result(msg["id"], await async_load_config(hass))
+    except Exception:
+        from .storage import normalize_config
+        connection.send_result(msg["id"], normalize_config({}))
 
 
 @websocket_api.websocket_command(
