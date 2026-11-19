@@ -1,76 +1,40 @@
-"""Constants for the HomeSmart integration."""
+"""Constants for HomeSmart."""
 
-DOMAIN = "homesmart"
-STORAGE_VERSION = 1
-STORAGE_KEY = f"{DOMAIN}.config"
+from typing import Final
 
-# Static frontend paths
-PANEL_URL = "homesmart"
-PANEL_TITLE = "HomeSmart"
-PANEL_ICON = "mdi:view-dashboard-variant"
-STATIC_PATH = "/homesmart_static"
-FRONTEND_FILE_NAME = "homesmart-panel.js"
+DOMAIN: Final = "homesmart"
+NAME: Final = "HomeSmart"
+VERSION: Final = "1.2.4"
 
-# WebSocket commands
-WS_TYPE_CONFIG_GET = "homesmart/config/get"
-WS_TYPE_CONFIG_SAVE = "homesmart/config/save"
+PANEL_URL: Final = "/homesmart_static"
+PANEL_PATH: Final = "homesmart"
+PANEL_TITLE: Final = "HomeSmart"
+PANEL_ICON: Final = "mdi:view-dashboard-variant"
+PANEL_ELEMENT: Final = "homesmart-panel"
 
-# Themes
-THEME_MIDNIGHT = "midnight"
-THEME_AURORA = "aurora"
-THEME_OCEAN = "ocean"
-THEME_WINE = "wine"
-THEME_GRAPHITE = "graphite"
-THEME_EMERALD = "emerald"
-THEME_SUNSET = "sunset"
-
-THEMES = [
-    THEME_MIDNIGHT,
-    THEME_AURORA,
-    THEME_OCEAN,
-    THEME_WINE,
-    THEME_GRAPHITE,
-    THEME_EMERALD,
-    THEME_SUNSET,
-]
-
-# Layout modes
-LAYOUT_AUTO = "auto"
-LAYOUT_SIDEBAR = "sidebar"
-LAYOUT_FOCUS = "focus"
-LAYOUT_GRID = "grid"
-LAYOUT_TV = "tv"
-LAYOUT_DECK = "deck"
-
-LAYOUTS = [
-    LAYOUT_AUTO,
-    LAYOUT_SIDEBAR,
-    LAYOUT_FOCUS,
-    LAYOUT_GRID,
-    LAYOUT_TV,
-    LAYOUT_DECK,
-]
-
-# Card sizes
-CARD_SIZE_1X1 = "1x1"
-CARD_SIZE_2X1 = "2x1"
-CARD_SIZE_2X2 = "2x2"
-
-# Default configuration dictionary
-DEFAULT_CONFIG = {
-    "version": 1,
-    "theme": THEME_MIDNIGHT,
-    "layout": LAYOUT_DECK,
-    "locale": "vi",
-    "screensaver": {
-        "enabled": True,
-        "timeout_seconds": 180,
-        "show_clock": True,
-        "show_weather": True,
-        "pixel_shift": True,
-    },
-    "custom_cards": {},
-    "hidden_entities": [],
-    "protected_entities": {},
-    "area_order": [],
+SUPPORTED_DOMAINS: Final = {
+    "alarm_control_panel",
+    "automation",
+    "binary_sensor",
+    "button",
+    "camera",
+    "climate",
+    "cover",
+    "fan",
+    "input_boolean",
+    "input_button",
+    "input_select",
+    "light",
+    "lock",
+    "media_player",
+    "plant",
+    "scene",
+    "script",
+    "select",
+    "sensor",
+    "switch",
+    "vacuum",
 }
+
+STORAGE_KEY: Final = "homesmart.config"
+STORAGE_VERSION: Final = 1

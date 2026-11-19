@@ -1,0 +1,101 @@
+export interface HassEntity {
+  entity_id: string;
+  state: string;
+  attributes: Record<string, unknown> & {
+    friendly_name?: string;
+    unit_of_measurement?: string;
+    brightness?: number;
+    color_mode?: string;
+    supported_color_modes?: string[];
+    rgb_color?: number[];
+    hs_color?: number[];
+    color_temp_kelvin?: number;
+    min_color_temp_kelvin?: number;
+    max_color_temp_kelvin?: number;
+    effect?: string;
+    effect_list?: string[];
+    temperature?: number;
+    current_temperature?: number;
+    media_title?: string;
+    media_artist?: string;
+    entity_picture?: string;
+    temperature_unit?: string;
+    forecast?: Array<Record<string, unknown>>;
+    hvac_action?: string;
+    hvac_modes?: string[];
+    min_temp?: number;
+    max_temp?: number;
+    target_temp_step?: number;
+    target_temp_high?: number;
+    target_temp_low?: number;
+    fan_modes?: string[];
+    fan_mode?: string;
+    preset_modes?: string[];
+    preset_mode?: string;
+    volume_level?: number;
+    percentage?: number;
+    percentage_step?: number;
+    current_position?: number;
+    device_class?: string;
+    supported_features?: number;
+    apparent_temperature?: number;
+    humidity?: number;
+    pressure?: number;
+    pressure_unit?: string;
+    precipitation_unit?: string;
+    wind_speed?: number;
+    wind_speed_unit?: string;
+    latitude?: number;
+    longitude?: number;
+  };
+  last_changed: string;
+  last_updated: string;
+}
+
+export interface HomeAssistant {
+  states: Record<string, HassEntity>;
+  /** Entity registry as the Home Assistant frontend keeps it (device of each entity). */
+  entities?: Record<string, { entity_id: string; device_id?: string | null }>;
+  /** Device registry as the Home Assistant frontend keeps it (vehicle cards list devices by name). */
+  devices?: Record<string, { id: string; name?: string | null; name_by_user?: string | null; manufacturer?: string | null; model?: string | null }>;
+  /** How Home Assistant shows its sidebar on this device. */
+  dockedSidebar?: "docked" | "always_hidden" | "auto";
+  /** The home's location, used for Open-Meteo when no weather entity works. */
+  config?: {
+    latitude?: number;
+    longitude?: number;
+    /** The home's country (ISO code, e.g. "BR"), for the special dates. */
+    country?: string;
+    /** The home's units (°C or °F, km or mi...), so Open-Meteo answers in the same ones. */
+    unit_system?: { temperature?: string; length?: string; wind_speed?: string };
+  };
+  locale?: {
+    language?: string;
+    /** The profile's time format: "12", "24", "language" or "system". */
+    time_format?: string;
+  };
+  language?: string;
+  /** Who is using this panel. */
+  user?: { id: string; name?: string; is_admin?: boolean };
+  /** REST call through Home Assistant (calendar events). */
+  callApi?<T>(method: "GET" | "POST", path: string): Promise<T>;
+  connection: {
+    sendMessagePromise<T>(message: Record<string, unknown>): Promise<T>;
+    subscribeMessage?<T>(
+      callback: (message: T) => void,
+      message: Record<string, unknown>,
+    ): Promise<() => void>;
+  };
+  callService(
+    domain: string,
+    service: string,
+    data?: Record<string, unknown>,
+  ): Promise<unknown>;
+}
+
+export interface HomeSmartPanelInfo {
+  config?: {
+    version?: string;
+  };
+}
+
