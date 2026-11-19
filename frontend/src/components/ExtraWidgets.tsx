@@ -143,6 +143,29 @@ export function EnergyWidget({ config, hass, language, onOpen, t }: { config: Ho
       <span className="widget-card__label">{t("energy")}</span>
       <strong>{main != null ? formatPower(main, language) : "—"}</strong>
       <p>{home != null ? t("energyHome") : t("energySolar")}</p>
+      <div className="energy-flow-diagram">
+        {solar != null && (
+          <div className="energy-flow-node energy-flow-node--solar">
+            <span className="energy-flow-node__icon"><HDIcon name="sun" size={18} /></span>
+            <span>{formatPower(solar, language)}</span>
+            <small style={{ opacity: 0.7 }}>{t("energySolar")}</small>
+          </div>
+        )}
+        {home != null && (
+          <div className="energy-flow-node energy-flow-node--home">
+            <span className="energy-flow-node__icon"><HDIcon name="home" size={18} /></span>
+            <span>{formatPower(home, language)}</span>
+            <small style={{ opacity: 0.7 }}>{t("energyHome")}</small>
+          </div>
+        )}
+        {grid != null && (
+          <div className="energy-flow-node energy-flow-node--grid">
+            <span className="energy-flow-node__icon"><HDIcon name="bolt" size={18} /></span>
+            <span>{formatPower(Math.abs(grid), language)}</span>
+            <small style={{ opacity: 0.7 }}>{grid < 0 ? t("energyExporting") : t("energyImporting")}</small>
+          </div>
+        )}
+      </div>
       <ul className="widget-list">{lines.slice(home != null ? 1 : 0, 5).map((line) => <li key={line.key}><button onClick={() => line.state && onOpen(asEntity(line.state))} type="button"><span>{line.label}</span><small>{line.value}</small></button></li>)}</ul>
       {tall && points && points.length > 1 && <div className="widget-card__chart"><Sparkline compact hours={24} language={language} points={points} /></div>}
     </div>;

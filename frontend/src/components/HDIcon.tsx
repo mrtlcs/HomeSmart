@@ -248,6 +248,7 @@ export function HDIcon({ name, size = 22 }: { name: IconName; size?: number }) {
   return (
     <svg
       aria-hidden="true"
+      data-name={name}
       fill="none"
       height={size}
       viewBox="0 0 24 24"

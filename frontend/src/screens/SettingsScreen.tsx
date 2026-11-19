@@ -21,7 +21,7 @@ import { SeasonPreview } from "../components/SeasonLayer";
 import type { Room } from "../types/discovery";
 import type { HomeAssistant } from "../types/home-assistant";
 import { hideSidebarPreferred, setHideSidebarPreferred } from "../sidebar";
-import { setTextScale, setUiSize, textScale, TEXT_SCALE_MAX, TEXT_SCALE_MIN, uiSize, type SizeChoice, childLockEnabled, keyBar, keyBarUnlocked, KEYBAR_SLOTS, setKeyBarUnlocked, motionPrefs, setChildLockEnabled, setKeyBar, setMotionPrefs, deviceBackground, deviceKidsScene, deviceViewMode, editingLocked, keepAwakeMode, setDeviceBackground, setDeviceKidsScene, setDeviceViewMode, setEditingLocked, setKeepAwakeMode, setSpotifySpeaker, spotifySpeaker, useDevicePref } from "../devicePrefs";
+import { setTextScale, setUiSize, textScale, TEXT_SCALE_MAX, TEXT_SCALE_MIN, uiSize, type SizeChoice, childLockEnabled, keyBar, keyBarUnlocked, KEYBAR_SLOTS, setKeyBarUnlocked, motionPrefs, setChildLockEnabled, setKeyBar, setMotionPrefs, deviceBackground, deviceKidsScene, deviceLanguage, devicePin, deviceViewMode, editingLocked, keepAwakeMode, setDeviceBackground, setDeviceKidsScene, setDeviceLanguage, setDevicePin, setDeviceViewMode, setEditingLocked, setKeepAwakeMode, setSpotifySpeaker, spotifySpeaker, useDevicePref } from "../devicePrefs";
 import { isSilk } from "../keepAwake";
 import { deactivateLicense, getLicense, openPortal, type LicenseStatus } from "../api/license";
 import { LICENSE_ERRORS } from "../components/ProSheet";
@@ -697,8 +697,10 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
   const sceneThumb = (scene: string) => <span className={`st-kids-scene st-kids-scene--${scene}`} />;
   const speaker = useDevicePref(spotifySpeaker);
   const awake = useDevicePref(keepAwakeMode);
+  const pin = useDevicePref(devicePin);
   const textSize = useDevicePref(textScale);
   const interfaceSize = useDevicePref(uiSize);
+  const devLang = useDevicePref(deviceLanguage);
   const sizes = [{ value: "small", label: t("sizeSmall") }, { value: "normal", label: t("sizeNormal") }, { value: "large", label: t("sizeLarge") }];
   const spotify = Object.values(hass.states).find((state) => state.entity_id.startsWith("media_player.") && (state.entity_id.includes("spotify") || state.attributes.source === "Spotify" || String(state.attributes.friendly_name ?? "").toLowerCase().includes("spotify")));
   const sources = Array.isArray(spotify?.attributes.source_list) ? spotify.attributes.source_list.map(String) : [];
@@ -710,6 +712,7 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
       : <Row label={t("deviceBackground")}><HDSelect ariaLabel={t("deviceBackground")} onChange={setDeviceBackground} options={[{ value: "", label: t("useGeneral"), thumb: backgroundThumb(generalBackground) }, ...BACKGROUNDS.map(([preset, label]) => ({ value: preset, label: `${t(label)}${pro_(FREE_BACKGROUNDS.includes(preset))}`, thumb: backgroundThumb(preset) }))]} value={background} /></Row>}
     <TextSizeRow t={t} value={textSize} />
     <Row description={t("deviceUiSizeDescription")} label={t("deviceUiSize")}><HDSegmented ariaLabel={t("deviceUiSize")} onChange={(size) => setUiSize(size as SizeChoice)} options={sizes} value={interfaceSize} /></Row>
+    <Row description={t("deviceLanguageDescription")} label={t("deviceLanguage")}><HDSegmented ariaLabel={t("deviceLanguage")} onChange={(val) => setDeviceLanguage(val as "auto" | "vi" | "en")} options={[{ value: "auto", label: t("languageAuto") }, { value: "vi", label: "Tiếng Việt" }, { value: "en", label: "English" }]} value={devLang} /></Row>
     <h3 className="st-category">{t("deviceCatMotion")}</h3>
     <Row description={t("motionUiDescription")} label={t("motionUi")}><Switch checked={motion.ui} label={t("motionUi")} onChange={(ui) => setMotion({ ui })} /></Row>
     <Row description={t("animationsDescription")} label={t("motionCards")}>{pro ? <Switch checked={motion.cards} label={t("motionCards")} onChange={(cards) => setMotion({ cards })} /> : <button className="hd-pill" onClick={onUpsell} type="button"><HDIcon name="lock" size={14} />Pro</button>}</Row>
@@ -719,6 +722,28 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
     <Row description={`${t("keepAwakeDescription")}${isSilk() ? ` ${t("keepAwakeEcho")}` : ""}`} label={t("keepAwake")}><HDSelect ariaLabel={t("keepAwake")} onChange={(mode) => setKeepAwakeMode(mode as "auto" | "on" | "off")} options={[{ value: "auto", label: t("keepAwakeAuto") }, { value: "on", label: t("keepAwakeOn") }, { value: "off", label: t("keepAwakeOff") }]} value={awake} /></Row>
     <Row description={t("lockEditingDescription")} label={t("lockEditing")}><Switch checked={locked} label={t("lockEditing")} onChange={setEditingLocked} /></Row>
     <Row description={t("childLockDescription")} label={t("childLock")}><Switch checked={childLock} label={t("childLock")} onChange={setChildLockEnabled} /></Row>
+    <Row description={t("pinSetDescription")} label={t("pinSet")}>
+      <input
+        aria-label={t("pinSet")}
+        maxLength={4}
+        onChange={(e) => setDevicePin(e.target.value)}
+        placeholder="----"
+        style={{
+          width: "calc(var(--u)*16)",
+          height: "calc(var(--u)*4.4)",
+          padding: "0 calc(var(--u)*1.2)",
+          borderRadius: "var(--hd-pill, 99px)",
+          border: "1px solid var(--line)",
+          background: "rgba(255,255,255,0.08)",
+          color: "inherit",
+          textAlign: "center",
+          font: "600 calc(var(--u)*2)/1 var(--f-display)",
+          letterSpacing: "0.25em",
+        }}
+        type="password"
+        value={pin}
+      />
+    </Row>
     {barUnlocked && <KeyBarRows hass={hass} t={t} />}
     {spotify && <h3 className="st-category">{t("deviceCatMusic")}</h3>}
     {spotify && <Row description={t("spotifySpeakerDescription")} label={t("spotifySpeaker")}><HDSelect ariaLabel={t("spotifySpeaker")} onChange={setSpotifySpeaker} options={[{ value: "", label: t("spotifySpeakerAny") }, ...[...new Set([...(speaker ? [speaker] : []), ...sources])].map((source) => ({ value: source, label: source }))]} value={speaker} /></Row>}

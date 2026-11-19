@@ -9,7 +9,8 @@ import { AlarmButtons } from "./AlarmButtons";
 import { isNumericState, useHistory, useSensorSince, useSparklines } from "../history";
 import { Sparkline } from "./HistoryChart";
 import { EntityIcon, HDIcon } from "./HDIcon";
-import { childLocked, childLockNote, useDevicePref } from "../devicePrefs";
+import { childLocked, childLockNote, devicePin, useDevicePref } from "../devicePrefs";
+import { PinPadModal } from "./PinPadModal";
 import { since, WideControls } from "./WideControls";
 import { CameraCard } from "./CameraCard";
 import { HDSelect } from "./HDSelect";
@@ -136,6 +137,8 @@ export function EntityCard(props: EntityCardProps) {
 
 function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps) {
   const childOn = useDevicePref(childLocked);
+  const currentPin = useDevicePref(devicePin);
+  const [pinPrompt, setPinPrompt] = useState<(() => void) | null>(null);
   // A card under the child lock opens nothing either: its details would let the device be switched.
   const openDetails = (target: DiscoveredEntity) => { if (childOn && entity.child_lock) { childLockNote("blocked"); return; } onLongPress(target); };
   const [busy, setBusy] = useState(false);
@@ -183,18 +186,27 @@ function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps)
     : entity.domain === "scene" || RUNNABLE.has(entity.domain) ? t("confirmRun")
         : active ? t("confirmTurnOff") : t("confirmTurnOn");
   const tap = () => {
+    const executeAction = () => {
+      const domain = entity.domain;
+      if (TOGGLES.has(domain)) return void run(() => hass.callService("homeassistant", "toggle", { entity_id: entity.entity_id }));
+      if (domain === "scene") return void run(() => hass.callService("scene", "turn_on", { entity_id: entity.entity_id }));
+      if (RUNNABLE.has(domain)) return void run(() => runEntity(hass, entity.entity_id));
+      if (domain === "cover") return quietCover ? undefined : void run(() => hass.callService("cover", "toggle", { entity_id: entity.entity_id }));
+      openDetails(entity);
+    };
+
+    if (currentPin && (entity.domain === "lock" || (entity as unknown as { pin_protect?: boolean }).pin_protect)) {
+      setPinPrompt(() => executeAction);
+      return;
+    }
+
     if (entity.confirm && acts && !unavailable && !confirming) {
       setConfirming(true);
       confirmTimer.current = window.setTimeout(() => setConfirming(false), 3000);
       return;
     }
     if (confirming) { setConfirming(false); if (confirmTimer.current != null) window.clearTimeout(confirmTimer.current); }
-    const domain = entity.domain;
-    if (TOGGLES.has(domain)) return void run(() => hass.callService("homeassistant", "toggle", { entity_id: entity.entity_id }));
-    if (domain === "scene") return void run(() => hass.callService("scene", "turn_on", { entity_id: entity.entity_id }));
-    if (RUNNABLE.has(domain)) return void run(() => runEntity(hass, entity.entity_id));
-    if (domain === "cover") return quietCover ? undefined : void run(() => hass.callService("cover", "toggle", { entity_id: entity.entity_id }));
-    openDetails(entity);
+    executeAction();
   };
 
   // A pick in a dropdown (rendered elsewhere, but its events still reach the card) is not a tap on the card.
@@ -300,6 +312,7 @@ function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps)
           <div><button aria-label={t("decreaseTemperature")} disabled={target <= minimum} onClick={() => setTemperature(target - step)} type="button"><HDIcon name="minus" size={18} /></button><button aria-label={t("increaseTemperature")} disabled={target >= maximum} onClick={() => setTemperature(target + step)} type="button"><HDIcon name="plus" size={18} /></button></div>
         </div>
       )}
+      {pinPrompt && <PinPadModal expectedPin={currentPin} onCancel={() => setPinPrompt(null)} onSuccess={() => { const act = pinPrompt; setPinPrompt(null); act(); }} t={t} title={entity.name} />}
     </article>
   );
 }

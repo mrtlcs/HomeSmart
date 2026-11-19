@@ -1,5 +1,5 @@
 import { inRoom, isRoomLight } from "../personalize";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ContextHeader } from "../components/ContextHeader";
 import { EditableGrid } from "../components/EditableGrid";
 import { EntityCard } from "../components/EntityCard";
@@ -9,6 +9,7 @@ import { SceneStrip } from "../components/SceneStrip";
 import { isEnvironmentSensor, SensorStrip } from "../components/SensorStrip";
 import { RoomOptions } from "../components/RoomOptions";
 import { HDIcon, RoomIcon } from "../components/HDIcon";
+import { CategoryFilterChips, type CategoryType, entityMatchesCategory } from "../components/CategoryFilterChips";
 import { arrange, compactSensors, entityKey, getLayout, keyId, pickerRooms, roomScreen, showItem } from "../layout";
 import type { DiscoveredEntity, Room } from "../types/discovery";
 import { entityIndex, type ScreenProps } from "./types";
@@ -22,6 +23,7 @@ export function RoomScreen(props: ScreenProps & { onSelectRoom: (roomId: string)
   const [busy, setBusy] = useState(false);
   const [modalEntity, setModalEntity] = useState<DiscoveredEntity | null>(null);
   const [picking, setPicking] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryType>("all");
   const plan = usePlan();
   const screen = roomScreen(room.id);
   const layout = getLayout(config, screen);
@@ -35,7 +37,15 @@ export function RoomScreen(props: ScreenProps & { onSelectRoom: (roomId: string)
   // Devices brought in from other rooms in edit mode.
   const added = (layout.added ?? []).filter((id) => !own.has(id) && everywhere.byId.has(id));
   const byId = new Map([...room.entities, ...added.map((id) => everywhere.byId.get(id)!)].map((entity) => [entity.entity_id, inRoom(entity, screen, config.room_names?.[screen])]));
+  const allScreenEntities = useMemo(() => Array.from(byId.values()), [byId]);
   const { visible, hidden } = arrange([...natural.map((entity) => entityKey(entity.entity_id)), ...added.map(entityKey)], layout, true);
+  const filteredVisible = useMemo(() => {
+    if (editing || categoryFilter === "all") return visible;
+    return visible.filter((key) => {
+      const entity = byId.get(keyId(key));
+      return entity ? entityMatchesCategory(entity, categoryFilter, hass.states[entity.entity_id]) : true;
+    });
+  }, [visible, editing, categoryFilter, byId, hass.states]);
   const setAdded = (ids: string[]) => onLayout(screen, { ...layout, added: ids });
   const groups = useFloorGroups(hass, data.rooms, Boolean(config.rooms_by_floor), t("floorplanNoFloor"));
 
@@ -73,6 +83,7 @@ export function RoomScreen(props: ScreenProps & { onSelectRoom: (roomId: string)
           {editing && <RoomOptions allRooms={allRooms} compact={compactSensors(layout, visible, (next) => onLayout(screen, next))} hass={hass} room={room} t={t} />}
           {config.room_sensors && <SensorStrip props={props} room={room} />}
           {config.room_scenes && <SceneStrip props={props} room={room} />}
+          {!editing && <CategoryFilterChips activeCategory={categoryFilter} entities={allScreenEntities} hass={hass} onSelect={setCategoryFilter} t={t} />}
           {visible.length === 0 && !editing && !(config.room_scenes && room.entities.some((entity) => entity.domain === "scene")) && !(config.room_sensors && room.entities.some((entity) => isEnvironmentSensor(entity, hass)))
             ? <section className="empty-state"><p>{t("noVisibleEntities")}</p></section>
             : <EditableGrid
@@ -80,7 +91,7 @@ export function RoomScreen(props: ScreenProps & { onSelectRoom: (roomId: string)
                 className="device-grid"
                 editing={editing}
                 hiddenItems={hidden.map((key) => ({ key, label: byId.get(keyId(key))?.name ?? keyId(key) }))}
-                items={visible.map((key) => {
+                items={filteredVisible.map((key) => {
                   const entity = byId.get(keyId(key))!;
                   return { key, label: entity.name, removal: own.has(entity.entity_id) ? "hide" : "remove", node: <EntityCard entity={entity} hass={hass} language={language} onLongPress={setModalEntity} t={t} /> };
                 })}

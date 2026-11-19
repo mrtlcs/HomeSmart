@@ -162,12 +162,18 @@ function EntityDetails({ entity, hass, language, onClose, roomName, t }: EntityM
         {domain === "light" && colorModes.includes("color_temp") && (() => {
           const low = num(attrs.min_color_temp_kelvin, 2000);
           const high = num(attrs.max_color_temp_kelvin, 6500);
-          const current = state?.state === "on" && attrs.color_mode === "color_temp" ? num(attrs.color_temp_kelvin, 0) : 0;
+          const current = state?.state === "on" && attrs.color_mode === "color_temp" ? num(attrs.color_temp_kelvin, 3000) : 3000;
           const temps: Array<[TranslationKey, number, string]> = [["colorWarm", 2700, "#ffb46b"], ["colorNormal", 4000, "#fff0dc"], ["colorCold", 6500, "#cfe0ff"]];
-          return <div className="hd-temps" role="group" aria-label={t("colorTemperature")}>{temps.map(([label, kelvin, swatch]) => {
-            const value = Math.max(low, Math.min(high, kelvin));
-            return <button aria-pressed={current > 0 && Math.abs(current - value) < 400} key={label} onClick={() => void call("light", "turn_on", { color_temp_kelvin: value })} style={{ "--t": swatch } as CSSProperties} type="button"><i />{t(label)}</button>;
-          })}</div>;
+          return <>
+            <div className="hd-temps" role="group" aria-label={t("colorTemperature")}>{temps.map(([label, kelvin, swatch]) => {
+              const value = Math.max(low, Math.min(high, kelvin));
+              return <button aria-pressed={current > 0 && Math.abs(current - value) < 400} key={label} onClick={() => void call("light", "turn_on", { color_temp_kelvin: value })} style={{ "--t": swatch } as CSSProperties} type="button"><i />{t(label)}</button>;
+            })}</div>
+            <Slider label={t("colorTemperature")} off={state?.state !== "on"} onCommit={(val) => {
+              const kelvin = Math.round(low + (val / 100) * (high - low));
+              void call("light", "turn_on", { color_temp_kelvin: kelvin });
+            }} suffix="%" value={Math.round(((current - low) / (high - low)) * 100)} />
+          </>;
         })()}
         {domain === "light" && colorful && <div className="hd-swatches" role="group" aria-label={t("predefinedColors")}>
           {LIGHT_SWATCHES.map(([swatch, rgb]) => <button aria-label={`${t("color")} ${swatch}`} key={swatch} onClick={() => void call("light", "turn_on", { rgb_color: rgb })} style={{ background: swatch }} type="button" />)}
@@ -182,6 +188,10 @@ function EntityDetails({ entity, hass, language, onClose, roomName, t }: EntityM
             <button aria-label={t("increaseTemperature")} disabled={target >= num(attrs.max_temp, 35)} onClick={() => stepTarget(1)} type="button"><HDIcon name="plus" size={22} /></button>
           </div>
           {Array.isArray(attrs.hvac_modes) && attrs.hvac_modes.length > 1 && <div className="hd-segment" role="group" aria-label={t("mode")}>{attrs.hvac_modes.map(String).filter((mode) => mode !== "off").map((mode) => <button aria-pressed={state.state === mode} key={mode} onClick={() => void call("climate", "set_hvac_mode", { hvac_mode: mode })} type="button">{hvacLabel(mode, language)}</button>)}</div>}
+          {Array.isArray(attrs.fan_modes) && attrs.fan_modes.length > 1 && <div className="hd-detail__sources" style={{ marginTop: "calc(var(--u)*1.2)" }}>
+            <span className="eyebrow">{t("fanSpeed")}</span>
+            <div className="hd-segment" role="group" aria-label={t("fanSpeed")}>{attrs.fan_modes.map(String).map((mode) => <button aria-pressed={attrs.fan_mode === mode} key={mode} onClick={() => void call("climate", "set_fan_mode", { fan_mode: mode })} type="button">{mode}</button>)}</div>
+          </div>}
         </>}
 
         {domain === "cover" && <>

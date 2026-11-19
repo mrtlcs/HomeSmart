@@ -18,7 +18,7 @@ import { Screensaver } from "./components/Screensaver";
 import { pauseCameras } from "./cameraPause";
 import { DoorbellPopup, useDoorbell } from "./components/Doorbell";
 import { forgetCalendarColors, useOccasion } from "./components/Agenda";
-import { childLocked, childLockNote, deviceBackground, deviceKidsScene, deviceViewMode, editingLocked, keepAwakeMode, useChildLockNote, useDevicePref } from "./devicePrefs";
+import { childLocked, childLockNote, deviceBackground, deviceKidsScene, deviceLanguage, deviceViewMode, editingLocked, keepAwakeMode, useChildLockNote, useDevicePref } from "./devicePrefs";
 import { guardHass, type ChildLockState } from "./childLock";
 import { VIEW_MODES } from "./components/LayoutPicker";
 import { KIDS_SCENES } from "./components/KidsScene";
@@ -76,7 +76,8 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const configRef = useRef<HomeSmartConfig | null>(null);
   const lastActivity = useRef(Date.now());
   const [saverOn, setSaverOn] = useState(false);
-  const language = hass.locale?.language ?? hass.language;
+  const [devLang] = useDevicePref(deviceLanguage);
+  const language = devLang && devLang !== "auto" ? devLang : (hass.locale?.language ?? hass.language);
   const t = useMemo(() => createTranslator(language), [language]);
   configRef.current = config;
   const pro = license?.plan === "pro" || legacyBackend;

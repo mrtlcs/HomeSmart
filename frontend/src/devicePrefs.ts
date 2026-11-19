@@ -3,6 +3,8 @@ import { useEffect, useState } from "react";
 // Choices kept per device (a wall tablet can differ from a phone): editing locked, and the speaker
 // Spotify plays on when started from this device. Off / empty by default, so nothing changes.
 
+const LANG_KEY = "homesmart-language";
+const PIN_KEY = "homesmart-device-pin";
 const LOCK_KEY = "homesmart-lock-editing";
 const SPEAKER_KEY = "homesmart-spotify-speaker";
 const AWAKE_KEY = "homesmart-keep-awake";
@@ -21,6 +23,15 @@ function write(key: string, value: string | null): void {
 
 export const editingLocked = () => read(LOCK_KEY) === "1";
 export const setEditingLocked = (locked: boolean) => write(LOCK_KEY, locked ? "1" : null);
+
+export const deviceLanguage = (): "auto" | "vi" | "en" => {
+  const val = read(LANG_KEY);
+  return val === "vi" || val === "en" ? val : "auto";
+};
+export const setDeviceLanguage = (lang: "auto" | "vi" | "en") => write(LANG_KEY, lang === "auto" ? null : lang);
+
+export const devicePin = () => read(PIN_KEY) ?? "";
+export const setDevicePin = (pin: string | null) => write(PIN_KEY, pin && pin.trim().length === 4 ? pin.trim() : null);
 
 export const spotifySpeaker = () => read(SPEAKER_KEY) ?? "";
 

@@ -1476,4 +1476,252 @@ export const themeExtras = String.raw`
 .app-shell .st-textsize__preview { display: grid; grid-template-columns: repeat(2, calc(var(--u)*17)); gap: calc(var(--u)*1.2); pointer-events: none; }
 .app-shell .st-textsize__preview .device-tile { height: calc(var(--u)*15); min-height: 0; }
 @media (max-width: 720px) { .app-shell .st-textsize__body { grid-template-columns: minmax(0, 1fr); } .app-shell .st-textsize__preview { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* ---------- Category Filter Chips ---------- */
+.app-shell .category-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.1);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: calc(var(--u) * 0.4) 0 calc(var(--u) * 1.6);
+  margin-bottom: calc(var(--u) * 0.5);
+}
+.app-shell .category-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+.app-shell .category-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.9);
+  padding: calc(var(--u) * 0.9) calc(var(--u) * 1.8);
+  border-radius: var(--hd-pill, 99px);
+  border: 1px solid var(--hd-frame, var(--line));
+  background: var(--glass);
+  color: var(--ink);
+  backdrop-filter: blur(var(--hd-blur, 20px)) saturate(1.2);
+  -webkit-backdrop-filter: blur(var(--hd-blur, 20px)) saturate(1.2);
+  font: 600 calc(var(--u) * 1.65)/1 var(--f-body);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+  -webkit-user-select: none;
+}
+.app-shell .category-chip:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+.app-shell .category-chip--active {
+  background: var(--paper, #ffffff);
+  color: var(--paper-ink, #1a1a1a);
+  border-color: transparent;
+  box-shadow: 0 4px calc(var(--u) * 1.6) rgba(0, 0, 0, 0.18), 0 0 calc(var(--u) * 1.5) rgba(255, 255, 255, 0.2);
+}
+.app-shell .category-chip__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.9;
+}
+.app-shell .category-chip__count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: calc(var(--u) * 2.2);
+  height: calc(var(--u) * 2.2);
+  padding: 0 calc(var(--u) * 0.6);
+  border-radius: var(--hd-pill, 99px);
+  background: rgba(255, 255, 255, 0.16);
+  font-size: calc(var(--u) * 1.3);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.app-shell .category-chip--active .category-chip__count {
+  background: rgba(0, 0, 0, 0.12);
+  color: inherit;
+}
+.app-shell .category-chip__count--active {
+  background: var(--on, #f5c542);
+  color: var(--on-ink, #2a2110);
+}
+
+/* ---------- Micro-animations & Active Aura Glow ---------- */
+@keyframes hs-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.app-shell .device-tile--active .device-tile__icon svg[data-name="fan"],
+.app-shell .device-tile--active .device-tile__icon svg.hs-spin,
+.app-shell .hs-fan-spinning {
+  animation: hs-spin 2.2s linear infinite;
+}
+
+/* Card hover and smooth elevation */
+.app-shell :where(.room-card, .device-tile, .widget-card) {
+  transition: background 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              color 0.25s,
+              opacity 0.25s,
+              transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@media (hover: hover) {
+  .app-shell :where(.room-card, .device-tile, .widget-card):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px calc(var(--u) * 2.5) rgba(0, 0, 0, 0.22);
+  }
+}
+
+/* Active Aura Glow */
+.app-shell :is(.room-card--active, .device-tile--active) {
+  box-shadow: 0 0 calc(var(--u) * 2.8) var(--on-glow, rgba(255, 201, 77, 0.26)), 0 6px calc(var(--u) * 2) rgba(0, 0, 0, 0.16);
+}
+
+/* ---------- Bottom Sheet & Entity Pop-up Transitions ---------- */
+@keyframes hd-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(24px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.app-shell .hd-sheet {
+  animation: hd-slide-up 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  border-radius: calc(var(--u) * 3.8 * var(--hd-r, 1));
+  box-shadow: 0 calc(var(--u) * 2.5) calc(var(--u) * 6) rgba(0, 0, 0, 0.5);
+}
+@media (max-width: 600px) {
+  .app-shell .hd-sheet-backdrop {
+    align-items: flex-end;
+  }
+  .app-shell .hd-sheet {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
+/* ---------- Security PIN Pad Modal ---------- */
+.app-shell .pin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+.app-shell .pin-dialog {
+  width: min(92vw, 360px);
+  background: var(--ambient-3, #1e1b24);
+  border: 1px solid var(--hd-frame, var(--line));
+  border-radius: calc(var(--u) * 3.5 * var(--hd-r, 1));
+  padding: calc(var(--u) * 3.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--u) * 2.4);
+  color: var(--ink);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  animation: hd-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-shell .pin-dialog__dots {
+  display: flex;
+  gap: calc(var(--u) * 1.6);
+  margin: calc(var(--u) * 1) 0;
+}
+.app-shell .pin-dialog__dot {
+  width: calc(var(--u) * 2);
+  height: calc(var(--u) * 2);
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  transition: all 0.2s ease;
+}
+.app-shell .pin-dialog__dot--filled {
+  background: var(--on, #f5c542);
+  border-color: var(--on, #f5c542);
+  box-shadow: 0 0 10px var(--on, #f5c542);
+}
+.app-shell .pin-dialog__grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: calc(var(--u) * 1.4);
+  width: 100%;
+}
+.app-shell .pin-dialog__key {
+  height: calc(var(--u) * 6.5);
+  border-radius: var(--hd-round, 50%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  color: inherit;
+  font: 500 calc(var(--u) * 2.8)/1 var(--f-display);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+}
+.app-shell .pin-dialog__key:active {
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(0.95);
+}
+.app-shell .pin-dialog__shake {
+  animation: pin-shake 0.35s ease;
+}
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+/* ---------- Energy Flow Mini Widget ---------- */
+.app-shell .energy-flow-diagram {
+  width: 100%;
+  margin-top: calc(var(--u) * 1.5);
+  padding: calc(var(--u) * 1) 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  position: relative;
+}
+.app-shell .energy-flow-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  font: 600 calc(var(--u) * 1.35)/1 var(--f-body);
+}
+.app-shell .energy-flow-node__icon {
+  width: calc(var(--u) * 4.6);
+  height: calc(var(--u) * 4.6);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.app-shell .energy-flow-node--solar .energy-flow-node__icon {
+  color: #ffb703;
+  border-color: rgba(255, 183, 3, 0.4);
+  box-shadow: 0 0 12px rgba(255, 183, 3, 0.2);
+}
+.app-shell .energy-flow-node--home .energy-flow-node__icon {
+  color: #06d6a0;
+  border-color: rgba(6, 214, 160, 0.4);
+  box-shadow: 0 0 12px rgba(6, 214, 160, 0.2);
+}
+.app-shell .energy-flow-node--grid .energy-flow-node__icon {
+  color: #118ab2;
+  border-color: rgba(17, 138, 178, 0.4);
+  box-shadow: 0 0 12px rgba(17, 138, 178, 0.2);
+}
+
 `;
