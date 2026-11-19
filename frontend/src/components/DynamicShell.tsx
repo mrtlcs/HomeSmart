@@ -8,6 +8,7 @@ import type { HomeAssistant } from "../types/home-assistant";
 import { RoomPowerContext, SensorSinceContext, SparklinesContext } from "../history";
 import { PlayersContext } from "../spotify";
 import { CameraWholeContext, LiveCamerasContext } from "./CameraCard";
+import { normalizeLanguage } from "../i18n";
 import { OccasionContext, SeasonLayer } from "./SeasonLayer";
 import { SeasonDecor } from "./SeasonDecor";
 import { keyBar, motionPrefs, textScale, UI_SCALE, uiSize, useDevicePref } from "../devicePrefs";
@@ -240,7 +241,7 @@ export function DynamicShell({ children, config, data, hass, mode = "grid", seas
     ...(viewportUnit ? { "--hd-vh": viewportUnit } : {}),
   } as CSSProperties;
   return (
-    <div className={`app-shell theme-${config.theme} view-${mode} ${bar.on ? `has-keybar${bar.hideDock ? " keybar-nodock" : ""}` : ""} ${kids ? `kids-scene--${kidsScene}` : ""} ${motion.background ? "ambient-animated" : "ambient-still"} ${motion.cards && pro ? "hd-anim" : ""} ${motion.ui ? "hd-motion" : ""} ${config.cards?.shine && pro ? "hd-shine" : ""}`} data-activity={level.toFixed(2)} lang={hass.locale?.language ?? hass.language} ref={shellRef} style={style}>
+    <div className={`app-shell theme-${config.theme} view-${mode} ${bar.on ? `has-keybar${bar.hideDock ? " keybar-nodock" : ""}` : ""} ${kids ? `kids-scene--${kidsScene}` : ""} ${motion.background ? "ambient-animated" : "ambient-still"} ${motion.cards && pro ? "hd-anim" : ""} ${motion.ui ? "hd-motion" : ""} ${config.cards?.shine && pro ? "hd-shine" : ""}`} data-activity={level.toFixed(2)} lang={normalizeLanguage(hass.locale?.language ?? hass.language)} ref={shellRef} style={style}>
       <div aria-hidden="true" className="ambient-background"><i /><i /><i /></div>
       {kids && <KidsScene scene={kidsScene} />}
       {season && (season.occasion?.effect || season.fireworks) && <SeasonLayer effect={season.occasion?.effect ?? null} fireworks={season.fireworks} intensity={season.occasion?.phase === "lead" ? 0.45 : 1} />}

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { TranslationKey } from "../i18n";
+import { safeIntlLocale, type TranslationKey } from "../i18n";
 import { useCustomize } from "../personalize";
 import type { HomeSmartBin, HomeSmartBinColor, HomeSmartConfig } from "../types/config";
 import type { DiscoveredEntity } from "../types/discovery";
@@ -97,12 +97,13 @@ function useCalendarDays(hass: HomeAssistant, bins: HomeSmartBin[]): Record<stri
 
 function whenLabel(days: number | null, language: string | undefined, t: (key: TranslationKey) => string): string {
   if (days == null) return "–";
+  const loc = safeIntlLocale(language);
   if (days <= 1) {
-    const word = new Intl.RelativeTimeFormat(language, { numeric: "auto" }).format(Math.max(0, days), "day");
-    return word.charAt(0).toLocaleUpperCase(language) + word.slice(1);
+    const word = new Intl.RelativeTimeFormat(loc, { numeric: "auto" }).format(Math.max(0, days), "day");
+    return word.charAt(0).toLocaleUpperCase(loc) + word.slice(1);
   }
-  const weekday = new Intl.DateTimeFormat(language, { weekday: "long" }).format(new Date(Date.now() + days * 86_400_000));
-  const name = weekday.charAt(0).toLocaleUpperCase(language) + weekday.slice(1);
+  const weekday = new Intl.DateTimeFormat(loc, { weekday: "long" }).format(new Date(Date.now() + days * 86_400_000));
+  const name = weekday.charAt(0).toLocaleUpperCase(loc) + weekday.slice(1);
   return days >= 7 ? t("binNext").replace("{day}", name.replace(/-feira$/i, "")) : name;
 }
 

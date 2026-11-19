@@ -6,7 +6,7 @@ import { OccasionContext } from "./SeasonLayer";
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
 import { useEscape } from "../useEscape";
-import { weatherConditionLabel, type TranslationKey } from "../i18n";
+import { safeIntlLocale, weatherConditionLabel, type TranslationKey } from "../i18n";
 import type { HomeSmartConfig } from "../types/config";
 import type { HomeAssistant } from "../types/home-assistant";
 import { numeric, useWeather, type WeatherForecast, type WeatherNow } from "../weather";
@@ -67,11 +67,12 @@ export function ContextHeader({ config, hass, language, onSettings, part = "all"
   const chosenPeople = config.home.presence_people ?? [];
   const people = useMemo(() => Object.values(hass.states).filter((state) => state.entity_id.startsWith("person.") && (chosenPeople.length === 0 || chosenPeople.includes(state.entity_id))), [hass.states, chosenPeople.join()]);
   const presentPeople = people.filter((person) => person.state === "home");
-  const date = new Intl.DateTimeFormat(language, { weekday: "long", day: "2-digit", month: "long" }).format(now);
-  const time = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(now);
+  const loc = safeIntlLocale(language);
+  const date = new Intl.DateTimeFormat(loc, { weekday: "long", day: "2-digit", month: "long" }).format(now);
+  const time = new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(now);
   const temperature = weather?.temperature;
   const condition = weather?.condition;
-  const conditionLabel = condition ? weatherConditionLabel(condition, language) : t("unavailable");
+  const conditionLabel = condition ? weatherConditionLabel(condition, loc) : t("unavailable");
 
   return (
     <>
@@ -123,7 +124,8 @@ export function ForecastSheet({ daily, hourly, language, onClose, shell, sunrise
 /** The next days beside the weather in the header: weekday, icon, high and low. */
 function HeaderDays({ days, language }: { days: WeatherForecast[]; language?: string }) {
   if (days.length === 0) return null;
-  const weekday = new Intl.DateTimeFormat(language, { weekday: "short" });
+  const loc = safeIntlLocale(language);
+  const weekday = new Intl.DateTimeFormat(loc, { weekday: "short" });
   return <span className="weather-chip__days">{days.map((day, index) => {
     const high = numeric(day.temperature);
     const low = numeric(day.templow);
@@ -140,9 +142,10 @@ function ForecastBody({ condition, conditionLabel, daily, hourly, language, sunr
   condition?: string; conditionLabel: string; daily: WeatherForecast[]; hourly: WeatherForecast[]; language?: string;
   sunrise?: string; sunset?: string; t: (key: TranslationKey) => string; temperature?: number; weather?: WeatherNow;
 }) {
-  const time = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
-  const hour = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit" });
-  const weekday = new Intl.DateTimeFormat(language, { weekday: "short" });
+  const loc = safeIntlLocale(language);
+  const time = new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
+  const hour = new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit" });
+  const weekday = new Intl.DateTimeFormat(loc, { weekday: "short" });
   const today = daily[0];
   const high = numeric(today?.temperature);
   const low = numeric(today?.templow);

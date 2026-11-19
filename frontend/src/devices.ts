@@ -1,5 +1,5 @@
 import { hourOptions } from "./clock";
-import type { TranslationKey } from "./i18n";
+import { safeIntlLocale, type TranslationKey } from "./i18n";
 import type { HassEntity, HomeAssistant } from "./types/home-assistant";
 
 // Cameras, vacuums, scripts, buttons and selects: what each card, row, chip and details sheet
@@ -253,13 +253,14 @@ export function friendlyDate(state: HassEntity | undefined, language?: string): 
   if (Number.isNaN(+date)) return null;
   const start = (moment: Date) => new Date(moment.getFullYear(), moment.getMonth(), moment.getDate()).getTime();
   const days = Math.round((start(date) - start(new Date())) / 86_400_000);
-  const time = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(date);
+  const loc = safeIntlLocale(language);
+  const time = new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(date);
   let day: string;
   if (Math.abs(days) <= 1) {
-    const word = new Intl.RelativeTimeFormat(language, { numeric: "auto" }).format(days, "day");
-    day = word.charAt(0).toLocaleUpperCase(language) + word.slice(1);
+    const word = new Intl.RelativeTimeFormat(loc, { numeric: "auto" }).format(days, "day");
+    day = word.charAt(0).toLocaleUpperCase(loc) + word.slice(1);
   } else {
-    day = new Intl.DateTimeFormat(language, { day: "numeric", month: "short", ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }) }).format(date);
+    day = new Intl.DateTimeFormat(loc, { day: "numeric", month: "short", ...(date.getFullYear() === new Date().getFullYear() ? {} : { year: "numeric" }) }).format(date);
   }
   return dateOnly ? day : `${day}, ${time}`;
 }

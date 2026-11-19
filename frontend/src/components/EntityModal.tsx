@@ -2,7 +2,7 @@ import { hourOptions } from "../clock";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { CSSProperties, KeyboardEvent } from "react";
-import { domainLabel, hvacLabel, type TranslationKey } from "../i18n";
+import { domainLabel, hvacLabel, safeIntlLocale, type TranslationKey } from "../i18n";
 import type { DiscoveredEntity } from "../types/discovery";
 import type { HassEntity, HomeAssistant } from "../types/home-assistant";
 import { DEVICE_ICONS, domainIcon, EntityIcon, HA_ICON, HDIcon, isIconName } from "./HDIcon";
@@ -231,7 +231,7 @@ function EntityDetails({ entity, hass, language, onClose, roomName, t }: EntityM
           {selectOptions(state).map((option) => <button aria-pressed={state.state === option} key={option} onClick={() => void runOnce(() => selectOption(hass, entity.entity_id, option))} type="button">{option}</button>)}
         </div>}
 
-        {["sensor", "binary_sensor"].includes(domain) && <div className="hd-detail__reading"><strong>{status}</strong><small>{t("lastChanged")} {new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(new Date(state.last_changed))}</small></div>}
+        {["sensor", "binary_sensor"].includes(domain) && <div className="hd-detail__reading"><strong>{status}</strong><small>{t("lastChanged")} {new Intl.DateTimeFormat(safeIntlLocale(language), { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(new Date(state.last_changed))}</small></div>}
         {domain === "sensor" && isNumericState(state) && <HistoryChart entityId={entity.entity_id} hass={hass} language={language} t={t} unit={typeof attrs.unit_of_measurement === "string" ? attrs.unit_of_measurement : undefined} />}
       </div>}
 

@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { hourOptions } from "../clock";
-import type { TranslationKey } from "../i18n";
+import { safeIntlLocale, type TranslationKey } from "../i18n";
 import type { HOMESMARTVehicle, VehicleKind, VehicleSlot } from "../types/config";
 import type { DiscoveredEntity } from "../types/discovery";
 import type { HassEntity, HomeAssistant } from "../types/home-assistant";
@@ -114,13 +114,14 @@ function vehicleStatus(hass: HomeAssistant, vehicle: HOMESMARTVehicle, slots: Fo
   const kw = watts == null ? null : powerUnit === "w" ? watts / 1000 : watts;
   const plugState = get("plug");
   const plugged = plugState ? plugState.state === "on" : charging || (kw != null && kw > 0.05);
-  const format = (value: number, digits: number) => new Intl.NumberFormat(language, { maximumFractionDigits: digits }).format(value);
+  const loc = safeIntlLocale(language);
+  const format = (value: number, digits: number) => new Intl.NumberFormat(loc, { maximumFractionDigits: digits }).format(value);
   const timeState = get("time");
   let time: string | null = null;
   if (timeState && !["unknown", "unavailable", ""].includes(timeState.state)) {
     if (timeState.attributes.device_class === "timestamp") {
       const at = new Date(timeState.state);
-      if (!Number.isNaN(at.getTime()) && at.getTime() > Date.now()) time = `${t("vehicleUntil")} ${new Intl.DateTimeFormat(language, { hour: "2-digit", minute: "2-digit", ...hourOptions() }).format(at)}`;
+      if (!Number.isNaN(at.getTime()) && at.getTime() > Date.now()) time = `${t("vehicleUntil")} ${new Intl.DateTimeFormat(loc, { hour: "2-digit", minute: "2-digit", ...hourOptions() }).format(at)}`;
     } else {
       const value = number(timeState);
       const u = String(timeState.attributes.unit_of_measurement ?? "min").toLowerCase();
@@ -208,6 +209,7 @@ const SLOT_ORDER: VehicleSlot[] = ["battery", "fuel", "range", "charging", "plug
 /** The details: the level large, every reading (a tap opens its history) and the controls the vehicle has. */
 function VehicleDetails({ hass, language, onClose, slots, status, t, vehicle }: { hass: HomeAssistant; language?: string; onClose: () => void; slots: Found; status: VehicleStatus; t: T; vehicle: HOMESMARTVehicle }) {
   const [history, setHistory] = useState<string | null>(null);
+  const loc = safeIntlLocale(language);
   useEscape(onClose, !history);
   const show = (slot: VehicleSlot) => {
     const id = slots[slot];
@@ -218,7 +220,7 @@ function VehicleDetails({ hass, language, onClose, slots, status, t, vehicle }: 
     if (slot === "time") return status.time ?? "—";
     if (["lock", "climate", "charge_switch", "plug"].includes(slot)) return state.state === "on" || state.state === "locked" ? t(slot === "lock" ? "vehicleLocked" : "on") : state.state === "unlocked" ? t("vehicleUnlocked") : t(state.state === "off" ? "off" : "unknown");
     const value = number(state);
-    return value == null ? state.state : `${new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(value)} ${String(state.attributes.unit_of_measurement ?? "")}`.trim();
+    return value == null ? state.state : `${new Intl.NumberFormat(loc, { maximumFractionDigits: 1 }).format(value)} ${String(state.attributes.unit_of_measurement ?? "")}`.trim();
   };
   const call = (service: string, id: string, data: Record<string, unknown> = {}) => void hass.callService(domain(id), service, { entity_id: id, ...data }).catch(() => undefined);
   const controls: ReactNode[] = [];

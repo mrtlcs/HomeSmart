@@ -8,6 +8,7 @@ import { shrinkImage } from "../../components/FloorPlan";
 import { HDIcon, RoomIcon, type IconName } from "../../components/HDIcon";
 import { SceneStrip } from "../../components/SceneStrip";
 import { useEscape } from "../../useEscape";
+import { safeIntlLocale } from "../../i18n";
 import { homeStatusText } from "../../homeStatus";
 import { isRoomLight, roomTemperature } from "../../personalize";
 import { usePlan } from "../../plan";
@@ -84,8 +85,9 @@ export function PhotoLayout(props: PhotoLayoutProps) {
   const { lights, on } = room ? roomLights(hass, room) : { lights: houseLights, on: houseLights.filter((entity) => hass.states[entity.entity_id]?.state === "on") };
   const lit = room ? on.length > 0 : houseOn > 0;
 
-  const time = new Intl.DateTimeFormat(language, { hour: "2-digit", minute: "2-digit", ...hourOptions() }).format(now);
-  const date = new Intl.DateTimeFormat(language, { weekday: "long", day: "numeric", month: "long" }).format(now);
+  const loc = safeIntlLocale(language);
+  const time = new Intl.DateTimeFormat(loc, { hour: "2-digit", minute: "2-digit", ...hourOptions() }).format(now);
+  const date = new Intl.DateTimeFormat(loc, { weekday: "long", day: "numeric", month: "long" }).format(now);
   const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
   const litText = (count: number, total: number) => (total === 0 ? "" : count === 0 ? t("allOff") : t("roomLitOf").replace("{on}", String(count)).replace("{total}", String(total)));
 

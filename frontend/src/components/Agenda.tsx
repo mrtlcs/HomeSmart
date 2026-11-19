@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { birthdayName, currentOccasion, fireworksTime, type Occasion } from "../seasons";
 import { createPortal } from "react-dom";
 import type { CSSProperties } from "react";
-import type { TranslationKey } from "../i18n";
+import { safeIntlLocale, type TranslationKey } from "../i18n";
 import type { HomeSmartConfig } from "../types/config";
 import type { HomeAssistant } from "../types/home-assistant";
 import { useWideTile } from "./EditableGrid";
@@ -235,7 +235,8 @@ export function TodayCard({ config, hass, language, t }: AgendaProps) {
   }, [hasCalendar, today, calendars.map((calendar) => calendar.id).join(",")]);
 
   const colors = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
-  const time = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
+  const loc = safeIntlLocale(language);
+  const time = new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
   // Events that haven't ended yet, all-day ones first.
   const left = events.filter((event) => colors.has(event.calendar) && onDay(event, now) && (event.allDay || event.end > now || event.start >= now));
   const rows = [
@@ -244,8 +245,8 @@ export function TodayCard({ config, hass, language, t }: AgendaProps) {
   ];
   // The small card names the next event with a time; all-day events and reminders count in the "+N".
   const first = rows.find((row) => row.open === "calendar" && row.when !== t("allDay")) ?? rows[0];
-  const weekday = new Intl.DateTimeFormat(language, { weekday: "long" }).format(now);
-  const date = new Intl.DateTimeFormat(language, { day: "numeric", month: "long" }).format(now);
+  const weekday = new Intl.DateTimeFormat(loc, { weekday: "long" }).format(now);
+  const date = new Intl.DateTimeFormat(loc, { day: "numeric", month: "long" }).format(now);
   const openMain = () => setOpen(hasCalendar ? "calendar" : todo ? "todo" : null);
 
   return <>
@@ -272,8 +273,9 @@ export function TodayCard({ config, hass, language, t }: AgendaProps) {
 function dueItems(items: TodoItem[], noDate: boolean, language: string | undefined, t: (key: TranslationKey) => string): DueItem[] {
   const now = new Date();
   const today = dayKey(now);
-  const time = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
-  const date = new Intl.DateTimeFormat(language, { day: "numeric", month: "short" });
+  const loc = safeIntlLocale(language);
+  const time = new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
+  const date = new Intl.DateTimeFormat(loc, { day: "numeric", month: "short" });
   return items.flatMap((item): DueItem[] => {
     if (item.status !== "needs_action") return [];
     let when: Date | null = null;
@@ -357,9 +359,10 @@ function CalendarSheet({ calendars, hass, language, onClose, t }: { calendars: C
 
   const shown = (events ?? []).filter((event) => colors.has(event.calendar));
   const today = dayKey(now);
-  const weekdays = Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(language, { weekday: "short" }).format(new Date(2026, 0, 4 + index)));
-  const monthTitle = new Intl.DateTimeFormat(language, { month: "long" }).format(month);
-  const time = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
+  const loc = safeIntlLocale(language);
+  const weekdays = Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(loc, { weekday: "short" }).format(new Date(2026, 0, 4 + index)));
+  const monthTitle = new Intl.DateTimeFormat(loc, { month: "long" }).format(month);
+  const time = new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
   const goMonth = (delta: number) => setMonth(new Date(month.getFullYear(), month.getMonth() + delta, 1));
   const pick = (day: Date) => { setSelected(day); if (day.getMonth() !== month.getMonth() || day.getFullYear() !== month.getFullYear()) setMonth(new Date(day.getFullYear(), day.getMonth(), 1)); };
   const dayEvents = shown.filter((event) => onDay(event, selected));
@@ -394,7 +397,7 @@ function CalendarSheet({ calendars, hass, language, onClose, t }: { calendars: C
         })}</div>
       </div>
       <aside className="hd-cal__agenda">
-        <div><span className="eyebrow">{dayKey(selected) === today ? t("today") : new Intl.DateTimeFormat(language, { weekday: "long" }).format(selected)}</span><h3>{new Intl.DateTimeFormat(language, { day: "numeric", month: "long" }).format(selected)}</h3></div>
+        <div><span className="eyebrow">{dayKey(selected) === today ? t("today") : new Intl.DateTimeFormat(loc, { weekday: "long" }).format(selected)}</span><h3>{new Intl.DateTimeFormat(loc, { day: "numeric", month: "long" }).format(selected)}</h3></div>
         <div className="hd-cal__list">
           {events === null ? <p className="hd-cal__empty">{t("loadingShort")}</p>
             : dayEvents.length === 0 ? <p className="hd-cal__empty">{t("nothingThisDay")}</p>
@@ -436,7 +439,8 @@ export function SaverAgenda({ config, hass, language, showEvents, showTodo, show
     return () => { cancelled = true; window.clearInterval(timer); };
   }, [hasCalendar, showTomorrow, today, calendars.map((calendar) => calendar.id).join(",")]);
   const colors = new Map(calendars.map((calendar) => [calendar.id, calendar.color]));
-  const time = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
+  const loc = safeIntlLocale(language);
+  const time = new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit", minute: "2-digit" });
   const left = events.filter((event) => colors.has(event.calendar) && onDay(event, now) && (event.allDay || event.end > now || event.start >= now));
   const next = new Date(startOfDay(now).getTime() + 86_400_000 + 3_600_000);
   const tomorrow = showTomorrow ? events.filter((event) => colors.has(event.calendar) && onDay(event, next)) : [];

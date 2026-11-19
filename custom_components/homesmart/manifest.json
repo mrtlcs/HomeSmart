@@ -1,7 +1,7 @@
 {
   "domain": "homesmart",
   "name": "HomeSmart",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "documentation": "https://github.com/mrtlcs/HomeSmart",
   "issue_tracker": "https://github.com/mrtlcs/HomeSmart/issues",
   "codeowners": ["@mrtlcs"],

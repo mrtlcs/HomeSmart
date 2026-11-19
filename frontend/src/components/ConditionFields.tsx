@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { domainLabel, type TranslationKey } from "../i18n";
+import { domainLabel, normalizeLanguage, type TranslationKey } from "../i18n";
 import { entityRules, useCustomize } from "../personalize";
 import { usePlan } from "../plan";
 import type { HomeSmartCondition, HomeSmartEntityRule } from "../types/config";
@@ -55,7 +55,7 @@ export function ConditionFields({ exclude, hass, onChange, t, value }: { exclude
   const customize = useCustomize();
   const [picking, setPicking] = useState(false);
   const root = useRef<HTMLDivElement>(null);
-  const language = hass.locale?.language ?? hass.language;
+  const language = normalizeLanguage(hass.locale?.language ?? hass.language);
   const rules = entityRules(value);
   const current = value ?? {};
   const name = (id: string) => customize?.lookup(id)?.name ?? String(hass.states[id]?.attributes.friendly_name ?? id);

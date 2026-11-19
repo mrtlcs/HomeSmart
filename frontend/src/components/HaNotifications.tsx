@@ -1,7 +1,7 @@
 import { hourOptions } from "../clock";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { TranslationKey } from "../i18n";
+import { safeIntlLocale, type TranslationKey } from "../i18n";
 import type { HomeAssistant } from "../types/home-assistant";
 import { HDIcon } from "./HDIcon";
 
@@ -57,7 +57,8 @@ export function NotificationBell({ hass, language, shell, t }: { hass: HomeAssis
     const date = new Date(iso);
     if (Number.isNaN(+date)) return "";
     const today = new Date().toDateString() === date.toDateString();
-    return new Intl.DateTimeFormat(language, today ? { ...hourOptions(), hour: "2-digit", minute: "2-digit" } : { ...hourOptions(), day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(date);
+    const loc = safeIntlLocale(language);
+    return new Intl.DateTimeFormat(loc, today ? { ...hourOptions(), hour: "2-digit", minute: "2-digit" } : { ...hourOptions(), day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }).format(date);
   };
   useEffect(() => {
     if (!open) return;

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
-import { hvacLabel, type TranslationKey } from "../i18n";
+import { hvacLabel, safeIntlLocale, type TranslationKey } from "../i18n";
 import type { DiscoveredEntity } from "../types/discovery";
 import type { HassEntity, HomeAssistant } from "../types/home-assistant";
 import { HDIcon } from "./HDIcon";
@@ -280,7 +280,8 @@ export function since(value: unknown, language?: string): string {
   const time = typeof value === "string" ? Date.parse(value) : NaN;
   if (!Number.isFinite(time)) return "";
   const minutes = Math.round((time - Date.now()) / 60_000);
-  const format = new Intl.RelativeTimeFormat(language, { numeric: "auto" });
+  const loc = safeIntlLocale(language);
+  const format = new Intl.RelativeTimeFormat(loc, { numeric: "auto" });
   if (Math.abs(minutes) < 60) return format.format(minutes, "minute");
   if (Math.abs(minutes) < 60 * 24) return format.format(Math.round(minutes / 60), "hour");
   return format.format(Math.round(minutes / 1440), "day");

@@ -1151,16 +1151,59 @@ const messages: Record<string, Record<TranslationKey, string>> = {
   },
 };
 
-function normalizeLanguage(language?: string): string {
-  if (!language) return "en";
-  if (language.toLowerCase().startsWith("vi")) return "vi";
-  if (language.toLowerCase().startsWith("pt")) return "pt-BR";
-  if (language.toLowerCase().startsWith("es")) return "es";
-  if (language.toLowerCase().startsWith("de")) return "de";
-  if (language.toLowerCase().startsWith("pl")) return "pl";
-  const short = language.toLowerCase().slice(0, 2);
+export function normalizeLanguage(language?: string): string {
+  if (!language || typeof language !== "string") {
+    const nav = typeof navigator !== "undefined" ? navigator.language : undefined;
+    if (nav) {
+      const cleanNav = nav.trim().toLowerCase();
+      if (cleanNav.startsWith("vi")) return "vi";
+      if (cleanNav.startsWith("pt")) return "pt-BR";
+      if (cleanNav.startsWith("es")) return "es";
+      if (cleanNav.startsWith("de")) return "de";
+      if (cleanNav.startsWith("pl")) return "pl";
+      const short = cleanNav.slice(0, 2);
+      if (short in extraLocales) return short;
+      if (cleanNav.startsWith("en")) return "en";
+    }
+    return "vi";
+  }
+  const clean = language.trim().toLowerCase();
+  if (clean === "auto" || clean.length < 2) {
+    const nav = typeof navigator !== "undefined" ? navigator.language : undefined;
+    if (nav) {
+      const cleanNav = nav.trim().toLowerCase();
+      if (cleanNav.startsWith("vi")) return "vi";
+      if (cleanNav.startsWith("pt")) return "pt-BR";
+      if (cleanNav.startsWith("es")) return "es";
+      if (cleanNav.startsWith("de")) return "de";
+      if (cleanNav.startsWith("pl")) return "pl";
+      const short = cleanNav.slice(0, 2);
+      if (short in extraLocales) return short;
+      if (cleanNav.startsWith("en")) return "en";
+    }
+    return "vi";
+  }
+  if (clean.startsWith("vi")) return "vi";
+  if (clean.startsWith("pt")) return "pt-BR";
+  if (clean.startsWith("es")) return "es";
+  if (clean.startsWith("de")) return "de";
+  if (clean.startsWith("pl")) return "pl";
+  const short = clean.slice(0, 2);
   if (short in extraLocales) return short;
-  return "en";
+  if (clean.startsWith("en")) return "en";
+  return "vi";
+}
+
+export function safeIntlLocale(language?: string): string {
+  try {
+    const lang = normalizeLanguage(language);
+    if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
+      Intl.DateTimeFormat.supportedLocalesOf([lang]);
+    }
+    return lang;
+  } catch {
+    return "vi";
+  }
 }
 
 export function createTranslator(language?: string) {

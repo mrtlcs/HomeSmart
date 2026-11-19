@@ -7,7 +7,7 @@ import { HDIcon, isIconName, RoomIcon, type IconName } from "../components/HDIco
 import { PageIconPicker } from "../components/RoomOptions";
 import { HDSegmented, HDSelect } from "../components/HDSelect";
 import { NOTICE_OFF_DOMAINS, NOTICE_RUN_DOMAINS } from "../components/HeaderBadges";
-import { domainLabel, type TranslationKey } from "../i18n";
+import { domainLabel, safeIntlLocale, type TranslationKey } from "../i18n";
 import type { HomeSmartCondition, HomeSmartNoticeTap, HomeSmartBackgroundPreset, HomeSmartBin, HomeSmartBinColor, HomeSmartCardStyle, HomeSmartConfig, HomeSmartPageType } from "../types/config";
 import { ConditionFields } from "../components/ConditionFields";
 import { DashboardImport } from "../components/DashboardImport";
@@ -426,7 +426,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
         {section === "plan" && <section className="st-panel st-plan">
           {plan.pro ? <>
             <div className="st-plan__head"><span className="hd-pro__mark"><HDIcon name="star" size={20} /></span><div><h2>{t("proActive")}</h2><p>{plan.license?.kind === "annual" ? t("proAnnual") : t("proLifetime")}{plan.license?.email ? ` · ${plan.license.email}` : ""}</p></div></div>
-            {plan.license?.expires_at && <Row label={plan.license.cancels ? t("proEnds") : t("proRenews")}><span className="st-value">{new Intl.DateTimeFormat(language, { dateStyle: "medium" }).format(new Date(plan.license.expires_at * 1000))}</span></Row>}
+            {plan.license?.expires_at && <Row label={plan.license.cancels ? t("proEnds") : t("proRenews")}><span className="st-value">{new Intl.DateTimeFormat(safeIntlLocale(language), { dateStyle: "medium" }).format(new Date(plan.license.expires_at * 1000))}</span></Row>}
             {plan.license?.manage && <Row description={t("proManageDescription")} label={t("proManage")}><button className="hd-pill" onClick={() => void openPortal(hass, window.location.href).then(({ url }) => window.open(url, "_blank", "noopener")).catch(() => undefined)} type="button">{t("proManageAction")}</button></Row>}
             <Row description={t("proRemoveDescription")} label={t("proRemove")}><RemoveLicenseButton onRemove={() => void deactivateLicense(hass).then(onLicense)} t={t} /></Row>
           </> : <>

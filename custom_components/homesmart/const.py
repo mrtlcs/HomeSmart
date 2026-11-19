@@ -4,7 +4,7 @@ from typing import Final
 
 DOMAIN: Final = "homesmart"
 NAME: Final = "HomeSmart"
-VERSION: Final = "1.3.3"
+VERSION: Final = "1.3.4"
 
 PANEL_URL: Final = "/homesmart_static"
 PANEL_PATH: Final = "homesmart"

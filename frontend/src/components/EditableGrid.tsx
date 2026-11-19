@@ -1,7 +1,7 @@
 import { createContext, Fragment, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
-import type { TranslationKey } from "../i18n";
+import { normalizeLanguage, type TranslationKey } from "../i18n";
 import type { ScreenLayout } from "../types/config";
 import { HDIcon } from "./HDIcon";
 import { usePlan } from "../plan";
@@ -178,7 +178,7 @@ export function EditableGrid({ addLabel, roomScreen, cameraGrid, className, edit
     key,
     label: vehicles[key].name || t("vehicle"),
     removal: "remove",
-    node: <VehicleCard editing={editing} hass={hass!} language={hass?.locale?.language ?? hass?.language} t={t} vehicle={vehicles[key]} />,
+    node: <VehicleCard editing={editing} hass={hass!} language={normalizeLanguage(hass?.locale?.language ?? hass?.language)} t={t} vehicle={vehicles[key]} />,
   }))];
   const shown = order ?? keys;
   const byKey = new Map(items.map((item) => [item.key, item]));

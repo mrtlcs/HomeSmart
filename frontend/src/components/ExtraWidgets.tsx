@@ -1,7 +1,7 @@
 import { hourOptions } from "../clock";
 import { useRef, useState } from "react";
 import type { CSSProperties } from "react";
-import { weatherConditionLabel, type TranslationKey } from "../i18n";
+import { safeIntlLocale, weatherConditionLabel, type TranslationKey } from "../i18n";
 import { useHistory } from "../history";
 import type { WidgetKey } from "../layout";
 import type { HomeSmartConfig } from "../types/config";
@@ -38,7 +38,7 @@ function asEntity(state: HassEntity): DiscoveredEntity {
 
 const time = (value: unknown, language?: string) => {
   const date = typeof value === "string" ? new Date(value) : null;
-  return date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(date) : "—";
+  return date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat(safeIntlLocale(language), { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(date) : "—";
 };
 
 export function WeatherWidget({ config, hass, language, t }: { config: HomeSmartConfig; hass: HomeAssistant; language?: string; t: T }) {
@@ -51,7 +51,7 @@ export function WeatherWidget({ config, hass, language, t }: { config: HomeSmart
   const low = numeric(today?.templow);
   const condition = now?.condition;
   const shell = ref.current?.closest(".app-shell") ?? null;
-  const hour = new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit" });
+  const hour = new Intl.DateTimeFormat(safeIntlLocale(language), { ...hourOptions(), hour: "2-digit" });
   return <>
     <button className={`widget-card widget-card--interactive widget-card--weather ${wide ? "widget-card--wide" : ""}`} onClick={() => setOpen(true)} ref={ref} type="button">
       <span className="widget-card__icon"><HDIcon name={conditionIcon(condition)} size={22} /></span>
@@ -105,7 +105,8 @@ export function power(state?: HassEntity): number | null {
 
 export function formatPower(watts: number, language?: string): string {
   const abs = Math.abs(watts);
-  return abs >= 1000 ? `${new Intl.NumberFormat(language, { maximumFractionDigits: abs >= 10_000 ? 1 : 2 }).format(watts / 1000)} kW` : `${Math.round(watts)} W`;
+  const loc = safeIntlLocale(language);
+  return abs >= 1000 ? `${new Intl.NumberFormat(loc, { maximumFractionDigits: abs >= 10_000 ? 1 : 2 }).format(watts / 1000)} kW` : `${Math.round(watts)} W`;
 }
 
 /** Energy at home now: consumption, solar, the grid (importing or exporting), the battery and

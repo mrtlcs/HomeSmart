@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { safeIntlLocale } from "../i18n";
 import { arrange, entityKey, getLayout, keyId, setHidden } from "../layout";
 import { usePlan } from "../plan";
 import type { ScreenProps } from "../screens/types";
@@ -27,7 +28,8 @@ function reading(hass: HomeAssistant, state: HassEntity | undefined, language?: 
   if (typeof format === "function") { try { return format.call(hass, state); } catch { /* falls back below */ } }
   const value = Number(state.state);
   const unit = state.attributes.unit_of_measurement ? ` ${String(state.attributes.unit_of_measurement)}` : "";
-  return Number.isFinite(value) ? `${new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(value)}${unit}` : `${state.state}${unit}`;
+  const loc = safeIntlLocale(language);
+  return Number.isFinite(value) ? `${new Intl.NumberFormat(loc, { maximumFractionDigits: 1 }).format(value)}${unit}` : `${state.state}${unit}`;
 }
 
 /** Environment sensors of a room, as small pills under its name: icon and reading, a tap opens the

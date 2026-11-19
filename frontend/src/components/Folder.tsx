@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { TranslationKey } from "../i18n";
+import { normalizeLanguage, type TranslationKey } from "../i18n";
 import { keyId } from "../layout";
 import { useCustomize } from "../personalize";
 import { usePlan } from "../plan";
@@ -42,7 +42,7 @@ export function FolderSheet({ editing, folder, hass, onChange, onClose, t }: { e
   const [title, setTitle] = useState(folder.title);
   useEffect(() => setTitle(folder.title), [folder.title]);
   useEscape(onClose, !picking && !opened);
-  const language = hass.locale?.language ?? hass.language;
+  const language = normalizeLanguage(hass.locale?.language ?? hass.language);
   const layout = folder.layout ?? EMPTY;
   const entities = folder.entities.map((id) => customize?.lookup(id)).filter((entity): entity is DiscoveredEntity => Boolean(entity));
   const hidden = new Set(layout.hidden);

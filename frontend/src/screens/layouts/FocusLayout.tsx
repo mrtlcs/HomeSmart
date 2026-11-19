@@ -9,7 +9,7 @@ import { SceneStrip } from "../../components/SceneStrip";
 import { displayState } from "../../components/EntityCard";
 import { EntityModal } from "../../components/EntityModal";
 import { EntityIcon, HDIcon, RoomIcon } from "../../components/HDIcon";
-import { weatherConditionLabel } from "../../i18n";
+import { safeIntlLocale, weatherConditionLabel } from "../../i18n";
 import { useWeather } from "../../weather";
 import { roomKey } from "../../layout";
 import type { DiscoveredEntity, Room } from "../../types/discovery";
@@ -113,8 +113,8 @@ function FocusRooms(props: FocusLayoutProps) {
     </div>
     <div className="fc-track" onScroll={onScroll} ref={track}>
       <section className="fc-page fc-page--home" aria-label={t("home")}>
-        <span className="eyebrow">{new Intl.DateTimeFormat(language, { weekday: "long", day: "numeric", month: "long" }).format(now)}</span>
-        <time className="fc-clock">{new Intl.DateTimeFormat(language, { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(now)}</time>
+        <span className="eyebrow">{new Intl.DateTimeFormat(safeIntlLocale(language), { weekday: "long", day: "numeric", month: "long" }).format(now)}</span>
+        <time className="fc-clock">{new Intl.DateTimeFormat(safeIntlLocale(language), { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(now)}</time>
         <div className="fc-summary">
           {weather && <span>{weather.temperature != null ? `${Math.round(weather.temperature)}°` : ""}{weather.temperature != null && weather.condition ? " · " : ""}{weather.condition ? weatherConditionLabel(weather.condition, language) : ""}</span>}
           <span>{homeStatusText(config, hass, litTotal, t)}</span>

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { TranslationKey } from "../i18n";
+import { normalizeLanguage, type TranslationKey } from "../i18n";
 import { RUNNABLE, SELECTS } from "../devices";
 import { useCustomize } from "../personalize";
 import type { HomeSmartEntityList } from "../types/config";
@@ -27,7 +27,7 @@ export function EntityListCard({ editing, hass, list, t }: { editing: boolean; h
   const customize = useCustomize();
   const root = useRef<HTMLDivElement>(null);
   const [opened, setOpened] = useState<DiscoveredEntity | null>(null);
-  const language = hass.language ?? hass.locale?.language;
+  const language = normalizeLanguage(hass.language ?? hass.locale?.language);
   const entities = list.entities.map((id) => customize?.lookup(id)).filter((entity): entity is DiscoveredEntity => Boolean(entity));
   const label = (entity: DiscoveredEntity) => list.names?.[entity.entity_id] || entity.name;
   const shell = shellOf(root.current);

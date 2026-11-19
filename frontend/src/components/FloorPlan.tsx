@@ -5,7 +5,7 @@ import { isEnvironmentSensor } from "./SensorStrip";
 import { childLocked, childLockNote } from "../devicePrefs";
 import type { ScreenProps } from "../screens/types";
 import type { HomeSmartConfig, HOMESMARTFloorplan, HOMESMARTFloorplanRect } from "../types/config";
-import type { TranslationKey } from "../i18n";
+import { safeIntlLocale, type TranslationKey } from "../i18n";
 import type { DiscoveredEntity, DiscoveryResponse, Room } from "../types/discovery";
 import type { HomeAssistant } from "../types/home-assistant";
 import { ContextHeader } from "./ContextHeader";
@@ -111,7 +111,8 @@ function shortReading(state: { state: string; attributes: Record<string, unknown
   const value = Number(state.state);
   if (!Number.isFinite(value)) return state.state.length > 6 ? `${state.state.slice(0, 5)}…` : state.state;
   const unit = String(state.attributes.unit_of_measurement ?? "");
-  const number = new Intl.NumberFormat(language, { maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 1 }).format(value);
+  const loc = safeIntlLocale(language);
+  const number = new Intl.NumberFormat(loc, { maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 1 }).format(value);
   return unit === "°C" || unit === "°F" ? `${number}°` : unit === "%" ? `${number}%` : unit ? `${number} ${unit}` : number;
 }
 
@@ -595,7 +596,8 @@ export function FloorPlan(props: ScreenProps & { embedded?: boolean; onOpenRoom:
           const glow = lights.length === 0 ? 0 : lit.length / lights.length;
           const temperature = room.entities.find((entity) => entity.domain === "sensor" && entity.device_class === "temperature");
           const temperatureState = temperature ? hass.states[temperature.entity_id] : undefined;
-          const temperatureText = temperatureState && Number.isFinite(Number(temperatureState.state)) ? `${new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(Number(temperatureState.state))}°` : null;
+          const loc = safeIntlLocale(language);
+          const temperatureText = temperatureState && Number.isFinite(Number(temperatureState.state)) ? `${new Intl.NumberFormat(loc, { maximumFractionDigits: 1 }).format(Number(temperatureState.state))}°` : null;
           const motion = room.entities.some((entity) => entity.domain === "binary_sensor" && MOTION.has(entity.device_class ?? "") && hass.states[entity.entity_id]?.state === "on");
           const open = room.entities.some((entity) => entity.domain === "binary_sensor" && OPENINGS.has(entity.device_class ?? "") && hass.states[entity.entity_id]?.state === "on");
           const auto = autoSpots(devices.length, box, upright);
