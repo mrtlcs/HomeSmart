@@ -121,7 +121,7 @@ function FocusRooms(props: FocusLayoutProps) {
           <AgendaButtons config={config} hass={hass} language={language} t={t} />
         </div>
         {editing && <p className="edit-hint">{t("editHintSimple")}</p>}
-        {config.visibility.home_cards.scenes && <SceneStrip props={props} />}
+        {config?.visibility?.home_cards?.scenes && <SceneStrip props={props} />}
         <EditableGrid
           className="fc-rooms"
           editing={editing}

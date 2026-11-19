@@ -86,6 +86,27 @@ function withDefaults(config: HomeSmartConfig): HomeSmartConfig {
       temperature_unit: "auto",
       ...(config.preferences as Partial<HomeSmartConfig["preferences"]> | undefined),
     },
+    visibility: {
+      hidden_home_rooms: [],
+      hidden_home_entities: [],
+      visible_home_entities: [],
+      hidden_room_entities: [],
+      home_cards: {
+        status: true,
+        priority: true,
+        rooms: true,
+        shortcuts: true,
+        scenes: true,
+      },
+      ...(config.visibility as Partial<HomeSmartConfig["visibility"]> | undefined),
+    },
+    priority_cards: {
+      security: true,
+      climate: true,
+      media: true,
+      featured_entity_ids: [],
+      ...(config.priority_cards as Partial<HomeSmartConfig["priority_cards"]> | undefined),
+    },
   };
 }
 

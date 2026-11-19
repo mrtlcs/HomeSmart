@@ -42,7 +42,7 @@ export function SidebarLayout(props: SidebarLayoutProps) {
     <ContextHeader config={config} hass={hass} language={language} onSettings={props.onSettings} part="status" t={t} />
     <aside className="sb-side">
       <ContextHeader config={config} hass={hass} language={language} onSettings={props.onSettings} part="clock" t={t} />
-      {config.visibility.home_cards.status && !editing && <HomeStatus config={config} data={data} hass={hass} t={t} />}
+      {config?.visibility?.home_cards?.status && !editing && <HomeStatus config={config} data={data} hass={hass} t={t} />}
       <nav className="sb-nav" aria-label={t("navigation")}>
         <button aria-current={!room && !page && !custom ? "page" : undefined} onClick={() => onSelectRoom(null)} type="button"><span className="sb-nav__icon"><HDIcon name="home" size={18} /></span><span>{t("overview")}</span></button>
         <EditableGrid
@@ -77,7 +77,7 @@ export function SidebarLayout(props: SidebarLayoutProps) {
       </> : <>
         <header className="sb-main__header"><div><span className="eyebrow">{t("appName")}</span><h1>{t("overview")}</h1></div></header>
         {editing && <p className="edit-hint">{t("editHint")}</p>}
-        {config.visibility.home_cards.scenes && <SceneStrip props={props} />}
+        {config?.visibility?.home_cards?.scenes && <SceneStrip props={props} />}
         <HomeGrid {...props} className="sb-grid sb-home" onLayout={detachSidebar(props)} onOpenRoom={(id) => onSelectRoom(id)} />
       </>}
     </section>

@@ -122,7 +122,7 @@ export function PhotoLayout(props: PhotoLayoutProps) {
   } else {
     title = t("overview"); sub = `${capital(date)} · ${time}`;
     body = <>
-      {config.visibility.home_cards.scenes && <SceneStrip props={props} />}
+      {config?.visibility?.home_cards?.scenes && <SceneStrip props={props} />}
       <HomeGrid {...props} className="sb-grid ph-grid" onLayout={detachSidebar(props)} onOpenRoom={(id) => onGo("rooms", id)} />
     </>;
   }

@@ -18,7 +18,7 @@ import { usePlan } from "../plan";
 
 export function HomeScreen(props: ScreenProps & { onOpenRoom: (roomId: string) => void }) {
   const { config, data, editing, hass, language, t } = props;
-  const empty = data.rooms.length === 0 && config.visibility.visible_home_entities.length === 0 && availableWidgets(data, todayCardAvailable(config, hass), extraWidgets(config, hass)).length === 0;
+  const empty = (data?.rooms?.length ?? 0) === 0 && (config?.visibility?.visible_home_entities?.length ?? 0) === 0 && availableWidgets(data, todayCardAvailable(config, hass), extraWidgets(config, hass)).length === 0;
 
   const screen = useRef<HTMLElement>(null);
   useFitToScreen(screen);
@@ -27,8 +27,8 @@ export function HomeScreen(props: ScreenProps & { onOpenRoom: (roomId: string) =
     <main className={`screen home-screen ${editing ? "screen--editing" : ""}`} ref={screen}>
       <ContextHeader config={config} hass={hass} language={language} onSettings={props.onSettings} t={t} />
       {editing && <p className="edit-hint">{t("editHint")}</p>}
-      {config.visibility.home_cards.status && <HomeStatus config={config} data={data} hass={hass} t={t} />}
-      {config.visibility.home_cards.scenes && <SceneStrip props={props} />}
+      {config?.visibility?.home_cards?.status && <HomeStatus config={config} data={data} hass={hass} t={t} />}
+      {config?.visibility?.home_cards?.scenes && <SceneStrip props={props} />}
       {empty
         ? <section className="empty-state"><span className="empty-state__icon"><HDIcon name="home" size={30} /></span><h2>{t("noRooms")}</h2><p>{t("noRoomsDescription")}</p></section>
         : <HomeGrid {...props} className="home-grid" />}
@@ -86,8 +86,8 @@ export function HomeGrid(props: ScreenProps & { className: string; onOpenRoom: (
   const layout = getLayout(config, HOME_SCREEN);
   const { byId, roomName } = useMemo(() => entityIndex(allRooms), [allRooms]);
   const rooms = new Map(data.rooms.map((room) => [room.id, room]));
-  const homeEntities = config.visibility.visible_home_entities.filter((id) => byId.has(id));
-  const keys = [...data.rooms.map((room) => roomKey(room.id)), ...availableWidgets(data, todayCardAvailable(config, hass), extraWidgets(config, hass)), ...homeEntities.map(entityKey)];
+  const homeEntities = (config?.visibility?.visible_home_entities ?? []).filter((id) => byId.has(id));
+  const keys = [...(data?.rooms ?? []).map((room) => roomKey(room.id)), ...availableWidgets(data, todayCardAvailable(config, hass), extraWidgets(config, hass)), ...homeEntities.map(entityKey)];
   const { visible, hidden } = arrange(keys, layout);
 
   const label = (key: string): string => {
@@ -97,7 +97,7 @@ export function HomeGrid(props: ScreenProps & { className: string; onOpenRoom: (
     return room?.id === "__unassigned__" ? t("unassigned") : room?.name ?? keyId(key);
   };
 
-  const setHomeEntities = (ids: string[]) => onConfig((current) => ({ ...current, visibility: { ...current.visibility, visible_home_entities: ids } }));
+  const setHomeEntities = (ids: string[]) => onConfig((current) => ({ ...current, visibility: { ...(current.visibility ?? { hidden_home_rooms: [], hidden_home_entities: [], visible_home_entities: [], hidden_room_entities: [], home_cards: { status: true, priority: true, rooms: true, shortcuts: true, scenes: true } }), visible_home_entities: ids } }));
 
   const items: GridItem[] = visible.map((key, index) => {
     if (key.startsWith("widget:")) {

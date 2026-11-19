@@ -1,4 +1,5 @@
 import { pauseCameras } from "./cameraPause";
+import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { App } from "./App";
 import { installFonts } from "./fonts";
@@ -15,6 +16,44 @@ import type { HomeAssistant, HomeSmartPanelInfo } from "./types/home-assistant";
 import { hideSidebar, hideSidebarPreferred, restoreSidebar } from "./sidebar";
 import { hidePageScrollbars } from "./scrollbars";
 import { inDesktopApp } from "./desktop";
+
+class PanelErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error?: Error }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("[HomeSmart] Frontend crash caught:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <main className="screen center-state" style={{ padding: 24, textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "100vh", color: "#fff" }}>
+          <span style={{ fontSize: 36, marginBottom: 12 }}>⚠️</span>
+          <h2 style={{ fontSize: "1.4rem", margin: "0 0 8px 0" }}>HomeSmart</h2>
+          <p style={{ maxWidth: 480, margin: "0 0 20px 0", opacity: 0.85, fontSize: "0.95rem", lineHeight: 1.5 }}>
+            {this.state.error?.message || "Đã xảy ra lỗi hiển thị giao diện."}
+          </p>
+          <button
+            className="primary-button"
+            style={{ padding: "10px 24px", borderRadius: 12, cursor: "pointer", fontSize: "0.95rem" }}
+            onClick={() => {
+              this.setState({ hasError: false });
+              window.location.reload();
+            }}
+            type="button"
+          >
+            Tải lại trang (Reload)
+          </button>
+        </main>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 class HomeSmartPanel extends HTMLElement {
   private _hass?: HomeAssistant;
@@ -70,7 +109,11 @@ class HomeSmartPanel extends HTMLElement {
 
   private renderPanel() {
     if (!this._hass) return;
-    this.root.render(<App hass={this._hass} version={this._panel?.config?.version} />);
+    this.root.render(
+      <PanelErrorBoundary>
+        <App hass={this._hass} version={this._panel?.config?.version} />
+      </PanelErrorBoundary>
+    );
   }
 }
 

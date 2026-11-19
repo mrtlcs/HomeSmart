@@ -130,39 +130,45 @@ export function toggleWide(layout: ScreenLayout, key: string): ScreenLayout {
  */
 export function migrateLayouts(config: HomeSmartConfig, data: DiscoveryResponse): HomeSmartConfig | null {
   if (config.layouts?.[HOME_SCREEN]) return null;
-  const visibility = config.visibility;
-  const cards = visibility.home_cards;
-  const priority = config.priority_cards;
+  const visibility = config.visibility ?? {
+    hidden_home_rooms: [],
+    hidden_home_entities: [],
+    visible_home_entities: [],
+    hidden_room_entities: [],
+    home_cards: { status: true, priority: true, rooms: true, shortcuts: true, scenes: true },
+  };
+  const cards = visibility.home_cards ?? { status: true, priority: true, rooms: true, shortcuts: true, scenes: true };
+  const priority = config.priority_cards ?? { security: true, climate: true, media: true, featured_entity_ids: [] };
   const homeHidden = new Set<string>();
-  for (const room of data.rooms) {
-    if (!cards.rooms || visibility.hidden_home_rooms.includes(room.id)) homeHidden.add(roomKey(room.id));
+  for (const room of (data?.rooms ?? [])) {
+    if (!cards.rooms || (visibility.hidden_home_rooms ?? []).includes(room.id)) homeHidden.add(roomKey(room.id));
   }
   if (!cards.priority || !priority.security) homeHidden.add("widget:security");
   if (!cards.priority || !priority.climate) homeHidden.add("widget:climate");
   if (!cards.priority || !priority.media) homeHidden.add("widget:media");
 
-  const layouts: Record<string, ScreenLayout> = { ...config.layouts };
+  const layouts: Record<string, ScreenLayout> = { ...(config.layouts ?? {}) };
   layouts[HOME_SCREEN] = {
     order: [],
     hidden: [...homeHidden],
-    wide: config.layout.featured_room ? [roomKey(config.layout.featured_room)] : [],
+    wide: config.layout?.featured_room ? [roomKey(config.layout.featured_room)] : [],
   };
-  const roomHidden = new Set(visibility.hidden_room_entities);
-  for (const room of data.rooms) {
-    const hidden = room.entities.filter((entity) => roomHidden.has(entity.entity_id)).map((entity) => entityKey(entity.entity_id));
+  const roomHidden = new Set(visibility.hidden_room_entities ?? []);
+  for (const room of (data?.rooms ?? [])) {
+    const hidden = (room.entities ?? []).filter((entity) => roomHidden.has(entity.entity_id)).map((entity) => entityKey(entity.entity_id));
     if (hidden.length > 0) layouts[roomScreen(room.id)] = { order: [], hidden, wide: [] };
   }
-  const collectionHidden = visibility.hidden_home_entities.map(entityKey);
+  const collectionHidden = (visibility.hidden_home_entities ?? []).map(entityKey);
   if (collectionHidden.length > 0) {
     for (const screen of ["scenes", "media", "security"]) layouts[screen] = { order: [], hidden: collectionHidden, wide: [] };
   }
-  const homeEntities = [...new Set([...visibility.visible_home_entities, ...priority.featured_entity_ids])];
+  const homeEntities = [...new Set([...(visibility.visible_home_entities ?? []), ...(priority.featured_entity_ids ?? [])])];
   return {
     ...config,
     version: 9,
     layouts,
     visibility: { ...visibility, visible_home_entities: homeEntities },
     priority_cards: { ...priority, featured_entity_ids: [] },
-    layout: { ...config.layout, featured_room: null },
+    layout: { ...(config.layout ?? { density: "comfortable", featured_room: null }), featured_room: null },
   };
 }

@@ -74,8 +74,8 @@ function ListRooms(props: ListLayoutProps) {
   const { byId, roomName } = entityIndex(allRooms);
   const shown = roomId ? rooms.filter((room) => room.id === roomId) : rooms;
   // Devices added to Home (in any layout) show as a group of their own; in Edit mode each one can be taken off Home.
-  const favorites = roomId ? [] : config.visibility.visible_home_entities.map((id) => byId.get(id)).filter((entity): entity is DiscoveredEntity => Boolean(entity));
-  const removeFavorite = (id: string) => props.onConfig((current) => ({ ...current, visibility: { ...current.visibility, visible_home_entities: current.visibility.visible_home_entities.filter((item) => item !== id) } }));
+  const favorites = roomId ? [] : (config?.visibility?.visible_home_entities ?? []).map((id) => byId.get(id)).filter((entity): entity is DiscoveredEntity => Boolean(entity));
+  const removeFavorite = (id: string) => props.onConfig((current) => ({ ...current, visibility: { ...(current.visibility ?? { hidden_home_rooms: [], hidden_home_entities: [], visible_home_entities: [], hidden_room_entities: [], home_cards: { status: true, priority: true, rooms: true, shortcuts: true, scenes: true } }), visible_home_entities: (current.visibility?.visible_home_entities ?? []).filter((item) => item !== id) } }));
   const name = (room: Room) => (room.id === "__unassigned__" ? t("unassigned") : room.name);
 
   const row = useRow(props, setModalEntity);
@@ -102,10 +102,10 @@ function ListRooms(props: ListLayoutProps) {
   return <main className={`screen ls-layout ${editing ? "screen--editing" : ""}`}>
     <ContextHeader config={config} hass={hass} language={language} onSettings={props.onSettings} t={t} />
     {editing && <p className="edit-hint">{t("editHintSimple")}</p>}
-    {!roomId && !editing && config.visibility.home_cards.status && <HomeStatus config={config} data={data} hass={hass} t={t} />}
+    {!roomId && !editing && config?.visibility?.home_cards?.status && <HomeStatus config={config} data={data} hass={hass} t={t} />}
     {roomId && <div className="ls-strip" role="tablist">{rooms.map((room) => <button aria-selected={room.id === roomId} key={room.id} onClick={() => onSelectRoom(room.id)} role="tab" type="button"><RoomIcon room={room} size={16} />{name(room)}</button>)}</div>}
 
-    {!roomId && config.visibility.home_cards.scenes && <SceneStrip props={props} />}
+    {!roomId && config?.visibility?.home_cards?.scenes && <SceneStrip props={props} />}
     {favorites.length > 0 && <div className="ls-groups ls-groups--favorites">
       <section className="ls-group">
         <header className="ls-group__head"><span className="ls-group__icon"><HDIcon name="star" size={18} /></span><span className="ls-group__copy"><b>{t("shortcuts")}</b><small>{favorites.length} {t("entities")}</small></span></header>

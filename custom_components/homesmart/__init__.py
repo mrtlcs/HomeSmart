@@ -11,7 +11,7 @@ from .license import async_start_refresh
 from .storage import async_load_config
 from .websocket import async_register_websocket_commands
 
-CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+CONFIG_SCHEMA = cv.empty_config_schema(DOMAIN)
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
