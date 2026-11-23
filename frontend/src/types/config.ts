@@ -411,6 +411,25 @@ export interface HomeSmartBin {
   match?: string;
 }
 
+export interface EnergyTier {
+  id?: string;
+  name?: string;
+  max: number | null; // null or Infinity for final tier
+  rate: number;
+}
+
+export interface EnergyTariffConfig {
+  mode: "tiered" | "flat";
+  flat_rate?: number;
+  tiers: EnergyTier[];
+  currency: string;
+  currency_position: "prefix" | "suffix";
+  vat_percent?: number;
+  include_vat?: boolean;
+  fixed_monthly_fee?: number;
+  preset?: string;
+}
+
 export interface HOMESMARTEnergy {
   /** Power the home is using now (W or kW). */
   consumption: string;
@@ -423,6 +442,8 @@ export interface HOMESMARTEnergy {
   battery: string;
   /** Energy produced today (kWh). */
   solar_today: string;
+  /** Customizable electricity tariff settings (rates, tiers, currency, VAT). */
+  tariff?: EnergyTariffConfig;
 }
 
 

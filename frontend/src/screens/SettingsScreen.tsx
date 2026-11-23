@@ -15,6 +15,7 @@ import { KIDS_SCENES } from "../components/KidsScene";
 import { applyImport } from "../dashboardImport";
 import { withRoomOptions } from "../personalize";
 import { energyCandidates } from "../components/ExtraWidgets";
+import { EnergyTariffModal } from "../components/EnergyTariffModal";
 import { cameraIds, DoorbellPopup, doorbellCandidates, guessDoorbellCamera } from "../components/Doorbell";
 import { occasionsFor, RULES, SEASON_EFFECTS, type SeasonEffect } from "../seasons";
 import { SeasonPreview } from "../components/SeasonLayer";
@@ -568,6 +569,7 @@ function CardStylePanel({ cards, kids = false, locked, onChange, onUpsell, t }: 
 
 /** Optional cards on Home: the bigger weather card, the sun and (Pro) energy, with its sensors. */
 function ExtraCardsPanel({ draft, hass, onUpsell, pro, t, update }: { draft: HomeSmartConfig; hass: HomeAssistant; onUpsell: () => void; pro: boolean; t: (key: TranslationKey) => string; update: (patch: Partial<HomeSmartConfig>) => void }) {
+  const [tariffModal, setTariffModal] = useState(false);
   const widgets = draft.widgets;
   const energy = draft.energy;
   const candidates = useMemo(() => energyCandidates(hass), [hass.states]);
@@ -584,7 +586,8 @@ function ExtraCardsPanel({ draft, hass, onUpsell, pro, t, update }: { draft: Hom
       ...(on && empty ? { energy: { consumption: guess("consumption"), grid_import: guess("grid_import"), grid_export: "", solar: guess("solar"), battery: guess("battery"), solar_today: guess("solar_today") } } : {}),
     });
   };
-  const fields: Array<[keyof HomeSmartConfig["energy"], TranslationKey]> = [["consumption", "energyHome"], ["solar", "energySolar"], ["grid_import", "energyGrid"], ["grid_export", "energyGridExport"], ["battery", "energyBattery"], ["solar_today", "energyToday"]];
+  type EnergyFieldKey = "consumption" | "solar" | "grid_import" | "grid_export" | "battery" | "solar_today";
+  const fields: Array<[EnergyFieldKey, TranslationKey]> = [["consumption", "energyHome"], ["solar", "energySolar"], ["grid_import", "energyGrid"], ["grid_export", "energyGridExport"], ["battery", "energyBattery"], ["solar_today", "energyToday"]];
   return <section className="st-panel">
     <h2>{t("moreHomeCards")}</h2><p>{t("homeCardsDescription")}</p>
     <Row label={t("weatherCard")}><Switch checked={widgets.weather} label={t("weatherCard")} onChange={(weather) => set({ weather })} /></Row>
@@ -592,8 +595,23 @@ function ExtraCardsPanel({ draft, hass, onUpsell, pro, t, update }: { draft: Hom
     <div className="st-group">
       <Row description={t("energyCardDescription")} label={t("energyCard")}>{pro ? <Switch checked={widgets.energy} label={t("energyCard")} onChange={turnOnEnergy} /> : <button className="hd-pill" onClick={onUpsell} type="button"><HDIcon name="lock" size={14} />Pro</button>}</Row>
       {pro && widgets.energy && <div className="st-sub">
-        {fields.map(([key, name]) => <div className="st-sub__row" key={key}><span>{t(name)}</span><HDSelect ariaLabel={t(name)} onChange={(id) => update({ energy: { ...energy, [key]: id } })} options={[{ value: "", label: t("none") }, ...[...new Set([...(energy[key] ? [energy[key]] : []), ...candidates[key].map((state) => state.entity_id)])].map((id) => ({ value: id, label: label(id) }))]} value={energy[key]} /></div>)}
+        {fields.map(([key, name]) => <div className="st-sub__row" key={key}><span>{t(name)}</span><HDSelect ariaLabel={t(name)} onChange={(id) => update({ energy: { ...energy, [key]: id } })} options={[{ value: "", label: t("none") }, ...[...new Set([...(energy[key] ? [energy[key]] : []), ...candidates[key].map((state) => state.entity_id)])].map((id) => ({ value: id, label: label(id) }))]} value={energy[key] ?? ""} /></div>)}
+        <div className="st-sub__row">
+          <span>{t("tariffSettings")}</span>
+          <button className="hd-pill" onClick={() => setTariffModal(true)} type="button">
+            <HDIcon name="settings" size={14} />
+            {t("tariffSettings")}
+          </button>
+        </div>
       </div>}
+      {tariffModal && (
+        <EnergyTariffModal
+          currentTariff={energy.tariff}
+          onClose={() => setTariffModal(false)}
+          onSave={(tariff) => update({ energy: { ...energy, tariff } })}
+          t={t}
+        />
+      )}
     </div>
     <div className="st-group">
           <Row description={t("floorplanCardDescription")} label={t("floorplanCard")}>{pro ? <Switch checked={Boolean(widgets.plan)} label={t("floorplanCard")} onChange={(plan) => set({ plan })} /> : <button className="hd-pill" onClick={onUpsell} type="button"><HDIcon name="lock" size={14} />Pro</button>}</Row>

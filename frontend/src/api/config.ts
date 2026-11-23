@@ -1,8 +1,34 @@
-import type { HomeSmartConfig } from "../types/config";
+import type { EnergyTariffConfig, HomeSmartConfig } from "../types/config";
 import { DEFAULT_CARDS } from "../plan";
 import type { HomeAssistant } from "../types/home-assistant";
 
-export const EMPTY_ENERGY: HomeSmartConfig["energy"] = { consumption: "", grid_import: "", grid_export: "", solar: "", battery: "", solar_today: "" };
+export const DEFAULT_ENERGY_TARIFF: EnergyTariffConfig = {
+  mode: "tiered",
+  flat_rate: 2000,
+  currency: "đ",
+  currency_position: "suffix",
+  vat_percent: 8,
+  include_vat: true,
+  fixed_monthly_fee: 0,
+  preset: "evn_5_tier",
+  tiers: [
+    { max: 100, rate: 1901, name: "Bậc 1 (0–100 kWh)" },
+    { max: 200, rate: 2289, name: "Bậc 2 (101–200 kWh)" },
+    { max: 400, rate: 2894, name: "Bậc 3 (201–400 kWh)" },
+    { max: 700, rate: 3456, name: "Bậc 4 (401–700 kWh)" },
+    { max: null, rate: 3844, name: "Bậc 5 (>700 kWh)" },
+  ],
+};
+
+export const EMPTY_ENERGY: HomeSmartConfig["energy"] = {
+  consumption: "",
+  grid_import: "",
+  grid_export: "",
+  solar: "",
+  battery: "",
+  solar_today: "",
+  tariff: DEFAULT_ENERGY_TARIFF,
+};
 export const EMPTY_SYSTEM_MONITOR: NonNullable<HomeSmartConfig["system_monitor"]> = { cpu: "", memory: "", disk: "", temperature: "", network_in: "", network_out: "", uptime: "" };
 
 // Fields added in later versions get their defaults here, so a config saved by an
@@ -40,7 +66,17 @@ function withDefaults(config: HomeSmartConfig): HomeSmartConfig {
     camera_columns: config.camera_columns ?? 2,
     seasons: { enabled: false, off: [], custom: [], ...(config.seasons as Partial<NonNullable<HomeSmartConfig["seasons"]>> | undefined) },
     doorbell: { enabled: false, trigger: "", camera: "", seconds: 60, ...(config.doorbell as Partial<HomeSmartConfig["doorbell"]> | undefined) },
-    energy: { ...EMPTY_ENERGY, ...(config.energy as Partial<HomeSmartConfig["energy"]> | undefined) },
+    energy: {
+      ...EMPTY_ENERGY,
+      ...(config.energy as Partial<HomeSmartConfig["energy"]> | undefined),
+      tariff: {
+        ...DEFAULT_ENERGY_TARIFF,
+        ...(config.energy?.tariff as Partial<EnergyTariffConfig> | undefined),
+        tiers: config.energy?.tariff?.tiers?.length
+          ? config.energy.tariff.tiers
+          : DEFAULT_ENERGY_TARIFF.tiers,
+      },
+    },
     system_monitor: { ...EMPTY_SYSTEM_MONITOR, ...(config.system_monitor as Partial<NonNullable<HomeSmartConfig["system_monitor"]>> | undefined) },
     agenda: { show_calendar: true, calendars: [], show_todo: true, todo_entity: "", todo_no_date: false, today_card: false, ...(config.agenda as Partial<HomeSmartConfig["agenda"]> | undefined) },
     home: {

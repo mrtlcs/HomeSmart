@@ -5,7 +5,7 @@
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/default)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/Version-1.6.2-emerald.svg)](https://github.com/mrtlcs/HomeSmart/releases)
+[![Version](https://img.shields.io/badge/Version-1.6.3-emerald.svg)](https://github.com/mrtlcs/HomeSmart/releases)
 [![Home Assistant](https://img.shields.io/badge/Home%20Assistant-2024.1%2B-blue.svg)](https://www.home-assistant.io/)
 
 ---
@@ -34,7 +34,7 @@ HomeSmart kết hợp giữa thiết kế **Bento Grid kính mờ (Glassmorphism
 
 ---
 
-### 🌟 Các Tính Năng Nổi Bật (Phiên bản v1.6.2)
+### 🌟 Các Tính Năng Nổi Bật (Phiên bản v1.6.3)
 
 #### 1. 🚀 Nhận diện tự động thông minh (Zero-YAML Engine)
 - Tự động đồng bộ các khu vực (`areas`), thiết bị (`devices`), thực thể (`entities`) và trạng thái (`states`) từ Home Assistant.
@@ -44,7 +44,7 @@ HomeSmart kết hợp giữa thiết kế **Bento Grid kính mờ (Glassmorphism
 #### 2. 🖥️ Trang Giám Sát Hệ Thống Độc Lập (System Monitor)
 - **Đồng hồ đo Cyber Glow Gauges**: Theo dõi trực quan tải CPU, bộ nhớ RAM, dung lượng ổ đĩa, nhiệt độ chip, băng thông mạng (Tải xuống / Tải lên) và thời gian hoạt động (Uptime).
 - **Biểu đồ lịch sử 24 giờ**: Trực quan hóa đường cong dao động tải và nhiệt độ trong 24h qua.
-- **Tùy biến chọn cảm biến linh hoạt**: Tự động gợi ý và cho phép bạn tự gán bất kỳ sensor nào trong Home Assistant vào các thẻ đo chỉ với 1 chạm.
+- **Tùy biến chọn cảm biến linh hoạt**: Tự động gợi ý và cho phép bạn tự gán bất kỳ sensor nào trong Home Assistant vào các thẻ đo chỉ với 1 chạm. Tự động nhận diện phần trăm RAM/Disk không bị lỗi hiển thị.
 
 <p align="center">
   <img src="images/system-monitor-desktop.jpg" alt="HomeSmart System Monitor Desktop" width="100%" style="border-radius: 12px; margin: 8px 0;" />
@@ -60,14 +60,25 @@ HomeSmart kết hợp giữa thiết kế **Bento Grid kính mờ (Glassmorphism
   <em>Giao diện Giám sát hệ thống trên điện thoại (trái) và Cài đặt giao diện màu sắc kính mờ (phải)</em>
 </p>
 
-#### 3. ⚡ Sơ Đồ Năng Lượng Động & Biểu Giá Điện EVN 5 Bậc Mới
-- **Sơ đồ luồng điện động (Animated Power Flow)**: Trực quan hóa chuyển động của dòng năng lượng giữa Điện mặt trời (Solar) ➔ Tiêu thụ trong nhà (Home) ➔ Lưới điện (EVN) theo thời gian thực.
-- **Tính toán tiền điện EVN 5 bậc mới**: Tự động chia bậc lũy tiến và ước tính chi phí tiền điện sinh hoạt hàng tháng theo biểu giá mới nhất:
-  - Bậc 1 (0 – 100 kWh): 1.901 đ/kWh
-  - Bậc 2 (101 – 200 kWh): 2.289 đ/kWh
-  - Bậc 3 (201 – 400 kWh): 2.894 đ/kWh
-  - Bậc 4 (401 – 700 kWh): 3.456 đ/kWh
-  - Bậc 5 (Từ 701 kWh trở lên): 3.844 đ/kWh
+#### 3. ⚡ Sơ Đồ Năng Lượng Động & Công Cụ Tính Tiền Điện Đa Quốc Gia Tùy Biến
+- **Sơ đồ luồng điện động (Animated Power Flow)**: Trực quan hóa chuyển động của dòng năng lượng giữa Điện mặt trời (Solar) ➔ Tiêu thụ trong nhà (Home) ➔ Lưới điện (EVN) theo thời gian thực (đổi chiều hoạt hình khi đẩy lưới).
+- **Tùy biến biểu giá điện toàn diện (1 Bậc hoặc Nhiều Bậc Lũy Tiến)**:
+  - Hỗ trợ cả 2 chế độ: **Nhiều bậc lũy tiến (Tiered)** hoặc **Giá phẳng cố định (Flat Rate)**.
+  - Tự do cấu hình số bậc không giới hạn: Thêm, sửa, xóa bậc, đặt ngưỡng kWh tối đa từng bậc, đơn giá từng bậc và tên bậc.
+  - Tùy chỉnh đơn vị tiền tệ (`đ`, `$`, `€`, `¥`...), vị trí hiển thị (trước hoặc sau số), tỷ lệ thuế VAT (%) và phí cố định hàng tháng (Fixed monthly fee).
+  - Tích hợp sẵn các mẫu biểu giá tiêu chuẩn:
+    - **EVN 5 bậc mới (Việt Nam)**:
+      - Bậc 1 (0 – 100 kWh): 1.901 đ/kWh
+      - Bậc 2 (101 – 200 kWh): 2.289 đ/kWh
+      - Bậc 3 (201 – 400 kWh): 2.894 đ/kWh
+      - Bậc 4 (401 – 700 kWh): 3.456 đ/kWh
+      - Bậc 5 (Từ 701 kWh trở lên): 3.844 đ/kWh
+    - **Giá phẳng (VND)**: Cố định 2.000 đ/kWh, VAT 8%.
+    - **Mỹ (US Flat)**: $0.16/kWh, phí cố định $10/tháng.
+    - **Châu Âu (EU Flat)**: €0.30/kWh, VAT 20%, phí cố định €5/tháng.
+    - **Tùy chỉnh tự do (Custom)**: Thiết lập không giới hạn theo bất kỳ nhà cung cấp điện nào trên thế giới.
+- **Hóa đơn chi tiết (Itemized Breakdown Modal)**: Bấm trực tiếp vào huy hiệu giá điện trên thẻ Năng lượng để xem bảng kê chi tiết từng bậc (kWh đã dùng, thành tiền từng bậc, thuế VAT và tổng tiền).
+- **Bộ mô phỏng tính thử trực tiếp (Live Cost Simulator)**: Kéo trượt mức tiêu thụ kWh ngay trong Cài đặt để kiểm tra kết quả tính tiền theo thời gian thực.
 
 #### 4. 🧠 Thanh Ngữ Cảnh Tự Động & Trợ Lý Giọng Nói (Assist Voice)
 - **Lời chào thích ứng theo khung giờ**: Tự động hiển thị lời chào phù hợp (*Chào buổi sáng, Chào buổi chiều, Chào buổi tối, Chúc ngủ ngon*).
@@ -131,7 +142,7 @@ It brings together a modern **Glassmorphic Cyber Bento Grid** aesthetic, 60–12
 
 ---
 
-### 🌟 Key Highlights (Version v1.6.2)
+### 🌟 Key Highlights (Version v1.6.3)
 
 #### 1. 🚀 Zero-YAML Auto-Discovery Engine
 - Instantly connects to Home Assistant's `areas`, `devices`, `entities`, and `states`.
@@ -141,7 +152,7 @@ It brings together a modern **Glassmorphic Cyber Bento Grid** aesthetic, 60–12
 #### 2. 🖥️ Dedicated System Monitor Dashboard
 - **Cyber Glow Gauges**: Visual telemetry cards for CPU usage, RAM memory, storage disk capacity, CPU/SoC temperature, network throughput (Download/Upload), and system uptime.
 - **24-Hour Interactive Sparklines**: Historical trend charts for vital load and temperature fluctuations.
-- **Custom Sensor Assignment**: Intelligent auto-detection ranked suggestions with a 1-tap modal to assign custom sensors for each vital metric.
+- **Custom Sensor Assignment**: Intelligent auto-detection ranked suggestions with a 1-tap modal to assign custom sensors for each vital metric with automatic unit percentage handling.
 
 <p align="center">
   <img src="images/system-monitor-desktop.jpg" alt="HomeSmart System Monitor Desktop" width="100%" style="border-radius: 12px; margin: 8px 0;" />
@@ -157,14 +168,25 @@ It brings together a modern **Glassmorphic Cyber Bento Grid** aesthetic, 60–12
   <em>System Monitor mobile view (left) and Glassmorphic Theme Customizer (right)</em>
 </p>
 
-#### 3. ⚡ Animated Power Flow & Vietnam EVN 5-Tier Energy Calculator
+#### 3. ⚡ Animated Power Flow & Generalized Customizable Electricity Tariff Engine
 - **Live Animated Power Flow**: Dynamic real-time SVG dashed-flow animation showing energy distribution between Solar ➔ Home ➔ Grid (reversing direction during grid export).
-- **Vietnam EVN 5-Tier Electricity Calculation**: Progressive tier calculation and monthly bill estimation based on Vietnam's official 5-tier residential tariff structure:
-  - Tier 1 (0 – 100 kWh): 1,901 VND/kWh
-  - Tier 2 (101 – 200 kWh): 2,289 VND/kWh
-  - Tier 3 (201 – 400 kWh): 2,894 VND/kWh
-  - Tier 4 (401 – 700 kWh): 3,456 VND/kWh
-  - Tier 5 (Over 700 kWh): 3,844 VND/kWh
+- **Fully Customizable Tariff Engine (Flat Rate or Multi-Tier Progressive)**:
+  - Supports both **Multi-Tiered progressive calculation** and **Single Flat Rate**.
+  - Fully customizable tier thresholds: add, edit, or remove tiers, adjust max kWh thresholds, price per kWh, and tier names.
+  - International currency support: customizable currency symbol (`đ`, `$`, `€`, `¥`...), prefix/suffix positioning, configurable VAT percentage, and fixed monthly service charges.
+  - Built-in presets:
+    - **Vietnam EVN 5-Tier (Official New Structure)**:
+      - Tier 1 (0 – 100 kWh): 1,901 VND/kWh
+      - Tier 2 (101 – 200 kWh): 2,289 VND/kWh
+      - Tier 3 (201 – 400 kWh): 2,894 VND/kWh
+      - Tier 4 (401 – 700 kWh): 3,456 VND/kWh
+      - Tier 5 (Over 700 kWh): 3,844 VND/kWh
+    - **Flat Rate VND**: 2,000 VND/kWh, 8% VAT.
+    - **US Flat**: $0.16/kWh, $10/mo fixed fee.
+    - **EU Flat**: €0.30/kWh, 20% VAT, €5/mo fixed fee.
+    - **Custom**: Tailored to any utility provider worldwide.
+- **Interactive Itemized Bill Breakdown Modal**: Tap the tariff badge on the Energy card to view an instant itemized invoice breakdown (per-tier consumption, tier cost, VAT breakdown, and total estimated bill).
+- **Live Cost Simulator**: Real-time interactive slider in settings to preview bill calculations for any kWh usage before saving.
 
 #### 4. 🧠 Dynamic Context Header & Assist Voice Control
 - **Context-Aware Greetings**: Automatically adapts greeting messages to the current time of day (*Good morning, Good afternoon, Good evening, Good night*).
