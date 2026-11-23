@@ -46,6 +46,67 @@ export function conditionIcon(condition?: string): IconName {
   }
 }
 
+function triggerHaAssist(fromEl?: HTMLElement | null) {
+  // 1. Dispatch standard hass-action on the button element (bubbles & crosses shadow roots)
+  if (fromEl) {
+    fromEl.dispatchEvent(
+      new CustomEvent("hass-action", {
+        bubbles: true,
+        composed: true,
+        detail: {
+          config: {
+            tap_action: {
+              action: "assist",
+              start_listening: true,
+            },
+          },
+          action: "tap",
+        },
+      }),
+    );
+  }
+
+  // 2. Dispatch show-dialog event for Home Assistant voice dialog
+  window.dispatchEvent(
+    new CustomEvent("show-dialog", {
+      bubbles: true,
+      composed: true,
+      detail: {
+        dialogTag: "ha-voice-command-dialog",
+        dialogParams: { start_listening: true },
+      },
+    }),
+  );
+
+  // 3. Search and click native Assist button if present in Home Assistant's header/sidebar
+  try {
+    const findInRoots = (root: Document | ShadowRoot | Element): HTMLElement | null => {
+      const btn = root.querySelector(
+        'ha-icon-button[title*="Assist"], ha-icon-button[aria-label*="Assist"], button[aria-label*="Assist"], button[title*="Assist"]',
+      ) as HTMLElement | null;
+      if (btn) return btn;
+      const allEls = root.querySelectorAll("*");
+      for (const el of Array.from(allEls)) {
+        if (el.shadowRoot) {
+          const found = findInRoots(el.shadowRoot);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    const haButton = findInRoots(document);
+    if (haButton) {
+      haButton.click();
+      return;
+    }
+  } catch {}
+
+  // 4. Simulate global shortcut 'a' (KeyA)
+  const keyEvt = new KeyboardEvent("keydown", { key: "a", code: "KeyA", keyCode: 65, bubbles: true, composed: true });
+  window.dispatchEvent(keyEvt);
+  document.dispatchEvent(keyEvt);
+}
+
 export function ContextHeader({ config, hass, language, onSettings, part = "all", t }: ContextHeaderProps) {
   const occasion = useContext(OccasionContext);
   const customize = useCustomize();
@@ -117,11 +178,7 @@ export function ContextHeader({ config, hass, language, onSettings, part = "all"
           <button
             aria-label={t("assistVoice")}
             className="round-action hd-assist-button"
-            onClick={() => {
-              const ev = new CustomEvent("hass-open-assist", { bubbles: true, composed: true });
-              window.dispatchEvent(ev);
-              document.querySelector("home-assistant")?.dispatchEvent(ev);
-            }}
+            onClick={(event) => triggerHaAssist(event.currentTarget)}
             title={t("assistVoice")}
             type="button"
           >

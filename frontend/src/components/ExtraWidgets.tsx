@@ -109,16 +109,15 @@ export function formatPower(watts: number, language?: string): string {
   return abs >= 1000 ? `${new Intl.NumberFormat(loc, { maximumFractionDigits: abs >= 10_000 ? 1 : 2 }).format(watts / 1000)} kW` : `${Math.round(watts)} W`;
 }
 
-/** Vietnam EVN 6-tier electricity cost calculation (Biểu giá điện sinh hoạt 6 bậc EVN). */
+/** Vietnam EVN 5-tier electricity cost calculation (Biểu giá điện sinh hoạt 5 bậc mới EVN). */
 export function calcEvnCost(kwh: number) {
-  if (kwh <= 0) return { tier: 1, totalCost: 0, rate: 1893 };
+  if (kwh <= 0) return { tier: 1, totalCost: 0, rate: 1901 };
   const tiers = [
-    { max: 50, rate: 1893 },
-    { max: 100, rate: 1956 },
-    { max: 200, rate: 2271 },
-    { max: 300, rate: 2860 },
-    { max: 400, rate: 3197 },
-    { max: Infinity, rate: 3302 },
+    { max: 100, rate: 1901 },
+    { max: 200, rate: 2289 },
+    { max: 400, rate: 2894 },
+    { max: 700, rate: 3456 },
+    { max: Infinity, rate: 3844 },
   ];
   let remaining = kwh;
   let cost = 0;
