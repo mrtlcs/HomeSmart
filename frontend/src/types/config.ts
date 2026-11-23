@@ -186,6 +186,7 @@ export interface HomeSmartConfig {
     media: boolean;
     security: boolean;
     cameras?: boolean;
+    system?: boolean;
     /** Pro: the floor plan page. */
     plan?: boolean;
     /** The floor plan's name, on its tab and its card (default: "Floor plan" / "Home floor plan"). */

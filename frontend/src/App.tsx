@@ -37,6 +37,7 @@ import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { PlanGateScreen } from "./screens/PlanGateScreen";
 import { RoomScreen } from "./screens/RoomScreen";
 import { SettingsScreen } from "./screens/SettingsScreen";
+import { SystemMonitorScreen } from "./screens/SystemMonitorScreen";
 import type { ScreenProps } from "./screens/types";
 import type { HomeSmartEntityOptions, HomeSmartConfig, ScreenLayout } from "./types/config";
 import type { DiscoveryResponse } from "./types/discovery";
@@ -452,6 +453,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     ...(view.navigation.media && hasMedia ? [{ id: "media", label: t("media"), icon: "media" as const }] : []),
     ...(view.navigation.security && hasSecurity ? [{ id: "security", label: t("security"), icon: "shield" as const }] : []),
     ...(view.navigation.cameras && hasCameras ? [{ id: "cameras", label: t("camerasTitle"), icon: "camera" as const }] : []),
+    ...(view.navigation.system !== false ? [{ id: "system", label: t("systemMonitor"), icon: "monitor" as const }] : []),
     ...(view.navigation.plan ? [{ id: "plan", label: planTitle(view, t), icon: "plan" as const }] : []),
     ...view.pages.map((page) => ({ id: page.id, label: page.title, icon: pageIcon(page) as NavLink["icon"] })),
   ], view.navigation.order);
@@ -459,17 +461,19 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
 
   // The floor plan (Pro) is its own screen in every layout; the Sidebar layout shows it beside its menu.
   const planOpen = activePage === "plan" && !selectedRoom && Boolean(view.navigation.plan);
+  const systemOpen = activePage === "system" && !selectedRoom && view.navigation.system !== false;
   let screen;
-  if (mode === "photo") screen = <PhotoLayout {...screenProps} activePage={activePage} links={links} onGo={(target, roomId) => { setSelectedRoomId(roomId ?? null); setActivePage(target); }} page={pageRef} plan={planOpen ? <FloorPlan {...screenProps} embedded onOpenRoom={openRoom} /> : undefined} roomId={selectedRoomId} />;
-  else if (mode === "sidebar") screen = <SidebarLayout {...screenProps} custom={planOpen ? <FloorPlan {...screenProps} embedded onOpenRoom={openRoom} /> : undefined} customId={planOpen ? "plan" : undefined} links={links} onNavigate={navigate} onSelectRoom={openRoom} page={pageRef} roomId={selectedRoom?.id ?? null} />;
+  if (mode === "photo") screen = <PhotoLayout {...screenProps} activePage={activePage} links={links} onGo={(target, roomId) => { setSelectedRoomId(roomId ?? null); setActivePage(target); }} page={pageRef} plan={planOpen ? <FloorPlan {...screenProps} embedded onOpenRoom={openRoom} /> : systemOpen ? <SystemMonitorScreen {...screenProps} embedded /> : undefined} roomId={selectedRoomId} />;
+  else if (mode === "sidebar") screen = <SidebarLayout {...screenProps} custom={planOpen ? <FloorPlan {...screenProps} embedded onOpenRoom={openRoom} /> : systemOpen ? <SystemMonitorScreen {...screenProps} embedded /> : undefined} customId={planOpen ? "plan" : systemOpen ? "system" : undefined} links={links} onNavigate={navigate} onSelectRoom={openRoom} page={pageRef} roomId={selectedRoom?.id ?? null} />;
   else if (planOpen) screen = <FloorPlan {...screenProps} onOpenRoom={openRoom} />;
+  else if (systemOpen) screen = <SystemMonitorScreen {...screenProps} />;
   else if (mode === "list") screen = <ListLayout {...screenProps} onSelectRoom={(roomId) => openRoom(roomId)} page={pageRef} roomId={selectedRoom?.id ?? null} />;
   else if (mode === "focus") screen = <FocusLayout {...screenProps} onRoomChange={(roomId) => { setSelectedRoomId(roomId); setActivePage(roomId ? "rooms" : "home"); }} page={pageRef} roomId={selectedRoom?.id ?? null} />;
   else if (selectedRoom) screen = <RoomScreen {...screenProps} onSelectRoom={setSelectedRoomId} room={selectedRoom} />;
   else if (pageRef) screen = <PageScreen key={pageId(pageRef)} {...screenProps} page={pageRef} />;
   else screen = <HomeScreen {...screenProps} onOpenRoom={(roomId) => { setSelectedRoomId(roomId); setActivePage("rooms"); }} />;
 
-  const active = selectedRoom ? "rooms" : customPage || ["scenes", "media", "security", "cameras", "plan"].includes(activePage) ? activePage : "home";
+  const active = selectedRoom ? "rooms" : customPage || ["scenes", "media", "security", "cameras", "plan", "system"].includes(activePage) ? activePage : "home";
 
   // A new page fades in (transitions on): the key changes with the page, not with the room inside it, which
   // animates its own content; the Sidebar layout animates its right side itself.

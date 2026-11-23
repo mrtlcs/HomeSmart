@@ -11,7 +11,7 @@ import { CameraWholeContext, LiveCamerasContext } from "./CameraCard";
 import { normalizeLanguage } from "../i18n";
 import { OccasionContext, SeasonLayer } from "./SeasonLayer";
 import { SeasonDecor } from "./SeasonDecor";
-import { keyBar, motionPrefs, textScale, UI_SCALE, uiSize, useDevicePref } from "../devicePrefs";
+import { iconSize, ICON_SCALE, keyBar, motionPrefs, textScale, UI_SCALE, uiSize, useDevicePref } from "../devicePrefs";
 import { usePlan } from "../plan";
 import { KidsScene } from "./KidsScene";
 import { HassContext } from "./HDIcon";
@@ -217,6 +217,7 @@ export function DynamicShell({ children, config, data, hass, mode = "grid", seas
   const shellRef = useCallback((element: HTMLDivElement | null) => { fades(element); overlays(element); }, [fades, overlays]);
   const textSize = useDevicePref(textScale);
   const interfaceSize = useDevicePref(uiSize);
+  const deviceIconScale = ICON_SCALE[useDevicePref(iconSize)] ?? 1;
   const { pro } = usePlan();
   // The Kids layout draws its own animated scene instead of the regular background.
   const kids = mode === "kids";
@@ -227,6 +228,7 @@ export function DynamicShell({ children, config, data, hass, mode = "grid", seas
   const style = {
     "--hd-font": textSize,
     "--hd-ui": UI_SCALE[interfaceSize],
+    "--hd-icon-scale": deviceIconScale,
     "--ambient-1": palette[0],
     "--ambient-2": palette[1],
     "--ambient-3": palette[2],

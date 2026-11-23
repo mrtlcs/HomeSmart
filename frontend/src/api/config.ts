@@ -62,6 +62,7 @@ function withDefaults(config: HomeSmartConfig): HomeSmartConfig {
       media: true,
       security: true,
       cameras: true,
+      system: true,
       plan: false,
       ...(config.navigation as Partial<HomeSmartConfig["navigation"]> | undefined),
     },

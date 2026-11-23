@@ -6,11 +6,12 @@ import type { HomeAssistant } from "../types/home-assistant";
 export const HassContext = createContext<HomeAssistant | null>(null);
 
 /** Home Assistant's own icon for an entity: from its device class and state, or the icon set in HA. */
-function HaStateIcon({ entityId, hass, size }: { entityId: string; hass: HomeAssistant; size: number }) {
+function HaStateIcon({ entityId, hass, size }: { entityId: string; hass: HomeAssistant; size?: number }) {
   const ref = useRef<HTMLElement & { hass?: unknown; stateObj?: unknown }>(null);
   const state = hass.states[entityId];
   useEffect(() => { if (ref.current) { ref.current.hass = hass; ref.current.stateObj = state; } });
-  return <ha-state-icon class="hd-ha-icon" ref={ref} style={{ "--mdc-icon-size": `${size}px`, width: size, height: size, display: "inline-flex" } as CSSProperties} />;
+  const s = size ? `${size}px` : undefined;
+  return <ha-state-icon class="hd-ha-icon" ref={ref} style={{ "--mdc-icon-size": s ?? "var(--tile-icon-size, 32px)", width: s, height: s, display: "inline-flex" } as CSSProperties} />;
 }
 
 export type IconName =
@@ -127,6 +128,7 @@ export type IconName =
   | "game"
   | "pool"
   | "drop"
+  | "server"
   | "bolt";
 
 const paths: Record<IconName, ReactNode> = {
@@ -139,6 +141,7 @@ const paths: Record<IconName, ReactNode> = {
   game: <><rect x="2.5" y="7" width="19" height="11" rx="5.5" /><path d="M7 11v3M5.5 12.5h3M15.5 12h.01M18 14h.01" /></>,
   pool: <><path d="M2 18c2 1.3 4 1.3 6 0s4-1.3 6 0 4 1.3 6 0" /><path d="M8 15V5a2 2 0 0 1 4 0M16 15V5a2 2 0 0 0-4 0" /><path d="M8 8h8M8 12h8" /></>,
   bolt: <path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z" />,
+  server: <><rect x="2" y="3" width="20" height="8" rx="2" /><rect x="2" y="13" width="20" height="8" rx="2" /><path d="M6 7h.01M6 17h.01" /></>,
   drop: <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z" />,
   bed: <><path d="M2 4v16M22 20v-8a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v8M2 16h20" /><path d="M6 10V7a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3" /></>,
   chevron: <path d="m9 18 6-6-6-6" />,
@@ -280,6 +283,9 @@ export function RoomIcon({ room, size }: { room: { name: string; icon?: string |
   if (choice === HA_ICON && room.icon?.includes(":") && typeof customElements !== "undefined" && customElements.get("ha-icon")) {
     return <ha-icon class="hd-ha-icon" icon={room.icon} style={{ "--mdc-icon-size": `${size}px`, width: size, height: size, display: "inline-flex" } as CSSProperties} />;
   }
+  if (choice && choice.includes(":") && typeof customElements !== "undefined" && customElements.get("ha-icon")) {
+    return <ha-icon class="hd-ha-icon" icon={choice} style={{ "--mdc-icon-size": `${size}px`, width: size, height: size, display: "inline-flex" } as CSSProperties} />;
+  }
   const own = choice && choice !== HA_ICON && (ROOM_ICONS as string[]).includes(choice) ? (choice as IconName) : roomIcon(room.name);
   return <HDIcon name={own} size={size} />;
 }
@@ -306,7 +312,7 @@ export const DEVICE_ICONS: IconName[] = ["light", "fan", "switch", "power", "cov
 
 /** A device's tile icon: its chosen HOMESMART icon, Home Assistant's own icon ("ha", when it has one),
  * or the icon of its type, as before. */
-export function EntityIcon({ entity, size = 23 }: { entity: { domain: string; entity_id?: string; icon?: string | null; display_icon?: string }; size?: number }) {
+export function EntityIcon({ entity, size }: { entity: { domain: string; entity_id?: string; icon?: string | null; display_icon?: string }; size?: number }) {
   const choice = entity.display_icon;
   const hass = useContext(HassContext);
   // Home Assistant's icon, as HA itself draws it (device class and state included), when it can draw it here.
@@ -314,10 +320,15 @@ export function EntityIcon({ entity, size = 23 }: { entity: { domain: string; en
     return <HaStateIcon entityId={entity.entity_id} hass={hass} size={size} />;
   }
   if (choice === HA_ICON && entity.icon?.includes(":") && typeof customElements !== "undefined" && customElements.get("ha-icon")) {
-    return <ha-icon class="hd-ha-icon" icon={entity.icon} style={{ "--mdc-icon-size": `${size}px`, width: size, height: size, display: "inline-flex" } as CSSProperties} />;
+    const s = size ? `${size}px` : undefined;
+    return <ha-icon class="hd-ha-icon" icon={entity.icon} style={{ "--mdc-icon-size": s ?? "var(--tile-icon-size, 32px)", width: s, height: s, display: "inline-flex" } as CSSProperties} />;
+  }
+  if (choice && choice.includes(":") && typeof customElements !== "undefined" && customElements.get("ha-icon")) {
+    const s = size ? `${size}px` : undefined;
+    return <ha-icon class="hd-ha-icon" icon={choice} style={{ "--mdc-icon-size": s ?? "var(--tile-icon-size, 32px)", width: s, height: s, display: "inline-flex" } as CSSProperties} />;
   }
   const own = choice && choice !== HA_ICON && Object.prototype.hasOwnProperty.call(paths, choice) ? (choice as IconName) : domainIcon(entity.domain);
-  return <HDIcon name={own} size={size} />;
+  return <HDIcon name={own} size={size ?? 28} />;
 }
 
 export function domainIcon(domain: string): IconName {

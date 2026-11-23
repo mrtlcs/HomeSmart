@@ -196,3 +196,14 @@ export const uiSize = () => sizeOf(read(UI_KEY));
 export const setUiSize = (size: SizeChoice) => write(UI_KEY, size === "normal" ? null : size);
 export const FONT_SCALE: Record<SizeChoice, number> = { small: 0.88, normal: 1, large: 1.14 };
 export const UI_SCALE: Record<SizeChoice, number> = { small: 0.84, normal: 1, large: 1.14 };
+
+/** This device's icon size (Settings → This device): "normal", "large", or "xlarge". */
+export type IconSizeChoice = "normal" | "large" | "xlarge";
+const ICON_SIZE_KEY = "homesmart-icon-size";
+export const iconSize = (): IconSizeChoice => {
+  const val = read(ICON_SIZE_KEY);
+  return val === "large" || val === "xlarge" ? val : "normal";
+};
+export const setIconSize = (size: IconSizeChoice) => write(ICON_SIZE_KEY, size === "normal" ? null : size);
+export const ICON_SCALE: Record<IconSizeChoice, number> = { normal: 1, large: 1.25, xlarge: 1.45 };
+

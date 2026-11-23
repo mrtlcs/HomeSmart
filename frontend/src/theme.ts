@@ -97,10 +97,29 @@ export const theme = String.raw`
 .app-shell :is(.room-card--unavailable, .device-tile--unavailable) { opacity: .4; }
 .app-shell :is(.room-card__icon, .device-tile__icon, .widget-card__icon) {
   position: static; inset: auto; margin: 0;
-  width: calc(var(--u)*5); height: calc(var(--u)*5); border-radius: var(--hd-round,50%); display: grid; place-items: center; flex: none;
+  width: calc(var(--u)*5.2); height: calc(var(--u)*5.2); border-radius: var(--hd-round,50%); display: grid; place-items: center; flex: none;
   background: rgba(255,255,255,.17); color: inherit; transition: background .25s, color .25s;
 }
-.app-shell :is(.room-card__icon, .device-tile__icon, .widget-card__icon) svg { width: 56%; height: 56%; }
+.app-shell :is(.room-card__icon, .device-tile__icon, .widget-card__icon) > svg {
+  width: calc(68% * var(--hd-icon-scale, 1));
+  height: calc(68% * var(--hd-icon-scale, 1));
+  max-width: 92%; max-height: 92%;
+  transition: width .2s, height .2s;
+}
+.app-shell :is(.room-card__icon, .device-tile__icon, .widget-card__icon) :is(.hd-ha-icon, ha-state-icon, ha-icon) {
+  --mdc-icon-size: calc(var(--u) * 3.5 * var(--hd-icon-scale, 1));
+  width: calc(var(--u) * 3.5 * var(--hd-icon-scale, 1));
+  height: calc(var(--u) * 3.5 * var(--hd-icon-scale, 1));
+  max-width: 92%; max-height: 92%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: width .2s, height .2s;
+}
+.app-shell :is(.room-card__icon, .device-tile__icon, .widget-card__icon) :is(.hd-ha-icon, ha-state-icon, ha-icon) ha-svg-icon {
+  width: 100% !important;
+  height: 100% !important;
+}
 .app-shell :is(.room-card--active .room-card__icon, .device-tile--active .device-tile__icon) { background: var(--lc, var(--on)); color: var(--on-ink, #2a2110); }
 .app-shell :is(.room-card__power, .device-tile__power) {
   position: absolute; top: calc(var(--u)*1.4); right: calc(var(--u)*1.4); z-index: 2;
@@ -358,6 +377,245 @@ export const theme = String.raw`
     opacity: 1;
     transform: none;
   }
+}
+
+/* System Monitor Screen */
+.app-shell .sys-screen {
+  overflow-y: auto;
+  padding-bottom: calc(var(--u) * 10);
+}
+.app-shell .sys-header__top-row {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 1.4);
+}
+.app-shell .sys-health-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.7);
+  padding: calc(var(--u) * 0.4) calc(var(--u) * 1.2);
+  border-radius: 999px;
+  font: 600 calc(var(--u) * 1.35) var(--f-body);
+}
+.app-shell .sys-health-pill__dot {
+  width: calc(var(--u) * 0.8);
+  height: calc(var(--u) * 0.8);
+  border-radius: 50%;
+  animation: sys-pulse 2s infinite ease-in-out;
+}
+@keyframes sys-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+.app-shell .sys-gauges-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 20), 1fr));
+  gap: calc(var(--u) * 1.6);
+  margin: calc(var(--u) * 2) 0;
+}
+.app-shell .sys-gauge-card {
+  background: var(--paper-2, rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: var(--hd-round, 18px);
+  padding: calc(var(--u) * 2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  position: relative;
+  transition: transform .18s, box-shadow .2s;
+}
+.app-shell .sys-gauge-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 calc(var(--u)*1) calc(var(--u)*2.4) rgba(0,0,0,.18);
+}
+.app-shell .sys-gauge-card__ring {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  display: grid;
+  place-items: center;
+}
+.app-shell .sys-gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.app-shell .sys-gauge-value {
+  font: 700 calc(var(--u) * 2.6)/1 var(--f-body);
+  display: flex;
+  align-items: baseline;
+}
+.app-shell .sys-gauge-unit {
+  font: 500 calc(var(--u) * 1.35)/1 var(--f-body);
+  margin-left: 2px;
+  opacity: 0.8;
+}
+.app-shell .sys-gauge-info {
+  margin-top: calc(var(--u) * 1.2);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+.app-shell .sys-gauge-head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.7);
+}
+.app-shell .sys-gauge-icon {
+  opacity: 0.85;
+  display: flex;
+}
+.app-shell .sys-gauge-label {
+  font: 600 calc(var(--u) * 1.7) var(--f-body);
+}
+.app-shell .sys-gauge-sub {
+  font: 500 calc(var(--u) * 1.3) var(--f-body);
+  color: var(--ink-2);
+}
+.app-shell .sys-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 26), 1fr));
+  gap: calc(var(--u) * 1.6);
+  margin-bottom: calc(var(--u) * 2.5);
+}
+.app-shell .sys-card {
+  background: var(--paper-2, rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: var(--hd-round, 18px);
+  padding: calc(var(--u) * 2);
+}
+.app-shell .sys-card__head {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u) * 0.8);
+  margin-bottom: calc(var(--u) * 1.4);
+  font: 600 calc(var(--u) * 1.6) var(--f-body);
+}
+.app-shell .sys-card__icon {
+  display: flex;
+  opacity: 0.85;
+}
+.app-shell .sys-network-metrics {
+  display: flex;
+  justify-content: space-around;
+  gap: calc(var(--u) * 2);
+}
+.app-shell .sys-net-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+.app-shell .sys-net-stat__label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font: 500 calc(var(--u) * 1.35) var(--f-body);
+  color: var(--ink-2);
+}
+.app-shell .sys-net-arrow {
+  font-weight: 800;
+  font-size: 15px;
+}
+.app-shell .sys-net-arrow--down { color: #10b981; }
+.app-shell .sys-net-arrow--up { color: #3b82f6; }
+.app-shell .sys-net-stat__value {
+  font: 700 calc(var(--u) * 2.1) var(--f-body);
+}
+.app-shell .sys-host-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1.2);
+}
+.app-shell .sys-host-uptime {
+  display: flex;
+  align-items: baseline;
+  gap: calc(var(--u) * 0.8);
+  font: 500 calc(var(--u) * 1.45) var(--f-body);
+}
+.app-shell .sys-host-uptime__label {
+  color: var(--ink-2);
+}
+.app-shell .sys-host-uptime__value {
+  font-weight: 700;
+}
+.app-shell .sys-load-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.app-shell .sys-load-title {
+  font: 500 calc(var(--u) * 1.25) var(--f-body);
+  color: var(--ink-2);
+}
+.app-shell .sys-load-row {
+  display: flex;
+  gap: calc(var(--u) * 1.6);
+  font: 500 calc(var(--u) * 1.35) var(--f-body);
+}
+.app-shell .sys-load-item span {
+  color: var(--ink-2);
+  margin-right: 4px;
+}
+.app-shell .sys-load-item strong {
+  font-weight: 700;
+}
+.app-shell .sys-section-title {
+  font: 600 calc(var(--u) * 1.8) var(--f-body);
+  margin: calc(var(--u) * 2.5) 0 calc(var(--u) * 1.2);
+}
+.app-shell .sys-trends-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(calc(var(--u) * 26), 1fr));
+  gap: calc(var(--u) * 1.6);
+  margin-bottom: calc(var(--u) * 2.5);
+}
+.app-shell .sys-trend-card {
+  background: var(--paper-2, rgba(255, 255, 255, 0.08));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  border-radius: var(--hd-round, 18px);
+  padding: calc(var(--u) * 1.8);
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 1);
+}
+.app-shell .sys-trend-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font: 600 calc(var(--u) * 1.4) var(--f-body);
+}
+.app-shell .sys-sensor-wrapper {
+  position: relative;
+}
+.app-shell .sys-sensor-wrapper--hidden {
+  opacity: 0.45;
+  filter: grayscale(0.5);
+}
+.app-shell .sys-sensor-toggle {
+  position: absolute;
+  top: calc(var(--u) * 0.8);
+  right: calc(var(--u) * 0.8);
+  z-index: 5;
+  width: calc(var(--u) * 3);
+  height: calc(var(--u) * 3);
+  border-radius: 50%;
+  border: 0;
+  background: var(--paper, rgba(0,0,0,0.5));
+  color: inherit;
+  font: 700 calc(var(--u) * 1.6) var(--f-body);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
 }
 
 /* Phones and narrow panels */

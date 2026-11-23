@@ -31,6 +31,7 @@ export function NavigationDock({ active, config, editing, hasMedia, hasScenes, h
     ...(config.navigation.media && hasMedia ? [{ id: "media", icon: "media" as const, label: t("media") }] : []),
     ...(config.navigation.security && hasSecurity ? [{ id: "security", icon: "shield" as const, label: t("security") }] : []),
     ...(config.navigation.cameras && hasCameras ? [{ id: "cameras", icon: "camera" as const, label: t("camerasTitle") }] : []),
+    ...(config.navigation.system !== false ? [{ id: "system", icon: "monitor" as const, label: t("systemMonitor") }] : []),
     ...(config.navigation.plan ? [{ id: "plan", icon: "plan" as const, label: planTitle(config, t) }] : []),
     ...config.pages.map((page) => ({ id: page.id, icon: pageIcon(page), label: page.title })),
   ], config.navigation.order);

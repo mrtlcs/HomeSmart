@@ -280,11 +280,27 @@ function DeviceOptions({ entity: opened, state, t }: { entity: DiscoveredEntity;
   return <section className="room-options hd-detail__options" aria-label={t("deviceOptions")}>
     <div className="room-options__row">
       <span className="eyebrow">{t("tileIcon")}</span>
-      <IconChooser current={chosen === HA_ICON && haIcon ? <EntityIcon entity={{ ...entity, display_icon: HA_ICON }} size={18} /> : <HDIcon name={chosen && chosen !== HA_ICON && isIconName(chosen) ? chosen : domainIcon(entity.domain)} size={18} />} action={t("changeIcon")} label={t("tileIcon")}>
+      <IconChooser current={chosen === HA_ICON && haIcon ? <EntityIcon entity={{ ...entity, display_icon: HA_ICON }} size={18} /> : chosen.includes(":") ? <ha-icon class="hd-ha-icon" icon={chosen} style={{ "--mdc-icon-size": "18px", width: 18, height: 18, display: "inline-flex" } as CSSProperties} /> : <HDIcon name={chosen && chosen !== HA_ICON && isIconName(chosen) ? chosen : domainIcon(entity.domain)} size={18} />} action={t("changeIcon")} label={t("tileIcon")}>
         <button aria-checked={chosen === ""} aria-label={t("iconAuto")} className="room-options__auto" onClick={() => pick("")} role="radio" type="button"><HDIcon name={domainIcon(entity.domain)} size={18} /><span>{t("iconAuto")}</span></button>
         {haIcon && <button aria-checked={chosen === HA_ICON} aria-label={t("iconFromArea")} className="room-options__auto" onClick={() => pick(HA_ICON)} role="radio" type="button"><EntityIcon entity={{ ...entity, display_icon: HA_ICON }} size={18} /><span>{t("iconFromArea")}</span></button>}
         {DEVICE_ICONS.map((icon) => <button aria-checked={chosen === icon} aria-label={icon} key={icon} onClick={() => pick(icon)} role="radio" type="button"><HDIcon name={icon} size={18} /></button>)}
       </IconChooser>
+    </div>
+    <div className="st-sub" style={{ margin: "calc(var(--u) * 0.8) 0" }}>
+      <label className="st-sub__row" style={{ display: "flex", gap: "calc(var(--u) * 0.8)", alignItems: "center" }}>
+        <span style={{ fontSize: "calc(var(--u) * 1.3)", opacity: 0.85, whiteSpace: "nowrap" }}>{t("customMdiIcon")}</span>
+        <input
+          aria-label={t("customMdiIcon")}
+          className="st-input st-input--framed"
+          onChange={(event) => {
+            const val = event.target.value.trim();
+            pick(val ? (val.startsWith("mdi:") ? val : `mdi:${val}`) : "");
+          }}
+          placeholder="mdi:ceiling-light"
+          style={{ flex: 1, padding: "calc(var(--u) * 0.6) calc(var(--u) * 1)" }}
+          value={chosen.startsWith("mdi:") ? chosen : ""}
+        />
+      </label>
     </div>
     {!["sensor", "binary_sensor", "weather", "person", "calendar", "todo", "event"].includes(entity.domain) && <label className="hd-detail__confirm"><span><b>{t("childLockCard")}</b><small>{t("childLockCardDescription")}</small></span><input checked={Boolean(entity.child_lock)} className="st-switch" onChange={(event) => customize.setEntity(entity.entity_id, { child_lock: event.target.checked })} type="checkbox" /></label>}
     {switches && <label className="hd-detail__confirm"><span><b>{t("confirmToggle")}</b><small>{t("confirmToggleDescription")}</small></span><input checked={Boolean(entity.confirm)} className="st-switch" onChange={(event) => customize.setEntity(entity.entity_id, { confirm: event.target.checked })} type="checkbox" /></label>}

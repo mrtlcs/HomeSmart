@@ -21,7 +21,7 @@ import { SeasonPreview } from "../components/SeasonLayer";
 import type { Room } from "../types/discovery";
 import type { HomeAssistant } from "../types/home-assistant";
 import { hideSidebarPreferred, setHideSidebarPreferred } from "../sidebar";
-import { setTextScale, setUiSize, textScale, TEXT_SCALE_MAX, TEXT_SCALE_MIN, uiSize, type SizeChoice, childLockEnabled, keyBar, keyBarUnlocked, KEYBAR_SLOTS, setKeyBarUnlocked, motionPrefs, setChildLockEnabled, setKeyBar, setMotionPrefs, deviceBackground, deviceKidsScene, deviceLanguage, devicePin, deviceViewMode, editingLocked, keepAwakeMode, setDeviceBackground, setDeviceKidsScene, setDeviceLanguage, setDevicePin, setDeviceViewMode, setEditingLocked, setKeepAwakeMode, setSpotifySpeaker, spotifySpeaker, useDevicePref } from "../devicePrefs";
+import { setTextScale, setUiSize, textScale, TEXT_SCALE_MAX, TEXT_SCALE_MIN, uiSize, type SizeChoice, iconSize, setIconSize, type IconSizeChoice, childLockEnabled, keyBar, keyBarUnlocked, KEYBAR_SLOTS, setKeyBarUnlocked, motionPrefs, setChildLockEnabled, setKeyBar, setMotionPrefs, deviceBackground, deviceKidsScene, deviceLanguage, devicePin, deviceViewMode, editingLocked, keepAwakeMode, setDeviceBackground, setDeviceKidsScene, setDeviceLanguage, setDevicePin, setDeviceViewMode, setEditingLocked, setKeepAwakeMode, setSpotifySpeaker, spotifySpeaker, useDevicePref } from "../devicePrefs";
 import { isSilk } from "../keepAwake";
 import { deactivateLicense, getLicense, openPortal, type LicenseStatus } from "../api/license";
 import { LICENSE_ERRORS } from "../components/ProSheet";
@@ -376,6 +376,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
             <Row description={missing(draft.navigation.media, found.hasMedia, "navNoMedia")} label={t("media")}><Switch checked={draft.navigation.media} label={t("media")} onChange={(media) => update({ navigation: { ...draft.navigation, media } })} /></Row>
             <Row description={missing(draft.navigation.security, found.hasSecurity, "navNoSecurity")} label={t("security")}><Switch checked={draft.navigation.security} label={t("security")} onChange={(security) => update({ navigation: { ...draft.navigation, security } })} /></Row>
             <Row description={missing(Boolean(draft.navigation.cameras), found.hasCameras, "navNoCameras")} label={t("camerasTitle")}><Switch checked={Boolean(draft.navigation.cameras)} label={t("camerasTitle")} onChange={(cameras) => update({ navigation: { ...draft.navigation, cameras } })} /></Row>
+            <Row description={t("systemMonitorDescription")} label={t("systemMonitor")}><Switch checked={draft.navigation.system !== false} label={t("systemMonitor")} onChange={(system) => update({ navigation: { ...draft.navigation, system } })} /></Row>
             <Row description={t("floorplanDescription")} label={t("floorplan")}>{plan.pro ? <Switch checked={Boolean(draft.navigation.plan)} label={t("floorplan")} onChange={(on) => update({ navigation: { ...draft.navigation, plan: on } })} /> : <button className="hd-pill" onClick={() => plan.upsell("feature")} type="button"><HDIcon name="lock" size={14} />Pro</button>}</Row>
             {plan.pro && draft.navigation.plan && <div className="st-sub"><label className="st-sub__row"><span>{t("floorplanName")}</span><input aria-label={t("floorplanName")} className="st-input st-input--framed" maxLength={30} onChange={(event) => update({ navigation: { ...draft.navigation, plan_title: event.target.value } })} placeholder={t("floorplanCardLabel")} value={draft.navigation.plan_title ?? ""} /></label></div>}
           </section>
@@ -388,6 +389,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
               ...(draft.navigation.media ? [{ value: "media", label: t("media") }] : []),
               ...(draft.navigation.security ? [{ value: "security", label: t("security") }] : []),
               ...(draft.navigation.cameras ? [{ value: "cameras", label: t("camerasTitle") }] : []),
+              ...(draft.navigation.system !== false ? [{ value: "system", label: t("systemMonitor") }] : []),
               ...(plan.pro && draft.navigation.plan ? [{ value: "plan", label: draft.navigation.plan_title || t("floorplan") }] : []),
               ...(plan.pro ? draft.pages.map((page) => ({ value: page.id, label: page.title })) : []),
             ]} value={draft.navigation.start ?? "home"} /></Row>
@@ -702,8 +704,10 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
   const pin = useDevicePref(devicePin);
   const textSize = useDevicePref(textScale);
   const interfaceSize = useDevicePref(uiSize);
+  const currentIconSize = useDevicePref(iconSize);
   const devLang = useDevicePref(deviceLanguage);
   const sizes = [{ value: "small", label: t("sizeSmall") }, { value: "normal", label: t("sizeNormal") }, { value: "large", label: t("sizeLarge") }];
+  const iconSizes = [{ value: "normal", label: t("sizeNormal") }, { value: "large", label: t("sizeLarge") }, { value: "xlarge", label: t("sizeXLarge") }];
   const spotify = Object.values(hass.states).find((state) => state.entity_id.startsWith("media_player.") && (state.entity_id.includes("spotify") || state.attributes.source === "Spotify" || String(state.attributes.friendly_name ?? "").toLowerCase().includes("spotify")));
   const sources = Array.isArray(spotify?.attributes.source_list) ? spotify.attributes.source_list.map(String) : [];
   return <>
@@ -716,6 +720,7 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
       : <Row label={t("deviceBackground")}><HDSelect ariaLabel={t("deviceBackground")} onChange={setDeviceBackground} options={[{ value: "", label: t("useGeneral"), thumb: backgroundThumb(generalBackground) }, ...BACKGROUNDS.map(([preset, label]) => ({ value: preset, label: `${t(label)}${pro_(FREE_BACKGROUNDS.includes(preset))}`, thumb: backgroundThumb(preset) }))]} value={background} /></Row>}
     <TextSizeRow t={t} value={textSize} />
     <Row description={t("deviceUiSizeDescription")} label={t("deviceUiSize")}><HDSegmented ariaLabel={t("deviceUiSize")} onChange={(size) => setUiSize(size as SizeChoice)} options={sizes} value={interfaceSize} /></Row>
+    <Row description={t("deviceIconSizeDescription")} label={t("deviceIconSize")}><HDSegmented ariaLabel={t("deviceIconSize")} onChange={(size) => setIconSize(size as IconSizeChoice)} options={iconSizes} value={currentIconSize} /></Row>
     <h3 className="st-category">{t("deviceCatMotion")}</h3>
     <Row description={t("motionUiDescription")} label={t("motionUi")}><Switch checked={motion.ui} label={t("motionUi")} onChange={(ui) => setMotion({ ui })} /></Row>
     <Row description={t("animationsDescription")} label={t("motionCards")}>{pro ? <Switch checked={motion.cards} label={t("motionCards")} onChange={(cards) => setMotion({ cards })} /> : <button className="hd-pill" onClick={onUpsell} type="button"><HDIcon name="lock" size={14} />Pro</button>}</Row>
