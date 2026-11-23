@@ -7,8 +7,8 @@ export const theme = String.raw`
   --ink: #fff; --ink-2: rgba(255,255,255,.72); --ink-3: rgba(255,255,255,.5);
   --paper-ink: #2b2418; --paper-ink-2: rgba(43,36,24,.62);
   --on: #ffc94d; --on-deep: #e8a21b; --cool: #6cc4ff; --heat: #ff9d4d; --ok: #5fd68a; --bad: #ff6b5e;
-  --f-display: "HomeSmart Outfit", "Outfit", "Segoe UI", system-ui, sans-serif;
-  --f-body: "HomeSmart Figtree", "Figtree", "Segoe UI", system-ui, sans-serif;
+  --f-display: "HomeSmart Outfit", "HomeSmart Sans", "Plus Jakarta Sans", "Be Vietnam Pro", "Outfit", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --f-body: "HomeSmart Figtree", "HomeSmart Sans", "Plus Jakarta Sans", "Be Vietnam Pro", "Figtree", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
   font-family: var(--f-body);
   color: var(--ink);
   background: #120f14;
@@ -45,7 +45,7 @@ export const theme = String.raw`
 .app-shell .context-header { display: flex; justify-content: space-between; align-items: flex-end; gap: calc(var(--u)*2); flex-wrap: wrap; min-height: 0; padding: 0; margin: 0; border: 0; }
 .app-shell .context-header__clock { display: flex; flex-direction: column; min-width: 0; }
 .app-shell .context-header__clock span { white-space: normal; overflow: visible; max-width: none; }
-.app-shell .context-header__clock span { font: 600 calc(var(--u)*1.9)/1.2 var(--f-body); letter-spacing: .1em; text-transform: uppercase; color: var(--ink-2); }
+.app-shell .context-header__clock span { font: 600 calc(var(--u)*1.9)/1.2 var(--f-body); letter-spacing: .03em; color: var(--ink-2); text-transform: capitalize; }
 .app-shell .context-header__clock strong { font: 300 calc(var(--u)*6.4)/1 var(--f-display); letter-spacing: -.01em; margin-top: calc(var(--u)*.6); font-variant-numeric: tabular-nums; color: var(--ink); }
 .app-shell .context-header__right { display: flex; align-items: center; gap: calc(var(--u)*1.6); }
 .app-shell .weather-chip { display: flex; align-items: center; gap: calc(var(--u)*1.2); height: auto; border-radius: var(--hd-pill,99px); padding: calc(var(--u)*.9) calc(var(--u)*2) calc(var(--u)*.9) calc(var(--u)*1.4); color: var(--ink); cursor: pointer; }

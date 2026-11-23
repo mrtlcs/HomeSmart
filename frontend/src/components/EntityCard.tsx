@@ -342,8 +342,25 @@ function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps)
 
       {!wide && entity.domain === "climate" && !unavailable && target != null && (
         <div className="climate-quick-control">
-          <span>{target}°</span>
-          <div><button aria-label={t("decreaseTemperature")} disabled={target <= minimum} onClick={() => setTemperature(target - step)} type="button"><HDIcon name="minus" size={18} /></button><button aria-label={t("increaseTemperature")} disabled={target >= maximum} onClick={() => setTemperature(target + step)} type="button"><HDIcon name="plus" size={18} /></button></div>
+          <div className="climate-quick-control__stepper">
+            <button
+              aria-label={t("decreaseTemperature")}
+              disabled={target <= minimum}
+              onClick={(e) => { e.stopPropagation(); setTemperature(target - step); }}
+              type="button"
+            >
+              <HDIcon name="minus" size={18} />
+            </button>
+            <span className="climate-quick-control__target">{target}°</span>
+            <button
+              aria-label={t("increaseTemperature")}
+              disabled={target >= maximum}
+              onClick={(e) => { e.stopPropagation(); setTemperature(target + step); }}
+              type="button"
+            >
+              <HDIcon name="plus" size={18} />
+            </button>
+          </div>
         </div>
       )}
       {pinPrompt && <PinPadModal expectedPin={currentPin} onCancel={() => setPinPrompt(null)} onSuccess={() => { const act = pinPrompt; setPinPrompt(null); act(); }} t={t} title={entity.name} />}

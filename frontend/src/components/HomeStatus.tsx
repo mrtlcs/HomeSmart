@@ -32,9 +32,7 @@ export function HomeStatus({ config, data, hass, t }: HomeStatusProps) {
   return (
     <section className="home-status" aria-label={t("homeStatus")}>
       <div>
-        <span className="eyebrow">{t("homeStatus")}</span>
         <h1>{homeStatusText(config, hass, activeLights, t)}</h1>
-        <p>{data.counts.rooms} {t("rooms")} · {data.counts.devices} {t("devices")}</p>
       </div>
       <div className="global-actions">
         {config.global_actions.lights_on && <button disabled={busy || lightIds.length === 0} onClick={() => void setLights("turn_on")} type="button"><HDIcon name="light" size={18} />{t("turnAllOn")}</button>}

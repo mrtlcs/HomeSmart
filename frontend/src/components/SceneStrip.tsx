@@ -61,7 +61,7 @@ export function SceneStrip({ props, room }: { props: ScreenProps; room?: Room })
   if (shown.length === 0 && !editing) return null;
   return (
     <section className={room ? "scene-section scene-section--room" : "scene-section"} id={room ? undefined : "scene-strip"}>
-      <div className="operational-heading"><span>{t("scenes")}</span><i>{shown.length}</i></div>
+      {editing && <div className="operational-heading"><span>{t("scenes")}</span><i>{shown.length}</i></div>}
       <EditableGrid
         hass={hass}
         addLabel={t("addScenes")}

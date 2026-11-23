@@ -43,6 +43,78 @@ const time = (value: unknown, language?: string) => {
   return date && !Number.isNaN(date.getTime()) ? new Intl.DateTimeFormat(safeIntlLocale(language), { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(date) : "—";
 };
 
+export function getWeatherAtmosphere(condition?: string): {
+  bg: string;
+  borderColor: string;
+  iconBg: string;
+  iconColor: string;
+  glow: string;
+} {
+  const c = condition?.toLowerCase() ?? "";
+  if (c.includes("sunny") || c.includes("clear")) {
+    return {
+      bg: "linear-gradient(135deg, rgba(255, 180, 50, 0.22) 0%, rgba(255, 140, 0, 0.08) 100%)",
+      borderColor: "rgba(255, 193, 7, 0.38)",
+      iconBg: "rgba(255, 201, 77, 0.25)",
+      iconColor: "#ffc94d",
+      glow: "0 0 16px rgba(255, 193, 7, 0.25)",
+    };
+  }
+  if (c.includes("rain") || c.includes("pouring")) {
+    return {
+      bg: "linear-gradient(135deg, rgba(56, 189, 248, 0.24) 0%, rgba(37, 99, 235, 0.12) 100%)",
+      borderColor: "rgba(56, 189, 248, 0.38)",
+      iconBg: "rgba(56, 189, 248, 0.22)",
+      iconColor: "#38bdf8",
+      glow: "0 0 16px rgba(56, 189, 248, 0.25)",
+    };
+  }
+  if (c.includes("lightning")) {
+    return {
+      bg: "linear-gradient(135deg, rgba(168, 85, 247, 0.26) 0%, rgba(99, 102, 241, 0.14) 100%)",
+      borderColor: "rgba(192, 132, 252, 0.4)",
+      iconBg: "rgba(192, 132, 252, 0.24)",
+      iconColor: "#facc15",
+      glow: "0 0 18px rgba(192, 132, 252, 0.3)",
+    };
+  }
+  if (c.includes("snow")) {
+    return {
+      bg: "linear-gradient(135deg, rgba(224, 242, 254, 0.25) 0%, rgba(186, 230, 253, 0.12) 100%)",
+      borderColor: "rgba(186, 230, 253, 0.42)",
+      iconBg: "rgba(186, 230, 253, 0.22)",
+      iconColor: "#7dd3fc",
+      glow: "0 0 14px rgba(186, 230, 253, 0.25)",
+    };
+  }
+  if (c.includes("wind") || c.includes("fog")) {
+    return {
+      bg: "linear-gradient(135deg, rgba(94, 234, 212, 0.22) 0%, rgba(13, 148, 136, 0.1) 100%)",
+      borderColor: "rgba(94, 234, 212, 0.35)",
+      iconBg: "rgba(94, 234, 212, 0.2)",
+      iconColor: "#5eead4",
+      glow: "0 0 14px rgba(94, 234, 212, 0.22)",
+    };
+  }
+  return {
+    bg: "linear-gradient(135deg, rgba(148, 163, 184, 0.22) 0%, rgba(71, 85, 105, 0.12) 100%)",
+    borderColor: "rgba(148, 163, 184, 0.32)",
+    iconBg: "rgba(203, 213, 225, 0.18)",
+    iconColor: "#93c5fd",
+    glow: "0 0 14px rgba(148, 163, 184, 0.2)",
+  };
+}
+
+export function getWeatherConditionColor(condition?: string): string {
+  const c = condition?.toLowerCase() ?? "";
+  if (c.includes("sunny") || c.includes("clear")) return "#ffc94d";
+  if (c.includes("rain") || c.includes("pouring")) return "#38bdf8";
+  if (c.includes("lightning")) return "#facc15";
+  if (c.includes("snow")) return "#7dd3fc";
+  if (c.includes("wind") || c.includes("fog")) return "#5eead4";
+  return "#93c5fd";
+}
+
 export function WeatherWidget({ config, hass, language, t }: { config: HomeSmartConfig; hass: HomeAssistant; language?: string; t: T }) {
   const wide = useWideTile();
   const [open, setOpen] = useState(false);
@@ -54,13 +126,83 @@ export function WeatherWidget({ config, hass, language, t }: { config: HomeSmart
   const condition = now?.condition;
   const shell = ref.current?.closest(".app-shell") ?? null;
   const hour = new Intl.DateTimeFormat(safeIntlLocale(language), { ...hourOptions(), hour: "2-digit" });
+  const atmo = getWeatherAtmosphere(condition);
+
   return <>
-    <button className={`widget-card widget-card--interactive widget-card--weather ${wide ? "widget-card--wide" : ""}`} onClick={() => setOpen(true)} ref={ref} type="button">
-      <span className="widget-card__icon"><HDIcon name={conditionIcon(condition)} size={22} /></span>
-      <span className="widget-card__label">{t("weatherNow")}</span>
-      <strong>{now?.temperature != null ? `${Math.round(now.temperature)}°` : "—"}</strong>
-      <p>{condition ? weatherConditionLabel(condition, language) : t("unavailable")}{high != null ? ` · ${t("maxTemp")} ${Math.round(high)}°` : ""}{low != null ? ` · ${t("minTemp")} ${Math.round(low)}°` : ""}</p>
-      {wide && hourly.length > 0 && <span className="widget-hours">{hourly.slice(1, 6).map((item) => <span key={item.datetime}><small>{item.datetime ? hour.format(new Date(item.datetime)) : ""}</small><HDIcon name={conditionIcon(item.condition)} size={18} /><b>{numeric(item.temperature) != null ? `${Math.round(Number(item.temperature))}°` : "—"}</b></span>)}</span>}
+    <button
+      className={`widget-card widget-card--interactive widget-card--weather ${wide ? "widget-card--wide" : ""}`}
+      onClick={() => setOpen(true)}
+      ref={ref}
+      style={{
+        background: atmo.bg,
+        borderColor: atmo.borderColor,
+        boxShadow: atmo.glow,
+      }}
+      type="button"
+    >
+      <span
+        className="widget-card__icon"
+        style={{
+          background: atmo.iconBg,
+          color: atmo.iconColor,
+          boxShadow: `0 0 10px ${atmo.iconBg}`,
+        }}
+      >
+        <HDIcon name={conditionIcon(condition)} size={22} />
+      </span>
+      <span className="widget-card__label" style={{ color: "var(--ink-2)", fontWeight: 600 }}>
+        {t("weatherNow")}
+      </span>
+      <strong style={{ fontSize: "calc(var(--u) * 4)", letterSpacing: "-0.03em" }}>
+        {now?.temperature != null ? `${Math.round(now.temperature)}°` : "—"}
+      </strong>
+      <div style={{ marginTop: 2, display: "flex", flexDirection: "column", gap: 3 }}>
+        <span style={{ fontSize: "0.9em", fontWeight: 600, color: "var(--ink)" }}>
+          {condition ? weatherConditionLabel(condition, language) : t("unavailable")}
+        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: "0.82em", opacity: 0.9 }}>
+          {high != null && low != null && (
+            <span>
+              <span style={{ color: "#ff9d4d", fontWeight: 600 }}>▲ {Math.round(high)}°</span>
+              {" "}
+              <span style={{ color: "#6cc4ff", fontWeight: 600 }}>▼ {Math.round(low)}°</span>
+            </span>
+          )}
+          {now?.humidity != null && (
+            <span>💧 {now.humidity}%</span>
+          )}
+        </div>
+      </div>
+      {wide && hourly.length > 0 && (
+        <span className="widget-hours" style={{ gap: "calc(var(--u) * 0.8)" }}>
+          {hourly.slice(1, 6).map((item) => {
+            const hColor = getWeatherConditionColor(item.condition);
+            const tempVal = numeric(item.temperature);
+            return (
+              <span
+                key={item.datetime}
+                style={{
+                  background: "rgba(255, 255, 255, 0.07)",
+                  backdropFilter: "blur(4px)",
+                  borderRadius: "calc(var(--u) * 1.4)",
+                  padding: "calc(var(--u) * 0.8) calc(var(--u) * 0.4)",
+                  border: "1px solid rgba(255, 255, 255, 0.12)",
+                }}
+              >
+                <small style={{ opacity: 0.85, fontSize: "0.8em" }}>
+                  {item.datetime ? hour.format(new Date(item.datetime)) : ""}
+                </small>
+                <span style={{ color: hColor, margin: "2px 0" }}>
+                  <HDIcon name={conditionIcon(item.condition)} size={18} />
+                </span>
+                <b style={{ fontSize: "0.95em", fontWeight: 600 }}>
+                  {tempVal != null ? `${Math.round(Number(tempVal))}°` : "—"}
+                </b>
+              </span>
+            );
+          })}
+        </span>
+      )}
     </button>
     {open && shell && <ForecastSheet daily={daily} hourly={hourly} language={language} onClose={() => setOpen(false)} shell={shell} sunrise={sunrise} sunset={sunset} t={t} weather={now} />}
   </>;

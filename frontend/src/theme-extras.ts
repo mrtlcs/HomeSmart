@@ -1229,9 +1229,45 @@ export const themeExtras = String.raw`
 .app-shell .st-saved svg { color: #5fd38d; }
 .app-shell .st-saved--failed { color: #ffb0a8; }
 
-/* Air conditioner, small card: the target temperature sits in the top right corner (across from the icon),
-   so the card keeps the size of the others; − and + stay at the bottom. */
-.app-shell .device-tile:not(.device-tile--wide) > .climate-quick-control > span { position: absolute; top: calc(var(--u)*2); right: calc(var(--u)*2); line-height: 1; }
+/* Air conditioner, small card: target temperature is cleanly integrated between − and + buttons,
+   keeping the top right completely clear for device options button (...) without overlapping. */
+.app-shell .device-tile:not(.device-tile--wide) .climate-quick-control {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.app-shell .device-tile:not(.device-tile--wide) .climate-quick-control__stepper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(var(--u)*.8);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--hd-pill, 99px);
+  padding: calc(var(--u)*.3);
+}
+.app-shell .device-tile:not(.device-tile--wide) .climate-quick-control__stepper button {
+  width: calc(var(--u)*4.4);
+  height: calc(var(--u)*4.4);
+  border-radius: var(--hd-round, 50%);
+  border: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.16);
+  color: inherit;
+  cursor: pointer;
+  flex: none;
+}
+.app-shell .device-tile:not(.device-tile--wide) .climate-quick-control__stepper button:disabled {
+  opacity: .3;
+  cursor: default;
+}
+.app-shell .device-tile:not(.device-tile--wide) .climate-quick-control__target {
+  font: 500 calc(var(--u)*3.2)/1 var(--f-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -.02em;
+  text-align: center;
+  flex: 1;
+}
 
 /* Settings, one look for every panel: the same title and text sizes, and every field (text box, list,
    button) the same height, type, corners and frame. */

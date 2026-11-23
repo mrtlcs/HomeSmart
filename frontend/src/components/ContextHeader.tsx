@@ -156,7 +156,7 @@ export function ContextHeader({ config, hass, language, onSettings, part = "all"
           <div className="context-header__clock">
             <span>{date}{occasion && <b className={occasion.phase === "day" ? "hd-season-badge hd-season-badge--day" : "hd-season-badge"}>{occasion.badge}</b>}</span>
             <div className="context-header__time">{config.home.show_clock && <strong>{time}</strong>}<AgendaButtons config={config} hass={hass} language={language} t={t} /></div>
-            <div className="context-header__greeting" style={{ fontSize: "calc(var(--u) * 1.3)", opacity: 0.8, marginTop: 2, fontWeight: 500 }}>
+            <div className="context-header__greeting" style={{ fontSize: "calc(var(--u) * 1.8)", opacity: 0.88, marginTop: "calc(var(--u) * 0.4)", fontWeight: 500 }}>
               {smartGreeting}
             </div>
           </div>
