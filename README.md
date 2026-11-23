@@ -11,6 +11,14 @@
 ---
 
 <p align="center">
+  <img src="images/home-dashboard.jpg" alt="HomeSmart Dashboard Overview" width="100%" style="border-radius: 12px; box-shadow: 0 12px 36px rgba(0,0,0,0.45);" />
+  <br>
+  <em>Giao diện Trang chủ HomeSmart với bố cục Bento Grid kính mờ và thanh ngữ cảnh tự thích ứng / HomeSmart Bento Grid Main Dashboard</em>
+</p>
+
+---
+
+<p align="center">
   <b>Language / Ngôn ngữ:</b><br>
   <a href="#-tiếng-việt">🇻🇳 <b>Tiếng Việt</b></a> &nbsp;|&nbsp; <a href="#-english">🇬🇧 <b>English</b></a>
 </p>
@@ -37,6 +45,20 @@ HomeSmart kết hợp giữa thiết kế **Bento Grid kính mờ (Glassmorphism
 - **Đồng hồ đo Cyber Glow Gauges**: Theo dõi trực quan tải CPU, bộ nhớ RAM, dung lượng ổ đĩa, nhiệt độ chip, băng thông mạng (Tải xuống / Tải lên) và thời gian hoạt động (Uptime).
 - **Biểu đồ lịch sử 24 giờ**: Trực quan hóa đường cong dao động tải và nhiệt độ trong 24h qua.
 - **Tùy biến chọn cảm biến linh hoạt**: Tự động gợi ý và cho phép bạn tự gán bất kỳ sensor nào trong Home Assistant vào các thẻ đo chỉ với 1 chạm.
+
+<p align="center">
+  <img src="images/system-monitor-desktop.jpg" alt="HomeSmart System Monitor Desktop" width="100%" style="border-radius: 12px; margin: 8px 0;" />
+  <br>
+  <em>Màn hình Giám sát hệ thống trên Desktop với đồng hồ Cyber Glow và biểu đồ dao động 24h</em>
+</p>
+
+<p align="center">
+  <img src="images/system-monitor-mobile.jpg" alt="HomeSmart System Monitor Mobile" width="48%" style="border-radius: 12px; vertical-align: top; margin: 4px;" />
+  &nbsp;
+  <img src="images/settings-appearance.jpg" alt="HomeSmart Settings & Palette" width="48%" style="border-radius: 12px; vertical-align: top; margin: 4px;" />
+  <br>
+  <em>Giao diện Giám sát hệ thống trên điện thoại (trái) và Cài đặt giao diện màu sắc kính mờ (phải)</em>
+</p>
 
 #### 3. ⚡ Sơ Đồ Năng Lượng Động & Biểu Giá Điện EVN 5 Bậc Mới
 - **Sơ đồ luồng điện động (Animated Power Flow)**: Trực quan hóa chuyển động của dòng năng lượng giữa Điện mặt trời (Solar) ➔ Tiêu thụ trong nhà (Home) ➔ Lưới điện (EVN) theo thời gian thực.
@@ -69,6 +91,12 @@ HomeSmart kết hợp giữa thiết kế **Bento Grid kính mờ (Glassmorphism
 - Hỗ trợ nhiều phong cách giao diện: **Tự động thích ứng (Auto)**, **Thanh bên (Sidebar)**, **Tập trung (Focus)**, **Bento Grid**, **Ảnh nền (Photo)**, **Danh sách (List)**.
 - **Chế độ Trẻ Em**: Giao diện hoạt hình vui tươi với các hình nền cổ tích, chỉ hiển thị thiết bị phòng bé và khóa các khu vực nhạy cảm.
 - **Bảo vệ bằng mã PIN 4 số**: Khóa an toàn cho cửa cuốn, khóa thông minh, bình nóng lạnh và trang Cài đặt.
+
+<p align="center">
+  <img src="images/room-view.jpg" alt="HomeSmart Room View with Vacuum Map" width="100%" style="border-radius: 12px; margin: 8px 0;" />
+  <br>
+  <em>Giao diện điều khiển theo phòng với danh mục thiết bị, camera trực tiếp và bản đồ robot hút bụi</em>
+</p>
 
 ---
 
@@ -115,6 +143,20 @@ It brings together a modern **Glassmorphic Cyber Bento Grid** aesthetic, 60–12
 - **24-Hour Interactive Sparklines**: Historical trend charts for vital load and temperature fluctuations.
 - **Custom Sensor Assignment**: Intelligent auto-detection ranked suggestions with a 1-tap modal to assign custom sensors for each vital metric.
 
+<p align="center">
+  <img src="images/system-monitor-desktop.jpg" alt="HomeSmart System Monitor Desktop" width="100%" style="border-radius: 12px; margin: 8px 0;" />
+  <br>
+  <em>HomeSmart System Monitor on Desktop with Cyber Glow gauges and 24h history sparklines</em>
+</p>
+
+<p align="center">
+  <img src="images/system-monitor-mobile.jpg" alt="HomeSmart System Monitor Mobile" width="48%" style="border-radius: 12px; vertical-align: top; margin: 4px;" />
+  &nbsp;
+  <img src="images/settings-appearance.jpg" alt="HomeSmart Settings & Palette" width="48%" style="border-radius: 12px; vertical-align: top; margin: 4px;" />
+  <br>
+  <em>System Monitor mobile view (left) and Glassmorphic Theme Customizer (right)</em>
+</p>
+
 #### 3. ⚡ Animated Power Flow & Vietnam EVN 5-Tier Energy Calculator
 - **Live Animated Power Flow**: Dynamic real-time SVG dashed-flow animation showing energy distribution between Solar ➔ Home ➔ Grid (reversing direction during grid export).
 - **Vietnam EVN 5-Tier Electricity Calculation**: Progressive tier calculation and monthly bill estimation based on Vietnam's official 5-tier residential tariff structure:
@@ -146,6 +188,12 @@ It brings together a modern **Glassmorphic Cyber Bento Grid** aesthetic, 60–12
 - **6 Adaptive Layout Modes**: Auto-Responsive, Sidebar, Focus, Bento Grid, Photo Background, List, and Kids Mode.
 - **4-Digit PIN Security**: Lock sensitive hardware (gates, roller shutters, heaters, and configuration menu) from unauthorized access or accidental taps.
 - **100% Bilingual**: Native Vietnamese (`vi`) and English (`en`) localization.
+
+<p align="center">
+  <img src="images/room-view.jpg" alt="HomeSmart Room View with Vacuum Map" width="100%" style="border-radius: 12px; margin: 8px 0;" />
+  <br>
+  <em>Room focus view with entity filters, live camera stream, and interactive robot vacuum map</em>
+</p>
 
 ---
 

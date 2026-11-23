@@ -1166,30 +1166,67 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
 
   if (customSensors?.memory && hass.states[customSensors.memory]) {
     const s = hass.states[customSensors.memory];
-    const val = Number.parseFloat(String(s.state ?? "").replace(",", "."));
-    if (Number.isFinite(val)) {
+    const rawVal = Number.parseFloat(String(s.state ?? "").replace(",", "."));
+    const u = String(s.attributes.unit_of_measurement ?? "%");
+    if (Number.isFinite(rawVal)) {
+      let gaugeVal = rawVal;
+      if (rawVal > 100 || u.includes("B")) {
+        const pctSensor = Object.values(hass.states).find(
+          (st) =>
+            st.attributes.unit_of_measurement === "%" &&
+            (st.entity_id.includes("memory") || st.entity_id.includes("ram") || String(st.attributes.friendly_name ?? "").toLowerCase().includes("memory")) &&
+            Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
+        );
+        if (pctSensor) {
+          gaugeVal = Number.parseFloat(String(pctSensor.state).replace(",", "."));
+        } else {
+          const freeSensor = Object.values(hass.states).find(
+            (st) =>
+              (st.entity_id.includes("memory_free") || st.entity_id.includes("ram_free")) &&
+              Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
+          );
+          if (freeSensor) {
+            const freeVal = Number.parseFloat(String(freeSensor.state).replace(",", "."));
+            if (rawVal + freeVal > 0) gaugeVal = (rawVal / (rawVal + freeVal)) * 100;
+          }
+        }
+      }
       memory = {
         entityId: s.entity_id,
-        formatted: `${val.toFixed(1)}%`,
+        formatted: `${gaugeVal.toFixed(1)}%`,
         name: s.attributes.friendly_name ?? "RAM",
         stateObj: s,
+        subtitle: rawVal > 100 ? `Đang dùng: ${(rawVal / 1024).toFixed(1)} GB` : undefined,
         unit: "%",
-        value: val,
+        value: gaugeVal,
       };
     }
   }
 
   if (customSensors?.disk && hass.states[customSensors.disk]) {
     const s = hass.states[customSensors.disk];
-    const val = Number.parseFloat(String(s.state ?? "").replace(",", "."));
-    if (Number.isFinite(val)) {
+    const rawVal = Number.parseFloat(String(s.state ?? "").replace(",", "."));
+    const u = String(s.attributes.unit_of_measurement ?? "%");
+    if (Number.isFinite(rawVal)) {
+      let gaugeVal = rawVal;
+      if (rawVal > 100 || u.includes("B")) {
+        const pctSensor = Object.values(hass.states).find(
+          (st) =>
+            st.attributes.unit_of_measurement === "%" &&
+            (st.entity_id.includes("disk") || st.entity_id.includes("storage")) &&
+            Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
+        );
+        if (pctSensor) {
+          gaugeVal = Number.parseFloat(String(pctSensor.state).replace(",", "."));
+        }
+      }
       disk = {
         entityId: s.entity_id,
-        formatted: `${val.toFixed(1)}%`,
+        formatted: `${gaugeVal.toFixed(1)}%`,
         name: s.attributes.friendly_name ?? "Disk",
         stateObj: s,
         unit: "%",
-        value: val,
+        value: gaugeVal,
       };
     }
   }
@@ -1327,44 +1364,66 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
     }
 
     // Memory / RAM Usage %
-    if (
-      !memory &&
+    const isMemCandidate =
       hasNum &&
-      (id.includes("memory_use") ||
+      (id.includes("memory_use_percent") ||
         id.includes("memory_usage") ||
-        id.includes("ram_use") ||
-        id.includes("ram_usage") ||
         id.includes("ram_percent") ||
-        ((friendly.includes("memory") || friendly.includes("ram")) && (unit === "%" || friendly.includes("use") || friendly.includes("usage"))))
-    ) {
-      memory = {
-        entityId: s.entity_id,
-        formatted: `${val.toFixed(1)}%`,
-        name: s.attributes.friendly_name ?? "RAM",
-        stateObj: s,
-        unit: "%",
-        value: val,
-      };
+        id.includes("ram_usage") ||
+        id.includes("memory_percent") ||
+        ((id.includes("memory") || id.includes("ram")) && (unit === "%" || friendly.includes("usage") || friendly.includes("use"))) ||
+        ((friendly.includes("memory") || friendly.includes("ram")) && (unit === "%" || friendly.includes("usage") || friendly.includes("use"))));
+
+    if (isMemCandidate) {
+      const isPercent = unit === "%" || (val <= 100 && !unit.includes("B"));
+      if (!memory || (isPercent && memory.value > 100)) {
+        let gaugeVal = val;
+        if (gaugeVal > 100) {
+          const freeSensor = states.find(
+            (st) =>
+              (st.entity_id.includes("memory_free") || st.entity_id.includes("ram_free")) &&
+              Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
+          );
+          if (freeSensor) {
+            const freeVal = Number.parseFloat(String(freeSensor.state).replace(",", "."));
+            if (gaugeVal + freeVal > 0) gaugeVal = (gaugeVal / (gaugeVal + freeVal)) * 100;
+          }
+        }
+        if (isPercent || gaugeVal <= 100 || !memory) {
+          memory = {
+            entityId: s.entity_id,
+            formatted: `${gaugeVal.toFixed(1)}%`,
+            name: s.attributes.friendly_name ?? "RAM",
+            stateObj: s,
+            unit: "%",
+            value: gaugeVal,
+          };
+        }
+      }
     }
 
     // Disk Usage %
-    if (
-      !disk &&
+    const isDiskCandidate =
       hasNum &&
-      (id.includes("disk_use") ||
+      (id.includes("disk_use_percent") ||
         id.includes("disk_usage") ||
-        id.includes("storage_use") ||
         id.includes("storage_usage") ||
-        ((friendly.includes("disk") || friendly.includes("storage") || friendly.includes("ổ đĩa")) && (unit === "%" || friendly.includes("use") || friendly.includes("usage"))))
-    ) {
-      disk = {
-        entityId: s.entity_id,
-        formatted: `${val.toFixed(1)}%`,
-        name: s.attributes.friendly_name ?? "Disk",
-        stateObj: s,
-        unit: "%",
-        value: val,
-      };
+        id.includes("disk_use") ||
+        id.includes("storage_use") ||
+        ((friendly.includes("disk") || friendly.includes("storage") || friendly.includes("ổ đĩa")) && (unit === "%" || friendly.includes("use") || friendly.includes("usage"))));
+
+    if (isDiskCandidate) {
+      const isPercent = unit === "%" || (val <= 100 && !unit.includes("B"));
+      if (!disk || (isPercent && disk.value > 100)) {
+        disk = {
+          entityId: s.entity_id,
+          formatted: `${val.toFixed(1)}%`,
+          name: s.attributes.friendly_name ?? "Disk",
+          stateObj: s,
+          unit: "%",
+          value: val,
+        };
+      }
     }
 
     // CPU Temperature
