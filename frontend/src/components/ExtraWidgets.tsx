@@ -109,6 +109,57 @@ export function formatPower(watts: number, language?: string): string {
   return abs >= 1000 ? `${new Intl.NumberFormat(loc, { maximumFractionDigits: abs >= 10_000 ? 1 : 2 }).format(watts / 1000)} kW` : `${Math.round(watts)} W`;
 }
 
+/** Vietnam EVN 6-tier electricity cost calculation (Biểu giá điện sinh hoạt 6 bậc EVN). */
+export function calcEvnCost(kwh: number) {
+  if (kwh <= 0) return { tier: 1, totalCost: 0, rate: 1893 };
+  const tiers = [
+    { max: 50, rate: 1893 },
+    { max: 100, rate: 1956 },
+    { max: 200, rate: 2271 },
+    { max: 300, rate: 2860 },
+    { max: 400, rate: 3197 },
+    { max: Infinity, rate: 3302 },
+  ];
+  let remaining = kwh;
+  let cost = 0;
+  let currentTier = 1;
+  let prevMax = 0;
+  for (let i = 0; i < tiers.length; i++) {
+    const span = tiers[i].max - prevMax;
+    if (remaining > 0) {
+      currentTier = i + 1;
+      const usedInTier = Math.min(remaining, span);
+      cost += usedInTier * tiers[i].rate;
+      remaining -= usedInTier;
+    }
+    prevMax = tiers[i].max;
+  }
+  return { tier: currentTier, totalCost: Math.round(cost), rate: tiers[currentTier - 1].rate };
+}
+
+function FlowLine({ active, color, reverse }: { active: boolean; color: string; reverse?: boolean }) {
+  return (
+    <div className="energy-flow-connector" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minWidth: 28, margin: "0 4px" }}>
+      <svg height="12" style={{ width: "100%", overflow: "visible" }} viewBox="0 0 40 12">
+        <line stroke="rgba(255, 255, 255, 0.15)" strokeWidth="2" x1="2" x2="38" y1="6" y2="6" />
+        {active && (
+          <line
+            className={`energy-flow-dash ${reverse ? "energy-flow-dash--rev" : ""}`}
+            stroke={color}
+            strokeDasharray="4 6"
+            strokeLinecap="round"
+            strokeWidth="3"
+            x1="2"
+            x2="38"
+            y1="6"
+            y2="6"
+          />
+        )}
+      </svg>
+    </div>
+  );
+}
+
 /** Energy at home now: consumption, solar, the grid (importing or exporting), the battery and
  * today's production. Each line opens its sensor with its history. */
 export function EnergyWidget({ config, hass, language, onOpen, t }: { config: HomeSmartConfig; hass: HomeAssistant; language?: string; onOpen: Open; t: T }) {
@@ -138,33 +189,86 @@ export function EnergyWidget({ config, hass, language, onOpen, t }: { config: Ho
   const main = home ?? solar;
   const first = st(e.consumption) ?? st(e.solar) ?? lines[0]?.state;
 
+  // EVN 6-tier estimation
+  const todayKwh = Number.parseFloat(today?.state ?? "0") || 0;
+  const estDailyKwh = todayKwh > 0 ? todayKwh : (home != null ? (home * 24) / 1000 : 0);
+  const estMonthlyKwh = estDailyKwh * 30;
+  const evn = calcEvnCost(estMonthlyKwh);
+
   if (wide) {
     return <div className={`widget-card widget-card--wide widget-card--energy ${surplus ? "widget-card--playing" : ""}`}>
+      <style>{`
+        @keyframes efDashFlow { to { stroke-dashoffset: -20; } }
+        .energy-flow-dash { animation: efDashFlow 1s linear infinite; }
+        .energy-flow-dash--rev { animation: efDashFlow 1s linear infinite reverse; }
+      `}</style>
       <span className="widget-card__icon"><HDIcon name="bolt" size={22} /></span>
       <span className="widget-card__label">{t("energy")}</span>
       <strong>{main != null ? formatPower(main, language) : "—"}</strong>
       <p>{home != null ? t("energyHome") : t("energySolar")}</p>
-      <div className="energy-flow-diagram">
+      {estMonthlyKwh > 0 && (
+        <div style={{ marginTop: 4 }}>
+          <span style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+            background: "rgba(255, 170, 0, 0.14)",
+            border: "1px solid rgba(255, 170, 0, 0.28)",
+            borderRadius: "999px",
+            padding: "2px 8px",
+            fontSize: "0.8em",
+            color: "#ffb43a",
+            fontWeight: 600,
+          }}>
+            <span>EVN {t("evnTier").replace("{tier}", String(evn.tier))} ({evn.rate.toLocaleString()} đ/kWh)</span>
+            <span>·</span>
+            <span>~{new Intl.NumberFormat(safeIntlLocale(language)).format(evn.totalCost)} đ</span>
+          </span>
+        </div>
+      )}
+      <div className="energy-flow-diagram" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "14px 0 8px" }}>
         {solar != null && (
-          <div className="energy-flow-node energy-flow-node--solar">
-            <span className="energy-flow-node__icon"><HDIcon name="sun" size={18} /></span>
-            <span>{formatPower(solar, language)}</span>
-            <small style={{ opacity: 0.7 }}>{t("energySolar")}</small>
-          </div>
+          <>
+            <div className="energy-flow-node energy-flow-node--solar" style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 48 }}>
+              <span className="energy-flow-node__icon" style={{ width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(255, 201, 77, 0.2)", color: "#ffc94d" }}>
+                <HDIcon name="sun" size={18} />
+              </span>
+              <span style={{ fontSize: "0.85em", fontWeight: 600, marginTop: 4 }}>{formatPower(solar, language)}</span>
+              <small style={{ opacity: 0.7, fontSize: "0.75em" }}>{t("energySolar")}</small>
+            </div>
+            <FlowLine active={solar > 10} color="#ffc94d" />
+          </>
         )}
-        {home != null && (
-          <div className="energy-flow-node energy-flow-node--home">
-            <span className="energy-flow-node__icon"><HDIcon name="home" size={18} /></span>
-            <span>{formatPower(home, language)}</span>
-            <small style={{ opacity: 0.7 }}>{t("energyHome")}</small>
-          </div>
-        )}
+        <div className="energy-flow-node energy-flow-node--home" style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 48 }}>
+          <span className="energy-flow-node__icon" style={{ width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(255, 255, 255, 0.15)", color: "var(--ink)" }}>
+            <HDIcon name="home" size={18} />
+          </span>
+          <span style={{ fontSize: "0.85em", fontWeight: 600, marginTop: 4 }}>{home != null ? formatPower(home, language) : "—"}</span>
+          <small style={{ opacity: 0.7, fontSize: "0.75em" }}>{t("energyHome")}</small>
+        </div>
         {grid != null && (
-          <div className="energy-flow-node energy-flow-node--grid">
-            <span className="energy-flow-node__icon"><HDIcon name="bolt" size={18} /></span>
-            <span>{formatPower(Math.abs(grid), language)}</span>
-            <small style={{ opacity: 0.7 }}>{grid < 0 ? t("energyExporting") : t("energyImporting")}</small>
-          </div>
+          <>
+            <FlowLine active={Math.abs(grid) > 10} color={grid < 0 ? "#1fd36b" : "#8cc4ec"} reverse={grid < 0} />
+            <div className="energy-flow-node energy-flow-node--grid" style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 48 }}>
+              <span className="energy-flow-node__icon" style={{ width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: grid < 0 ? "rgba(31, 211, 107, 0.2)" : "rgba(140, 196, 236, 0.2)", color: grid < 0 ? "#1fd36b" : "#8cc4ec" }}>
+                <HDIcon name="bolt" size={18} />
+              </span>
+              <span style={{ fontSize: "0.85em", fontWeight: 600, marginTop: 4 }}>{formatPower(Math.abs(grid), language)}</span>
+              <small style={{ opacity: 0.7, fontSize: "0.75em" }}>{grid < 0 ? t("energyExporting") : t("energyImporting")}</small>
+            </div>
+          </>
+        )}
+        {battery && Number.isFinite(Number.parseFloat(battery.state)) && (
+          <>
+            <FlowLine active={true} color="#a78bfa" />
+            <div className="energy-flow-node energy-flow-node--battery" style={{ display: "flex", flexDirection: "column", alignItems: "center", minWidth: 48 }}>
+              <span className="energy-flow-node__icon" style={{ width: 34, height: 34, borderRadius: "50%", display: "grid", placeItems: "center", background: "rgba(167, 139, 250, 0.2)", color: "#a78bfa" }}>
+                <HDIcon name="battery" size={18} />
+              </span>
+              <span style={{ fontSize: "0.85em", fontWeight: 600, marginTop: 4 }}>{Math.round(Number.parseFloat(battery.state))}%</span>
+              <small style={{ opacity: 0.7, fontSize: "0.75em" }}>{t("energyBattery")}</small>
+            </div>
+          </>
         )}
       </div>
       <ul className="widget-list">{lines.slice(home != null ? 1 : 0, 5).map((line) => <li key={line.key}><button onClick={() => line.state && onOpen(asEntity(line.state))} type="button"><span>{line.label}</span><small>{line.value}</small></button></li>)}</ul>

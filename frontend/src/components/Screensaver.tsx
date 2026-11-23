@@ -67,10 +67,44 @@ export function Screensaver({ config, hass, language, onDismiss, rooms, t }: Scr
   const temperatures = roomTemperatures(config.screensaver.sensors ?? [], hass, rooms ?? [], language);
   const loc = safeIntlLocale(language);
 
+  // Active music / media player on screensaver
+  const activePlayer = Object.values(hass.states).find(
+    (s) => s.entity_id.startsWith("media_player.") && s.state === "playing" && Boolean(s.attributes.media_title || s.attributes.media_artist)
+  );
+
   return <div aria-label={t("tapToReturn")} className={`hd-saver${large ? " hd-saver--large" : ""}`} onClick={onDismiss} role="button" tabIndex={0}>
     <div className="hd-saver__clock">
       <time className="hd-saver__time">{new Intl.DateTimeFormat(loc, { ...hourOptions(), hour: "2-digit", minute: "2-digit" }).format(now)}</time>
       <div className="hd-saver__date">{new Intl.DateTimeFormat(loc, { weekday: "long", day: "numeric", month: "long" }).format(now)}</div>
+      {activePlayer && (
+        <div className="hd-saver-media-pill" style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: "calc(var(--u) * 1.2)",
+          background: "rgba(0, 0, 0, 0.35)",
+          backdropFilter: "blur(16px)",
+          border: "1px solid rgba(255, 255, 255, 0.12)",
+          padding: "calc(var(--u) * 0.8) calc(var(--u) * 1.6)",
+          borderRadius: "999px",
+          marginTop: "calc(var(--u) * 1.4)",
+        }}>
+          {activePlayer.attributes.entity_picture ? (
+            <img alt="" src={activePlayer.attributes.entity_picture} style={{ width: 32, height: 32, borderRadius: "50%", objectFit: "cover" }} />
+          ) : (
+            <span style={{ display: "flex", color: "var(--on, #ffc94d)" }}><HDIcon name="media" size={20} /></span>
+          )}
+          <div style={{ textAlign: "left", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ fontSize: "calc(var(--u) * 1.4)", fontWeight: 600 }}>{activePlayer.attributes.media_title}</div>
+            {activePlayer.attributes.media_artist && <small style={{ opacity: 0.7, fontSize: "calc(var(--u) * 1.2)" }}>{activePlayer.attributes.media_artist}</small>}
+          </div>
+          <span className="hd-audio-equalizer" style={{ display: "flex", gap: 3, alignItems: "flex-end", height: 16 }}>
+            <span style={{ width: 3, height: 14, background: "var(--on, #ffc94d)", borderRadius: 1 }} />
+            <span style={{ width: 3, height: 8, background: "var(--on, #ffc94d)", borderRadius: 1 }} />
+            <span style={{ width: 3, height: 16, background: "var(--on, #ffc94d)", borderRadius: 1 }} />
+            <span style={{ width: 3, height: 10, background: "var(--on, #ffc94d)", borderRadius: 1 }} />
+          </span>
+        </div>
+      )}
       {large && (weather || temperatures.length > 0) && <div className={`hd-saver__stats${temperatures.length > 3 ? " hd-saver__stats--many" : ""}`} style={{ "--saver-cols": balancedColumns(temperatures.length + (weather && temperature != null ? 1 : 0)) } as CSSProperties}>
         {weather && temperature != null && <div className="hd-saver__stat"><b>{temperature}°</b><span><HDIcon name={weatherIcon(weather.condition ?? "")} size={16} />{weather.condition ? weatherConditionLabel(weather.condition, language) : t("weather")}</span></div>}
         {temperatures.map((item) => <div className="hd-saver__stat" key={item.id}><b>{item.value}</b><span>{item.name}</span></div>)}

@@ -207,3 +207,37 @@ export const iconSize = (): IconSizeChoice => {
 export const setIconSize = (size: IconSizeChoice) => write(ICON_SIZE_KEY, size === "normal" ? null : size);
 export const ICON_SCALE: Record<IconSizeChoice, number> = { normal: 1, large: 1.25, xlarge: 1.45 };
 
+/** Smart presence / motion wake-up sensor on this device. */
+const WAKE_SENSOR_KEY = "homesmart-wake-sensor";
+export const presenceWakeSensor = (): string => read(WAKE_SENSOR_KEY) ?? "";
+export const setPresenceWakeSensor = (sensorId: string | null) => write(WAKE_SENSOR_KEY, sensorId || null);
+
+/** Battery Health Guard on this device: keeps wall tablet battery between min% and max%. */
+const BATTERY_GUARD_KEY = "homesmart-battery-guard";
+export interface BatteryGuardPrefs {
+  enabled: boolean;
+  sensor: string;
+  switch: string;
+  max: number;
+  min: number;
+}
+export const batteryGuard = (): BatteryGuardPrefs => {
+  try {
+    const raw = read(BATTERY_GUARD_KEY);
+    if (!raw) return { enabled: false, sensor: "", switch: "", max: 80, min: 20 };
+    const saved = JSON.parse(raw);
+    return {
+      enabled: saved.enabled === true,
+      sensor: String(saved.sensor ?? ""),
+      switch: String(saved.switch ?? ""),
+      max: Number.isFinite(saved.max) ? saved.max : 80,
+      min: Number.isFinite(saved.min) ? saved.min : 20,
+    };
+  } catch {
+    return { enabled: false, sensor: "", switch: "", max: 80, min: 20 };
+  }
+};
+export const setBatteryGuard = (prefs: BatteryGuardPrefs) =>
+  write(BATTERY_GUARD_KEY, prefs.enabled || prefs.sensor || prefs.switch ? JSON.stringify(prefs) : null);
+
+

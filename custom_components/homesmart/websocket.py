@@ -11,9 +11,10 @@ import voluptuous as vol
 
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
-from .const import DOMAIN
+from .const import DOMAIN, VERSION
 from .discovery import discover_home
 from .license import (
     CONTROLLABLE_DOMAINS,
@@ -342,6 +343,144 @@ async def websocket_floorplan_upload(
     connection.send_result(msg["id"], {"url": f"{PLANS_URL}/{name}"})
 
 
+GITHUB_RELEASES_URL = "https://api.github.com/repos/mrtlcs/HomeSmart/releases"
+FALLBACK_RELEASES = [
+    {
+        "tag_name": "v1.5.0",
+        "name": "v1.5.0 - System Monitor Dashboard & MDI Sizing",
+        "published_at": "2026-11-23T02:18:00Z",
+        "body": "Dedicated System Monitor dashboard, large MDI icon scaling & custom icon selector.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v1.5.0/homesmart.zip",
+    },
+    {
+        "tag_name": "v1.4.0",
+        "name": "v1.4.0 - Touch-Swipe Navigation & Bubble Sliders",
+        "published_at": "2026-11-23T01:05:00Z",
+        "body": "Touch-swipe navigation, bubble sub-buttons, spring physics.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v1.4.0/homesmart.zip",
+    },
+    {
+        "tag_name": "v1.3.2",
+        "name": "v1.3.2 - Stable Release",
+        "published_at": "2026-11-20T00:00:00Z",
+        "body": "Stable release with complete Vietnamese translations.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v1.3.2/homesmart.zip",
+    },
+]
+
+
+@websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/releases/list"})
+@websocket_api.async_response
+async def websocket_releases_list(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Return available releases from GitHub."""
+    session = async_get_clientsession(hass)
+    releases = []
+    try:
+        headers = {"User-Agent": "HomeSmart-HA-Component"}
+        async with session.get(GITHUB_RELEASES_URL, headers=headers, timeout=10) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                for item in data:
+                    tag = item.get("tag_name", "")
+                    if not tag:
+                        continue
+                    zip_url = f"https://github.com/mrtlcs/HomeSmart/releases/download/{tag}/homesmart.zip"
+                    for asset in item.get("assets", []):
+                        if asset.get("name") == "homesmart.zip":
+                            zip_url = asset.get("browser_download_url", zip_url)
+                            break
+                    releases.append({
+                        "tag_name": tag,
+                        "name": item.get("name") or tag,
+                        "published_at": item.get("published_at", ""),
+                        "body": item.get("body", ""),
+                        "zip_url": zip_url,
+                    })
+    except Exception:
+        pass
+
+    if not releases:
+        releases = FALLBACK_RELEASES
+
+    connection.send_result(msg["id"], {
+        "current_version": VERSION,
+        "releases": releases,
+    })
+
+
+@websocket_api.websocket_command(
+    {
+        vol.Required("type"): f"{DOMAIN}/version/switch",
+        vol.Required("tag"): str,
+    }
+)
+@websocket_api.async_response
+async def websocket_version_switch(
+    hass: HomeAssistant,
+    connection: websocket_api.ActiveConnection,
+    msg: dict[str, Any],
+) -> None:
+    """Download and switch to a selected release version of HomeSmart."""
+    if not connection.user.is_admin:
+        connection.send_error(msg["id"], "unauthorized", "Only administrators can install or switch versions")
+        return
+
+    tag = msg["tag"].strip()
+    if not tag.startswith("v"):
+        tag = f"v{tag}"
+
+    zip_url = f"https://github.com/mrtlcs/HomeSmart/releases/download/{tag}/homesmart.zip"
+    session = async_get_clientsession(hass)
+
+    try:
+        headers = {"User-Agent": "HomeSmart-HA-Component"}
+        async with session.get(zip_url, headers=headers, timeout=30) as resp:
+            if resp.status != 200:
+                connection.send_error(msg["id"], "download_failed", f"Could not download release {tag} (HTTP {resp.status})")
+                return
+            content = await resp.read()
+    except Exception as err:
+        connection.send_error(msg["id"], "download_failed", f"Download failed: {err}")
+        return
+
+    def extract_zip() -> bool:
+        import io
+        import zipfile
+        target_dir = Path(__file__).parent
+        with zipfile.ZipFile(io.BytesIO(content)) as zf:
+            for member in zf.infolist():
+                filename = member.filename
+                if filename.startswith("custom_components/homesmart/"):
+                    subpath = filename[len("custom_components/homesmart/"):]
+                    if not subpath:
+                        continue
+                    target_file = target_dir / subpath
+                else:
+                    target_file = target_dir / filename
+                if member.is_dir():
+                    target_file.mkdir(parents=True, exist_ok=True)
+                else:
+                    target_file.parent.mkdir(parents=True, exist_ok=True)
+                    target_file.write_bytes(zf.read(member))
+        return True
+
+    try:
+        await hass.async_add_executor_job(extract_zip)
+    except Exception as err:
+        connection.send_error(msg["id"], "extraction_failed", f"Failed to extract files: {err}")
+        return
+
+    connection.send_result(msg["id"], {
+        "success": True,
+        "version": tag,
+        "message": f"Successfully switched to {tag}. Please restart Home Assistant to complete the update.",
+    })
+
+
 def async_register_websocket_commands(hass: HomeAssistant) -> None:
     """Register homesmart commands once per Home Assistant process."""
     domain_data = hass.data.setdefault(DOMAIN, {})
@@ -362,4 +501,6 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_notices_subscribe)
     websocket_api.async_register_command(hass, websocket_notices_dismiss)
     websocket_api.async_register_command(hass, websocket_floorplan_upload)
+    websocket_api.async_register_command(hass, websocket_releases_list)
+    websocket_api.async_register_command(hass, websocket_version_switch)
     domain_data[_COMMANDS_REGISTERED] = True

@@ -129,7 +129,8 @@ export type IconName =
   | "pool"
   | "drop"
   | "server"
-  | "bolt";
+  | "bolt"
+  | "mic";
 
 const paths: Record<IconName, ReactNode> = {
   arrow: <path d="m15 18-6-6 6-6" />,
@@ -141,6 +142,7 @@ const paths: Record<IconName, ReactNode> = {
   game: <><rect x="2.5" y="7" width="19" height="11" rx="5.5" /><path d="M7 11v3M5.5 12.5h3M15.5 12h.01M18 14h.01" /></>,
   pool: <><path d="M2 18c2 1.3 4 1.3 6 0s4-1.3 6 0 4 1.3 6 0" /><path d="M8 15V5a2 2 0 0 1 4 0M16 15V5a2 2 0 0 0-4 0" /><path d="M8 8h8M8 12h8" /></>,
   bolt: <path d="M13 2 4.5 13.5H11L10 22l8.5-11.5H12L13 2Z" />,
+  mic: <><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z" /><path d="M19 10v2a7 7 0 0 1-14 0v-2" /><line x1="12" x2="12" y1="19" y2="22" /></>,
   server: <><rect x="2" y="3" width="20" height="8" rx="2" /><rect x="2" y="13" width="20" height="8" rx="2" /><path d="M6 7h.01M6 17h.01" /></>,
   drop: <path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11Z" />,
   bed: <><path d="M2 4v16M22 20v-8a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v8M2 16h20" /><path d="M6 10V7a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v3" /></>,

@@ -60,7 +60,7 @@ export function useDoorbell(hass: HomeAssistant, doorbell: HomeSmartConfig["door
   }, [trigger, state]);
 }
 
-export function DoorbellPopup({ camera, hass, onClose, seconds, t }: { camera: string; hass: HomeAssistant; onClose: () => void; seconds: number; t: (key: TranslationKey) => string }) {
+export function DoorbellPopup({ camera, config, hass, onClose, seconds, t }: { camera: string; config?: HomeSmartConfig["doorbell"]; hass: HomeAssistant; onClose: () => void; seconds: number; t: (key: TranslationKey) => string }) {
   useEffect(() => {
     const timer = window.setTimeout(onClose, Math.max(10, seconds) * 1000);
     const key = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
@@ -83,6 +83,53 @@ export function DoorbellPopup({ camera, hass, onClose, seconds, t }: { camera: s
         <button aria-label={t("close")} onClick={onClose} type="button"><HDIcon name="close" size={20} /></button>
       </header>
       {state ? <CameraLive entity={entity} hass={hass} t={t} /> : <p className="hd-doorbell__none">{t("doorbellNoCamera")}</p>}
+      <div className="hd-doorbell__actions" style={{
+        display: "flex",
+        gap: "calc(var(--u) * 1)",
+        marginTop: "calc(var(--u) * 1.4)",
+        justifyContent: "center",
+        flexWrap: "wrap",
+      }}>
+        {config?.lock && (
+          <button
+            className="hd-pill hd-pill--primary"
+            onClick={() => {
+              void hass.callService("lock", "unlock", { entity_id: config.lock });
+            }}
+            type="button"
+          >
+            <HDIcon name="unlock" size={16} />
+            <span>{t("doorbellUnlock")}</span>
+          </button>
+        )}
+        {config?.light && (
+          <button
+            className="hd-pill"
+            onClick={() => {
+              void hass.callService("light", "toggle", { entity_id: config.light });
+            }}
+            type="button"
+          >
+            <HDIcon name="light" size={16} />
+            <span>{t("doorbellLight")}</span>
+          </button>
+        )}
+        {config?.speaker && (
+          <button
+            className="hd-pill"
+            onClick={() => {
+              const msg = config.message || "Đợi tôi một chút!";
+              void hass.callService("tts", "speak", { media_player_entity_id: config.speaker, message: msg }).catch(() => {
+                void hass.callService("tts", "google_translate_say", { entity_id: config.speaker, message: msg }).catch(() => undefined);
+              });
+            }}
+            type="button"
+          >
+            <HDIcon name="volume" size={16} />
+            <span>{t("doorbellQuickReply")}</span>
+          </button>
+        )}
+      </div>
     </div>
   </div>, shell);
 }

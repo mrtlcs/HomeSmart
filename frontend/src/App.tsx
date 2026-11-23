@@ -18,7 +18,7 @@ import { Screensaver } from "./components/Screensaver";
 import { pauseCameras } from "./cameraPause";
 import { DoorbellPopup, useDoorbell } from "./components/Doorbell";
 import { forgetCalendarColors, useOccasion } from "./components/Agenda";
-import { childLocked, childLockNote, deviceBackground, deviceKidsScene, deviceLanguage, deviceViewMode, editingLocked, keepAwakeMode, useChildLockNote, useDevicePref } from "./devicePrefs";
+import { batteryGuard, childLocked, childLockNote, deviceBackground, deviceKidsScene, deviceLanguage, deviceViewMode, editingLocked, keepAwakeMode, presenceWakeSensor, useChildLockNote, useDevicePref } from "./devicePrefs";
 import { guardHass, type ChildLockState } from "./childLock";
 import { VIEW_MODES } from "./components/LayoutPicker";
 import { KIDS_SCENES } from "./components/KidsScene";
@@ -289,6 +289,28 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const awake = useDevicePref(keepAwakeMode);
   useEffect(() => (keepAwakeWanted(awake) ? startKeepAwake() : undefined), [awake]);
   useEffect(() => { if (locked) setEditing(false); }, [locked]);
+
+  // Phase 2: Presence / Motion sensor auto wake-up
+  const wakeSensor = useDevicePref(presenceWakeSensor);
+  const wakeState = wakeSensor ? hass.states[wakeSensor]?.state : undefined;
+  useEffect(() => {
+    if (wakeSensor && wakeState === "on" && saverOn) {
+      dismissSaver();
+    }
+  }, [wakeSensor, wakeState, saverOn, dismissSaver]);
+
+  // Phase 2: Battery Health Guard (auto toggle smart plug between min and max %)
+  const bg = useDevicePref(batteryGuard);
+  const batteryLevel = bg.enabled && bg.sensor ? Number.parseFloat(hass.states[bg.sensor]?.state ?? "") : undefined;
+  const plugState = bg.enabled && bg.switch ? hass.states[bg.switch]?.state : undefined;
+  useEffect(() => {
+    if (!bg.enabled || !bg.sensor || !bg.switch || batteryLevel == null || !Number.isFinite(batteryLevel) || !plugState) return;
+    if (batteryLevel >= bg.max && plugState === "on") {
+      void hass.callService("switch", "turn_off", { entity_id: bg.switch }).catch(() => undefined);
+    } else if (batteryLevel <= bg.min && plugState === "off") {
+      void hass.callService("switch", "turn_on", { entity_id: bg.switch }).catch(() => undefined);
+    }
+  }, [bg, batteryLevel, plugState, hass]);
   useDoorbell(hass, view?.doorbell, useCallback(() => { dismissSaver(); setRinging(true); }, [dismissSaver]));
   const stopRinging = useCallback(() => { lastActivity.current = Date.now(); setRinging(false); }, []);
   // After a minute with nobody touching the panel, it goes back to Home, in any layout. Not while the
@@ -489,7 +511,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
       <span hidden ref={probe} />
       {lockNote && <div className="hd-lock-note" role="status"><HDIcon name="lock" size={16} />{lockNote === "blocked" ? t("childLockBlocked") : childOn ? t("childLockHoldOff") : t("childLockHoldOn")}</div>}
       {saverOn && <Screensaver config={view} hass={hass} language={language} onDismiss={dismissSaver} rooms={data?.rooms} t={t} />}
-      {ringing && <DoorbellPopup camera={view.doorbell.camera} hass={hass} onClose={stopRinging} seconds={view.doorbell.seconds} t={t} />}
+      {ringing && <DoorbellPopup camera={view.doorbell.camera} config={view.doorbell} hass={hass} onClose={stopRinging} seconds={view.doorbell.seconds} t={t} />}
     </DynamicShell>,
   );
 }

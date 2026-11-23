@@ -74,10 +74,32 @@ export function ContextHeader({ config, hass, language, onSettings, part = "all"
   const condition = weather?.condition;
   const conditionLabel = condition ? weatherConditionLabel(condition, loc) : t("unavailable");
 
+  // Smart Context greeting & summary
+  const hour = now.getHours();
+  let greetingKey: TranslationKey = "greetingMorning";
+  if (hour >= 5 && hour < 12) greetingKey = "greetingMorning";
+  else if (hour >= 12 && hour < 18) greetingKey = "greetingAfternoon";
+  else if (hour >= 18 && hour < 22) greetingKey = "greetingEvening";
+  else greetingKey = "greetingNight";
+
+  const isRain = condition === "rainy" || condition === "pouring" || condition === "snowy-rainy";
+  const allAway = chosenPeople.length > 0 && presentPeople.length === 0;
+  const smartGreeting = allAway
+    ? t("contextEveryoneAway")
+    : `${t(greetingKey)}${isRain ? ` · ${t("contextRaining")}` : ""}`;
+
   return (
     <>
       <header className={part === "all" ? "context-header" : `context-header context-header--${part}`} ref={headerRef}>
-        {part !== "status" && <div className="context-header__clock"><span>{date}{occasion && <b className={occasion.phase === "day" ? "hd-season-badge hd-season-badge--day" : "hd-season-badge"}>{occasion.badge}</b>}</span><div className="context-header__time">{config.home.show_clock && <strong>{time}</strong>}<AgendaButtons config={config} hass={hass} language={language} t={t} /></div></div>}
+        {part !== "status" && (
+          <div className="context-header__clock">
+            <span>{date}{occasion && <b className={occasion.phase === "day" ? "hd-season-badge hd-season-badge--day" : "hd-season-badge"}>{occasion.badge}</b>}</span>
+            <div className="context-header__time">{config.home.show_clock && <strong>{time}</strong>}<AgendaButtons config={config} hass={hass} language={language} t={t} /></div>
+            <div className="context-header__greeting" style={{ fontSize: "calc(var(--u) * 1.3)", opacity: 0.8, marginTop: 2, fontWeight: 500 }}>
+              {smartGreeting}
+            </div>
+          </div>
+        )}
         {part !== "clock" && <div className="context-header__right">
           {(config.home.badges?.length ?? 0) > 0 && <HeaderBadges hass={hass} ids={config.home.badges!.filter((id) => !customize?.restricted(`entity:${id}`))} language={language} rules={config.home.badge_rules} styles={config.home.badge_styles} t={t} taps={config.home.badge_taps} texts={config.home.badge_texts} />}
           {config.home.show_presence && people.length > 0 && <div className="presence-stack" aria-label={`${presentPeople.length} ${t("peopleHome")}`}>{people.slice(0, 4).map((person, index) => <span className={person.state === "home" ? "presence-avatar presence-avatar--home" : "presence-avatar"} key={person.entity_id} style={{ "--avatar": AVATAR_COLORS[index % AVATAR_COLORS.length] } as CSSProperties} title={`${person.attributes.friendly_name ?? person.entity_id}: ${person.state}`}>{person.attributes.entity_picture ? <img alt="" src={person.attributes.entity_picture} /> : initials(String(person.attributes.friendly_name ?? person.entity_id.split(".")[1]))}</span>)}</div>}
@@ -92,6 +114,19 @@ export function ContextHeader({ config, hass, language, onSettings, part = "all"
           {sidebarHidden(hass) && <button aria-label={t("openMenu")} className="round-action" onClick={(event) => openSidebar(event.currentTarget)} type="button"><HDIcon name="menu" size={19} /></button>}
           {config.home.ha_notifications && <NotificationBell hass={hass} language={language} shell={shell} t={t} />}
           <ChildLockButton t={t} />
+          <button
+            aria-label={t("assistVoice")}
+            className="round-action hd-assist-button"
+            onClick={() => {
+              const ev = new CustomEvent("hass-open-assist", { bubbles: true, composed: true });
+              window.dispatchEvent(ev);
+              document.querySelector("home-assistant")?.dispatchEvent(ev);
+            }}
+            title={t("assistVoice")}
+            type="button"
+          >
+            <HDIcon name="mic" size={19} />
+          </button>
           <button aria-label={t("settings")} className="round-action" onClick={onSettings} type="button"><HDIcon name="settings" size={19} /></button>
         </div>}
       </header>

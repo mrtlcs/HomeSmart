@@ -21,13 +21,14 @@ import { SeasonPreview } from "../components/SeasonLayer";
 import type { Room } from "../types/discovery";
 import type { HomeAssistant } from "../types/home-assistant";
 import { hideSidebarPreferred, setHideSidebarPreferred } from "../sidebar";
-import { setTextScale, setUiSize, textScale, TEXT_SCALE_MAX, TEXT_SCALE_MIN, uiSize, type SizeChoice, iconSize, setIconSize, type IconSizeChoice, childLockEnabled, keyBar, keyBarUnlocked, KEYBAR_SLOTS, setKeyBarUnlocked, motionPrefs, setChildLockEnabled, setKeyBar, setMotionPrefs, deviceBackground, deviceKidsScene, deviceLanguage, devicePin, deviceViewMode, editingLocked, keepAwakeMode, setDeviceBackground, setDeviceKidsScene, setDeviceLanguage, setDevicePin, setDeviceViewMode, setEditingLocked, setKeepAwakeMode, setSpotifySpeaker, spotifySpeaker, useDevicePref } from "../devicePrefs";
+import { setTextScale, setUiSize, textScale, TEXT_SCALE_MAX, TEXT_SCALE_MIN, uiSize, type SizeChoice, iconSize, setIconSize, type IconSizeChoice, batteryGuard, setBatteryGuard, presenceWakeSensor, setPresenceWakeSensor, type BatteryGuardPrefs, childLockEnabled, keyBar, keyBarUnlocked, KEYBAR_SLOTS, setKeyBarUnlocked, motionPrefs, setChildLockEnabled, setKeyBar, setMotionPrefs, deviceBackground, deviceKidsScene, deviceLanguage, devicePin, deviceViewMode, editingLocked, keepAwakeMode, setDeviceBackground, setDeviceKidsScene, setDeviceLanguage, setDevicePin, setDeviceViewMode, setEditingLocked, setKeepAwakeMode, setSpotifySpeaker, spotifySpeaker, useDevicePref } from "../devicePrefs";
 import { isSilk } from "../keepAwake";
 import { deactivateLicense, getLicense, openPortal, type LicenseStatus } from "../api/license";
 import { LICENSE_ERRORS } from "../components/ProSheet";
 import { getDefaultPanel, setSystemDefault, setUserDefault, type DefaultPanelState } from "../api/defaultPanel";
 import { EntityPicker } from "../components/EntityPicker";
 import { FeedbackSheet } from "../components/FeedbackSheet";
+import { VersionModal } from "../components/VersionModal";
 import { LayoutPicker, Thumb as LayoutThumb, VIEW_MODES } from "../components/LayoutPicker";
 import { OPEN_METEO } from "../weather";
 import { DEFAULT_ACCENT, DEFAULT_CARDS, DEFAULT_HIGHLIGHT, FREE_BACKGROUNDS, FREE_VIEW_MODES, freeDevices, freeRoomIds, freeUsage, isControllable, panelRoomIds, DESKTOP_URL, SUPPORT_EMAIL, usePlan } from "../plan";
@@ -118,6 +119,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
   const [importing, setImporting] = useState<Element | null>(null);
   const [imported, setImported] = useState(false);
   const [feedback, setFeedback] = useState(false);
+  const [versionModal, setVersionModal] = useState(false);
   const [hideHaSidebar, setHideHaSidebar] = useState(hideSidebarPreferred);
   // Pro-only options stay visible with a lock; choosing one opens the Pro sheet.
   const locked = (condition: boolean) => !plan.pro && condition;
@@ -481,11 +483,12 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
           <Row description={t("reloadDevicesDescription")} label={t("reloadDevices")}><button className="hd-pill" onClick={onReload} type="button"><HDIcon name="refresh" size={16} />{t("refresh")}</button></Row>
           <BackupRows draft={draft} onImport={(imported) => setDraft((current) => ({ ...current, ...imported }))} t={t} version={version} />
           <Row description={t("restartSetupDescription")} label={t("restartSetup")}><button className="hd-pill" disabled={saving} onClick={() => void save({ ...draft, onboarding_complete: false }).then(onClose)} type="button">{t("restartSetup")}</button></Row>
-          <VersionRow t={t} version={version} />
+          <VersionRow onManageVersion={() => setVersionModal(true)} t={t} version={version} />
         </section>}
       </section>
     </div>
     {feedback && <FeedbackSheet hass={hass} language={language} onClose={() => setFeedback(false)} t={t} />}
+    {versionModal && <VersionModal currentVersion={version} hass={hass} onClose={() => setVersionModal(false)} t={t} />}
     {managing && <EntityPicker filter={isControllable} language={language} onClose={() => setManaging(false)} onToggle={(id) => {
       const current = freeDevices(draft, rooms);
       if (current.includes(id)) update({ free_devices: current.filter((item) => item !== id) });
@@ -706,6 +709,11 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
   const interfaceSize = useDevicePref(uiSize);
   const currentIconSize = useDevicePref(iconSize);
   const devLang = useDevicePref(deviceLanguage);
+  const wakeSensor = useDevicePref(presenceWakeSensor);
+  const bg = useDevicePref(batteryGuard);
+  const binarySensors = useMemo(() => Object.keys(hass.states).filter((id) => id.startsWith("binary_sensor.")).sort((a, b) => String(hass.states[a]?.attributes.friendly_name ?? a).localeCompare(String(hass.states[b]?.attributes.friendly_name ?? b))), [Object.keys(hass.states).length]);
+  const batterySensors = useMemo(() => Object.keys(hass.states).filter((id) => id.startsWith("sensor.") && (id.includes("battery") || String(hass.states[id]?.attributes.device_class) === "battery")).sort(), [Object.keys(hass.states).length]);
+  const switchEntities = useMemo(() => Object.keys(hass.states).filter((id) => id.startsWith("switch.")).sort((a, b) => String(hass.states[a]?.attributes.friendly_name ?? a).localeCompare(String(hass.states[b]?.attributes.friendly_name ?? b))), [Object.keys(hass.states).length]);
   const sizes = [{ value: "small", label: t("sizeSmall") }, { value: "normal", label: t("sizeNormal") }, { value: "large", label: t("sizeLarge") }];
   const iconSizes = [{ value: "normal", label: t("sizeNormal") }, { value: "large", label: t("sizeLarge") }, { value: "xlarge", label: t("sizeXLarge") }];
   const spotify = Object.values(hass.states).find((state) => state.entity_id.startsWith("media_player.") && (state.entity_id.includes("spotify") || state.attributes.source === "Spotify" || String(state.attributes.friendly_name ?? "").toLowerCase().includes("spotify")));
@@ -728,6 +736,64 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
     <h3 className="st-category">{t("deviceCatWall")}</h3>
     {sidebarRow}
     <Row description={`${t("keepAwakeDescription")}${isSilk() ? ` ${t("keepAwakeEcho")}` : ""}`} label={t("keepAwake")}><HDSelect ariaLabel={t("keepAwake")} onChange={(mode) => setKeepAwakeMode(mode as "auto" | "on" | "off")} options={[{ value: "auto", label: t("keepAwakeAuto") }, { value: "on", label: t("keepAwakeOn") }, { value: "off", label: t("keepAwakeOff") }]} value={awake} /></Row>
+    <Row description={t("presenceWakeDescription")} label={t("presenceWake")}>
+      <HDSelect
+        ariaLabel={t("presenceWake")}
+        onChange={(val) => setPresenceWakeSensor(val || null)}
+        options={[{ value: "", label: t("none") }, ...binarySensors.map((id) => ({ value: id, label: String(hass.states[id]?.attributes.friendly_name ?? id) }))]}
+        value={wakeSensor}
+      />
+    </Row>
+    <Row description={t("batteryGuardDescription")} label={t("batteryGuard")}>
+      <Switch checked={bg.enabled} label={t("batteryGuard")} onChange={(enabled) => setBatteryGuard({ ...bg, enabled })} />
+    </Row>
+    {bg.enabled && (
+      <div className="st-sub">
+        <label className="st-sub__row">
+          <span>{t("batterySensor")}</span>
+          <HDSelect
+            ariaLabel={t("batterySensor")}
+            onChange={(sensor) => setBatteryGuard({ ...bg, sensor })}
+            options={[{ value: "", label: t("none") }, ...batterySensors.map((id) => ({ value: id, label: String(hass.states[id]?.attributes.friendly_name ?? id) }))]}
+            value={bg.sensor}
+          />
+        </label>
+        <label className="st-sub__row">
+          <span>{t("batterySwitch")}</span>
+          <HDSelect
+            ariaLabel={t("batterySwitch")}
+            onChange={(sw) => setBatteryGuard({ ...bg, switch: sw })}
+            options={[{ value: "", label: t("none") }, ...switchEntities.map((id) => ({ value: id, label: String(hass.states[id]?.attributes.friendly_name ?? id) }))]}
+            value={bg.switch}
+          />
+        </label>
+        <label className="st-sub__row">
+          <span>{t("batteryThresholds")} (Max {bg.max}% · Min {bg.min}%)</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <span style={{ fontSize: "0.85em", opacity: 0.8 }}>Tắt:</span>
+            <input
+              className="st-input st-input--framed"
+              max={100}
+              min={50}
+              onChange={(e) => setBatteryGuard({ ...bg, max: Math.max(50, Math.min(100, Number(e.target.value) || 80)) })}
+              style={{ width: 60, textAlign: "center" }}
+              type="number"
+              value={bg.max}
+            />
+            <span style={{ fontSize: "0.85em", opacity: 0.8 }}>Bật:</span>
+            <input
+              className="st-input st-input--framed"
+              max={50}
+              min={5}
+              onChange={(e) => setBatteryGuard({ ...bg, min: Math.max(5, Math.min(50, Number(e.target.value) || 20)) })}
+              style={{ width: 60, textAlign: "center" }}
+              type="number"
+              value={bg.min}
+            />
+          </div>
+        </label>
+      </div>
+    )}
     <Row description={t("lockEditingDescription")} label={t("lockEditing")}><Switch checked={locked} label={t("lockEditing")} onChange={setEditingLocked} /></Row>
     <Row description={t("childLockDescription")} label={t("childLock")}><Switch checked={childLock} label={t("childLock")} onChange={setChildLockEnabled} /></Row>
     <Row description={t("pinSetDescription")} label={t("pinSet")}>
@@ -764,6 +830,9 @@ function DoorbellPanel({ draft, hass, onUpsell, pro, t, update }: { draft: HomeS
   const [testing, setTesting] = useState(false);
   const triggers = useMemo(() => doorbellCandidates(hass).map((state) => state.entity_id), [hass.states]);
   const cameras = useMemo(() => cameraIds(hass), [hass.states]);
+  const locks = useMemo(() => Object.keys(hass.states).filter((id) => id.startsWith("lock.")), [hass.states]);
+  const lights = useMemo(() => Object.keys(hass.states).filter((id) => id.startsWith("light.") || id.startsWith("switch.")), [hass.states]);
+  const speakers = useMemo(() => Object.keys(hass.states).filter((id) => id.startsWith("media_player.")), [hass.states]);
   const label = (id: string) => String(hass.states[id]?.attributes.friendly_name ?? id);
   const set = (patch: Partial<HomeSmartConfig["doorbell"]>) => update({ doorbell: { ...doorbell, ...patch } });
   const turnOn = (on: boolean) => {
@@ -771,7 +840,7 @@ function DoorbellPanel({ draft, hass, onUpsell, pro, t, update }: { draft: HomeS
     const trigger = doorbell.trigger || triggers[0] || "";
     set({ enabled: on, ...(on && !doorbell.trigger ? { trigger } : {}), ...(on && !doorbell.camera ? { camera: guessDoorbellCamera(hass, trigger) } : {}) });
   };
-  const options = (ids: string[], current: string) => [{ value: "", label: t("none") }, ...[...new Set([...(current ? [current] : []), ...ids])].map((id) => ({ value: id, label: label(id) }))];
+  const options = (ids: string[], current?: string) => [{ value: "", label: t("none") }, ...[...new Set([...(current ? [current] : []), ...ids])].map((id) => ({ value: id, label: label(id) }))];
   const seconds = [30, 60, 120, 300].map((value) => ({ value: String(value), label: value < 60 ? `${value} s` : `${value / 60} min` }));
   return <section className="st-panel">
     <h2>{t("doorbellTitle")}</h2><p>{t("doorbellDescription")}</p>
@@ -780,9 +849,13 @@ function DoorbellPanel({ draft, hass, onUpsell, pro, t, update }: { draft: HomeS
       <div className="st-sub__row"><span>{t("doorbellTrigger")}</span><HDSelect ariaLabel={t("doorbellTrigger")} onChange={(trigger) => set({ trigger, ...(doorbell.camera ? {} : { camera: guessDoorbellCamera(hass, trigger) }) })} options={options(triggers, doorbell.trigger)} value={doorbell.trigger} /></div>
       <div className="st-sub__row"><span>{t("doorbellCamera")}</span><HDSelect ariaLabel={t("doorbellCamera")} onChange={(camera) => set({ camera })} options={options(cameras, doorbell.camera)} value={doorbell.camera} /></div>
       <div className="st-sub__row"><span>{t("doorbellSeconds")}</span><HDSelect ariaLabel={t("doorbellSeconds")} onChange={(value) => set({ seconds: Number(value) })} options={seconds} value={String(doorbell.seconds)} /></div>
+      <div className="st-sub__row"><span>{t("doorbellLock")}</span><HDSelect ariaLabel={t("doorbellLock")} onChange={(lock) => set({ lock: lock || undefined })} options={options(locks, doorbell.lock)} value={doorbell.lock ?? ""} /></div>
+      <div className="st-sub__row"><span>{t("doorbellLight")}</span><HDSelect ariaLabel={t("doorbellLight")} onChange={(light) => set({ light: light || undefined })} options={options(lights, doorbell.light)} value={doorbell.light ?? ""} /></div>
+      <div className="st-sub__row"><span>{t("doorbellSpeaker")}</span><HDSelect ariaLabel={t("doorbellSpeaker")} onChange={(speaker) => set({ speaker: speaker || undefined })} options={options(speakers, doorbell.speaker)} value={doorbell.speaker ?? ""} /></div>
+      <div className="st-sub__row"><span>{t("doorbellQuickReply")}</span><input className="st-input st-input--framed" onChange={(e) => set({ message: e.target.value })} placeholder="Đợi tôi một chút!" type="text" value={doorbell.message ?? ""} /></div>
       <div className="st-actions st-actions--end"><button className="hd-pill" onClick={() => setTesting(true)} type="button"><HDIcon name="bell" size={16} />{t("doorbellTest")}</button></div>
     </div>}
-    {testing && <DoorbellPopup camera={doorbell.camera} hass={hass} onClose={() => setTesting(false)} seconds={doorbell.seconds} t={t} />}
+    {testing && <DoorbellPopup camera={doorbell.camera} config={doorbell} hass={hass} onClose={() => setTesting(false)} seconds={doorbell.seconds} t={t} />}
   </section>;
 }
 
@@ -882,14 +955,19 @@ function TextSizeRow({ t, value }: { t: (key: TranslationKey) => string; value: 
 }
 
 /** The version; seven quick taps on it unlock (or lock again) the test shortcut bar on this device. */
-function VersionRow({ t, version }: { t: (key: TranslationKey) => string; version?: string }) {
+function VersionRow({ onManageVersion, t, version }: { onManageVersion?: () => void; t: (key: TranslationKey) => string; version?: string }) {
   const taps = useRef<number[]>([]);
   const tap = () => {
     const now = Date.now();
     taps.current = [...taps.current.filter((at) => now - at < 3000), now];
     if (taps.current.length >= 7) { taps.current = []; setKeyBarUnlocked(!keyBarUnlocked()); }
   };
-  return <Row description={t("madeWith")} label={version ? t("version") : "HOMESMART"}>{version && <span className="st-value" onClick={tap} role="presentation">{version}</span>}</Row>;
+  return <Row description={t("madeWith")} label={version ? t("version") : "HOMESMART"}>
+    <div style={{ display: "flex", gap: "calc(var(--u) * 0.8)", alignItems: "center" }}>
+      {version && <span className="st-value" onClick={tap} role="presentation">{version}</span>}
+      {onManageVersion && <button className="hd-pill" onClick={onManageVersion} style={{ marginLeft: "calc(var(--u) * 0.6)" }} type="button"><HDIcon name="refresh" size={13} />{t("versionManage")}</button>}
+    </div>
+  </Row>;
 }
 
 function KeyBarRows({ hass, t }: { hass: HomeAssistant; t: (key: TranslationKey) => string }) {

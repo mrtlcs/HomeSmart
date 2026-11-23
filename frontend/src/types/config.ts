@@ -287,6 +287,13 @@ export interface HomeSmartConfig {
     trigger: string;
     camera: string;
     seconds: number;
+    /** Quick unlock lock/gate from the popup. */
+    lock?: string;
+    /** Quick light toggle from the popup. */
+    light?: string;
+    /** Quick response message. */
+    message?: string;
+    speaker?: string;
   };
   /** Pro: how cards look. corners 0-150 (% of the default roundness), glass 0 (solid) to 100 (see-through). */
   cards: HomeSmartCardStyle;
