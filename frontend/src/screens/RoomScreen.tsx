@@ -1,5 +1,6 @@
 import { inRoom, isRoomLight } from "../personalize";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSwipeGesture } from "../useSwipeGesture";
 import { ContextHeader } from "../components/ContextHeader";
 import { EditableGrid } from "../components/EditableGrid";
 import { EntityCard } from "../components/EntityCard";
@@ -48,6 +49,35 @@ export function RoomScreen(props: ScreenProps & { onSelectRoom: (roomId: string)
   }, [visible, editing, categoryFilter, byId, hass.states]);
   const setAdded = (ids: string[]) => onLayout(screen, { ...layout, added: ids });
   const groups = useFloorGroups(hass, data.rooms, Boolean(config.rooms_by_floor), t("floorplanNoFloor"));
+  const [slideDir, setSlideDir] = useState<"next" | "prev" | null>(null);
+  const roomPaneRef = useRef<HTMLElement>(null);
+  const flatRooms = useMemo(() => groups.flatMap((group) => group.rooms), [groups]);
+  const currentIdx = flatRooms.findIndex((item) => item.id === room.id);
+
+  useSwipeGesture(roomPaneRef, {
+    disabled: editing,
+    onSwipeLeft: () => {
+      if (currentIdx >= 0 && currentIdx < flatRooms.length - 1) {
+        setSlideDir("next");
+        onSelectRoom(flatRooms[currentIdx + 1].id);
+      }
+    },
+    onSwipeRight: () => {
+      if (currentIdx > 0) {
+        setSlideDir("prev");
+        onSelectRoom(flatRooms[currentIdx - 1].id);
+      } else if (currentIdx === 0) {
+        window.dispatchEvent(new CustomEvent("HOMESMART-navigate", { detail: "home" }));
+      }
+    },
+  });
+
+  useEffect(() => {
+    const activeBtn = document.querySelector('.room-selector__list > button[aria-selected="true"]');
+    if (activeBtn) {
+      activeBtn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+    }
+  }, [room.id]);
 
   const setRoomLights = async (service: "turn_on" | "turn_off") => {
     if (busy || lights.length === 0) return;
@@ -65,13 +95,13 @@ export function RoomScreen(props: ScreenProps & { onSelectRoom: (roomId: string)
               group.name != null && <span className="room-selector__floor" key={`floor-${group.id}`}>{group.name}</span>,
               ...group.rooms.map((item) => {
                 const count = item.entities.filter((entity) => isRoomLight(entity) && hass.states[entity.entity_id]?.state === "on").length;
-                return <button aria-selected={item.id === room.id} key={item.id} onClick={() => onSelectRoom(item.id)} role="tab" type="button"><span className="room-selector__icon"><RoomIcon room={item} size={19} /></span><span>{item.id === "__unassigned__" ? t("unassigned") : item.name}</span>{count > 0 && <i>{count}</i>}</button>;
+                return <button aria-selected={item.id === room.id} key={item.id} onClick={() => { setSlideDir(null); onSelectRoom(item.id); }} role="tab" type="button"><span className="room-selector__icon"><RoomIcon room={item} size={19} /></span><span>{item.id === "__unassigned__" ? t("unassigned") : item.name}</span>{count > 0 && <i>{count}</i>}</button>;
               }),
             ])}
           </div>
         </aside>
 
-        <section className="room-pane" key={room.id}>
+        <section className={`room-pane ${slideDir === "next" ? "room-pane-slide-next" : slideDir === "prev" ? "room-pane-slide-prev" : "room-pane-fade"}`} key={room.id} ref={roomPaneRef}>
           <header className="room-operational-header">
             <div>
               <span className="eyebrow">{activeLights.length === 0 ? t("allOff") : (activeLights.length === 1 ? t("oneRoomLightOn") : t("roomLightsOn").replace("{count}", String(activeLights.length)))}</span>

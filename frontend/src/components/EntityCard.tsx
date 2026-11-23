@@ -269,11 +269,40 @@ function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps)
       {busy && <span className="device-tile__busy" />}
       {childOn && entity.child_lock && <span aria-label={t("childLockLocked")} className="device-tile__lock" role="img"><HDIcon name="lock" size={14} /></span>}
       {confirming && <span aria-live="polite" className="device-tile__confirm">{confirmLabel}</span>}
-      <div className="device-tile__top">{entity.domain === "media_player" && mediaArt(state)
-        ? <span className="device-tile__icon device-tile__icon--art" style={{ backgroundImage: mediaArt(state)! }} />
-        : <span className="device-tile__icon"><EntityIcon entity={entity} /></span>}{entity.confirm && <span aria-hidden="true" className="device-tile__guard"><HDIcon name="lock" size={13} /></span>}</div>
+      <div className="device-tile__top">
+        {entity.domain === "media_player" && mediaArt(state)
+          ? <span className="device-tile__icon device-tile__icon--art" style={{ backgroundImage: mediaArt(state)! }} />
+          : <span className="device-tile__icon"><EntityIcon entity={entity} /></span>}
+        {entity.confirm && <span aria-hidden="true" className="device-tile__guard"><HDIcon name="lock" size={13} /></span>}
+        <div className="device-tile__sub-buttons">
+          {entity.domain === "light" && colorModes.some((m) => ["hs", "rgb", "xy", "color_temp"].includes(m)) && state?.state === "on" && (
+            <button
+              aria-label={t("changeIcon") || "Color"}
+              className="device-sub-btn"
+              onClick={(e) => { e.stopPropagation(); openDetails(entity); }}
+              type="button"
+            >
+              <HDIcon name="palette" size={13} />
+            </button>
+          )}
+          <button
+            aria-label={`${t("noticeTapDetails")}: ${entity.name}`}
+            className="device-sub-btn device-sub-btn--more"
+            onClick={(e) => { e.stopPropagation(); openDetails(entity); }}
+            title={t("noticeTapDetails")}
+            type="button"
+          >
+            <HDIcon name="dots" size={14} />
+          </button>
+        </div>
+      </div>
       {!wide && entity.domain === "light" && !unavailable && dimmable && (
-        <label className={state?.state === "on" ? "device-dimmer" : "device-dimmer device-dimmer--off"} style={{ "--value": `${brightnessDraft ?? brightness}%` } as CSSProperties}><span className="sr-only">{t("brightness")}</span><b aria-hidden="true" /><input aria-label={`${t("brightness")}: ${entity.name}`} max="100" min="1" onChange={(event) => setBrightnessDraft(Number(event.currentTarget.value))} onKeyUp={commitKey} onPointerUp={(event) => setBrightness(Number(event.currentTarget.value))} type="range" value={brightnessDraft ?? Math.max(1, brightness)} /></label>
+        <label className={state?.state === "on" ? "device-dimmer" : "device-dimmer device-dimmer--off"} style={{ "--value": `${brightnessDraft ?? brightness}%` } as CSSProperties}>
+          <span className="sr-only">{t("brightness")}</span>
+          <b aria-hidden="true" />
+          <span className="device-dimmer__value" aria-hidden="true">{(brightnessDraft ?? (state?.state === "on" ? brightness : 0)) > 0 ? `${brightnessDraft ?? (state?.state === "on" ? brightness : 0)}%` : ""}</span>
+          <input aria-label={`${t("brightness")}: ${entity.name}`} max="100" min="1" onChange={(event) => setBrightnessDraft(Number(event.currentTarget.value))} onKeyUp={commitKey} onPointerUp={(event) => setBrightness(Number(event.currentTarget.value))} type="range" value={brightnessDraft ?? Math.max(1, brightness)} />
+        </label>
       )}
       <div className="device-tile__copy"><strong>{entity.name}</strong>{entity.domain !== "scene" && !(SELECTS.has(entity.domain) && !wide) && <span>{status}</span>}{showSince && sinceText && <small className="device-tile__since">{sinceText}</small>}</div>
 
@@ -285,7 +314,12 @@ function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps)
 
 
       {!wide && entity.domain === "cover" && !unavailable && coverSlider != null && (
-        <label className="device-dimmer device-dimmer--cover" style={{ "--value": `${coverDraft ?? coverSlider}%` } as CSSProperties}><span className="sr-only">{t("setPosition")}</span><b aria-hidden="true" /><input aria-label={`${t("setPosition")}: ${entity.name}`} max="100" min="0" onChange={(event) => setCoverDraft(Number(event.currentTarget.value))} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) setCoverPosition(Number(event.currentTarget.value)); }} onPointerUp={(event) => setCoverPosition(Number(event.currentTarget.value))} type="range" value={coverDraft ?? coverSlider} /></label>
+        <label className="device-dimmer device-dimmer--cover" style={{ "--value": `${coverDraft ?? coverSlider}%` } as CSSProperties}>
+          <span className="sr-only">{t("setPosition")}</span>
+          <b aria-hidden="true" />
+          <span className="device-dimmer__value" aria-hidden="true">{(coverDraft ?? coverSlider) != null ? `${coverDraft ?? coverSlider}%` : ""}</span>
+          <input aria-label={`${t("setPosition")}: ${entity.name}`} max="100" min="0" onChange={(event) => setCoverDraft(Number(event.currentTarget.value))} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) setCoverPosition(Number(event.currentTarget.value)); }} onPointerUp={(event) => setCoverPosition(Number(event.currentTarget.value))} type="range" value={coverDraft ?? coverSlider} />
+        </label>
       )}
       {!wide && entity.domain === "cover" && !unavailable && coverSlider == null && (
         <div className={`device-controls device-controls--cover${entity.cover_side_buttons ? " device-controls--side" : ""}`}>

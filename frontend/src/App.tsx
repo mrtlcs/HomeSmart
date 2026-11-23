@@ -476,7 +476,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const pageKey = mode === "sidebar" || mode === "photo" ? mode : selectedRoom ? "rooms" : activePage;
   return withPlan(
     <DynamicShell config={view} data={visibleData} hass={hass} mode={mode} season={season}>
-      <Fragment key={pageKey}>{screen}</Fragment>
+      <div className="hs-screen-wrapper" key={pageKey}>{screen}</div>
       {mode !== "sidebar" && mode !== "photo" && <NavigationDock active={active} config={view} editing={editing} hasMedia={hasMedia} hasScenes={hasScenes} hasSecurity={hasSecurity} hasCameras={hasCameras} onNavigate={navigate} onOrder={(order) => void updateConfig((current) => ({ ...current, navigation: { ...current.navigation, order } }))} t={t} />}
       {!locked && <button aria-label={editing ? t("doneEditing") : t("editScreen")} aria-pressed={editing} className={editing ? "edit-fab edit-fab--on" : "edit-fab"} onClick={() => setEditing((current) => !current)} type="button">
         <HDIcon name={editing ? "check" : "pencil"} size={20} />

@@ -75,7 +75,10 @@ export const theme = String.raw`
 .app-shell :is(.global-actions > button:last-child, .room-actions__primary) { background: rgba(255,255,255,.92); color: #1d1a17; border-color: transparent; }
 .app-shell :is(.global-actions, .room-actions) svg { width: calc(var(--u)*2.4); height: calc(var(--u)*2.4); }
 .app-shell button:disabled { opacity: .45; cursor: default; }
-.app-shell :is(button, .room-card, .device-tile):active:not(:disabled) { box-shadow: inset 0 0 0 999px rgba(255,255,255,.12); }
+.app-shell :is(button, .room-card, .device-tile, .widget-card):active:not(:disabled) {
+  transform: scale(0.978);
+  box-shadow: inset 0 0 0 999px rgba(255,255,255,.12);
+}
 
 /* Home grid: rooms, top cards and shortcuts share one grid, like the reference */
 .app-shell .home-grid { flex: 1 0 auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(calc(var(--u)*21), 1fr)); grid-auto-rows: minmax(calc(var(--u)*19), 1fr); align-content: stretch; grid-auto-flow: row dense; gap: calc(var(--u)*1.8); }
@@ -85,7 +88,10 @@ export const theme = String.raw`
   position: relative; min-width: 0; min-height: calc(var(--u)*18); overflow: hidden;
   border-radius: calc(var(--u)*3.4*var(--hd-r,1)); padding: calc(var(--u)*2); color: var(--ink);
   display: flex; flex-direction: column; justify-content: space-between; gap: calc(var(--u)*1.4);
-  transition: background .25s, color .25s, opacity .25s, transform .16s ease;
+  transition: background .25s, color .25s, opacity .25s, transform .18s cubic-bezier(0.16, 1, 0.3, 1), box-shadow .2s;
+}
+.app-shell :is(.room-card, .device-tile, .widget-card):hover {
+  box-shadow: 0 calc(var(--u)*1) calc(var(--u)*2.4) rgba(0,0,0,.18);
 }
 .app-shell :is(.room-card--active, .device-tile--active) { background: var(--paper); color: var(--paper-ink); border-color: transparent; }
 .app-shell :is(.room-card--unavailable, .device-tile--unavailable) { opacity: .4; }
@@ -138,8 +144,80 @@ export const theme = String.raw`
 }
 .app-shell .device-tile:not(:has(.device-tile__power)) .device-tile__more { right: calc(var(--u)*1.4); }
 .app-shell .device-tile--active .device-tile__more { color: var(--paper-ink-2); }
-/* Brightness, like the main dashboard: a rounded fill with its marker set a little inside the end */
-.app-shell .device-dimmer { position: relative; display: block; margin: 0; height: calc(var(--u)*3.6); border-radius: var(--hd-pill,99px); overflow: hidden; background: rgba(255,255,255,.16); }
+/* Sub-buttons on tiles (Bubble style) */
+.app-shell .device-tile__sub-buttons {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--u)*0.75);
+  margin-left: auto;
+  z-index: 2;
+}
+.app-shell .device-sub-btn {
+  width: calc(var(--u)*3.8);
+  height: calc(var(--u)*3.8);
+  border-radius: var(--hd-round, 50%);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.12);
+  color: inherit;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  cursor: pointer;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.app-shell .device-sub-btn:hover {
+  background: rgba(255, 255, 255, 0.28);
+  transform: scale(1.08);
+}
+.app-shell .device-sub-btn:active {
+  background: rgba(255, 255, 255, 0.42);
+  transform: scale(0.92);
+}
+.app-shell .device-tile--active .device-sub-btn {
+  background: rgba(43, 36, 24, 0.1);
+  border-color: rgba(43, 36, 24, 0.14);
+  color: var(--paper-ink-2);
+}
+.app-shell .device-tile--active .device-sub-btn:hover {
+  background: rgba(43, 36, 24, 0.18);
+}
+
+/* Brightness & Cover slider, like Bubble Card: rounded fill with live percentage badge */
+.app-shell .device-dimmer {
+  position: relative;
+  display: block;
+  margin: 0;
+  height: calc(var(--u)*3.8);
+  border-radius: var(--hd-pill,99px);
+  overflow: hidden;
+  background: rgba(255,255,255,.16);
+  transition: transform .18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-shell .device-dimmer:active {
+  transform: scale(0.985);
+}
+.app-shell .device-dimmer__value {
+  position: absolute;
+  right: calc(var(--u)*1.4);
+  top: 50%;
+  transform: translateY(-50%);
+  font: 700 calc(var(--u)*1.5)/1 var(--f-body);
+  letter-spacing: .02em;
+  color: rgba(255,255,255,.95);
+  pointer-events: none;
+  z-index: 2;
+  text-shadow: 0 1px 3px rgba(0,0,0,.45);
+  transition: opacity .15s;
+}
+.app-shell .device-tile--active .device-dimmer__value {
+  color: var(--on-ink, #2a2110);
+  text-shadow: none;
+}
+.app-shell .device-dimmer--off .device-dimmer__value {
+  opacity: .45;
+}
 .app-shell .device-tile--active .device-dimmer { background: rgba(43,36,24,.1); }
 .app-shell .device-dimmer b, .app-shell .tile-slider__track b { position: absolute; left: 0; top: 0; bottom: 0; width: max(var(--value, 0%), calc(var(--u)*3.6)); border-radius: inherit; background: rgba(255,255,255,.55); pointer-events: none; }
 .app-shell .device-dimmer b::after, .app-shell .tile-slider__track b::after { content: ""; position: absolute; right: calc(var(--u)*.9); top: 25%; bottom: 25%; width: 3px; border-radius: calc(3px*var(--hd-r,1)); background: rgba(255,255,255,.95); }
@@ -219,6 +297,68 @@ export const theme = String.raw`
 .app-shell .collection-grid { max-width: none; }
 .app-shell .collection-header { align-items: center; justify-content: flex-start; }
 .app-shell .empty-state { border-radius: calc(var(--u)*3.4*var(--hd-r,1)); padding: calc(var(--u)*4); color: var(--ink-2); text-align: center; }
+
+/* Screen & Room slide animations (120 FPS Spring Motion) */
+.app-shell .hs-screen-wrapper {
+  display: contents;
+}
+.app-shell .hs-screen-wrapper > .screen {
+  animation: hs-screen-in .26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.app-shell .room-pane-slide-next {
+  animation: hs-room-next .26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.app-shell .room-pane-slide-prev {
+  animation: hs-room-prev .26s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.app-shell .room-pane-fade {
+  animation: hs-room-fade .2s ease-out both;
+}
+
+@keyframes hs-screen-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.996);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hs-room-next {
+  from {
+    opacity: 0;
+    transform: translateX(28px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hs-room-prev {
+  from {
+    opacity: 0;
+    transform: translateX(-28px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes hs-room-fade {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
 
 /* Phones and narrow panels */
 @media (max-width: 720px) {

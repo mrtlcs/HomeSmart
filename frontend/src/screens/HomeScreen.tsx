@@ -1,4 +1,5 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useSwipeGesture } from "../useSwipeGesture";
 import { ContextHeader } from "../components/ContextHeader";
 import { EditableGrid, type GridItem } from "../components/EditableGrid";
 import { EntityCard } from "../components/EntityCard";
@@ -22,6 +23,16 @@ export function HomeScreen(props: ScreenProps & { onOpenRoom: (roomId: string) =
 
   const screen = useRef<HTMLElement>(null);
   useFitToScreen(screen);
+
+  useSwipeGesture(screen, {
+    disabled: editing,
+    onSwipeLeft: () => {
+      const first = data?.rooms?.[0];
+      if (first) {
+        props.onOpenRoom(first.id);
+      }
+    },
+  });
 
   return (
     <main className={`screen home-screen ${editing ? "screen--editing" : ""}`} ref={screen}>
