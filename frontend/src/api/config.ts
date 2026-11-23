@@ -3,6 +3,7 @@ import { DEFAULT_CARDS } from "../plan";
 import type { HomeAssistant } from "../types/home-assistant";
 
 export const EMPTY_ENERGY: HomeSmartConfig["energy"] = { consumption: "", grid_import: "", grid_export: "", solar: "", battery: "", solar_today: "" };
+export const EMPTY_SYSTEM_MONITOR: NonNullable<HomeSmartConfig["system_monitor"]> = { cpu: "", memory: "", disk: "", temperature: "", network_in: "", network_out: "", uptime: "" };
 
 // Fields added in later versions get their defaults here, so a config saved by an
 // older build (or an integration not yet restarted after an update) never breaks a screen.
@@ -40,6 +41,7 @@ function withDefaults(config: HomeSmartConfig): HomeSmartConfig {
     seasons: { enabled: false, off: [], custom: [], ...(config.seasons as Partial<NonNullable<HomeSmartConfig["seasons"]>> | undefined) },
     doorbell: { enabled: false, trigger: "", camera: "", seconds: 60, ...(config.doorbell as Partial<HomeSmartConfig["doorbell"]> | undefined) },
     energy: { ...EMPTY_ENERGY, ...(config.energy as Partial<HomeSmartConfig["energy"]> | undefined) },
+    system_monitor: { ...EMPTY_SYSTEM_MONITOR, ...(config.system_monitor as Partial<NonNullable<HomeSmartConfig["system_monitor"]>> | undefined) },
     agenda: { show_calendar: true, calendars: [], show_todo: true, todo_entity: "", todo_no_date: false, today_card: false, ...(config.agenda as Partial<HomeSmartConfig["agenda"]> | undefined) },
     home: {
       show_clock: true,

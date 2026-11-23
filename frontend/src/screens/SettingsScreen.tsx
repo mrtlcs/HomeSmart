@@ -33,6 +33,7 @@ import { LayoutPicker, Thumb as LayoutThumb, VIEW_MODES } from "../components/La
 import { OPEN_METEO } from "../weather";
 import { DEFAULT_ACCENT, DEFAULT_CARDS, DEFAULT_HIGHLIGHT, FREE_BACKGROUNDS, FREE_VIEW_MODES, freeDevices, freeRoomIds, freeUsage, isControllable, panelRoomIds, DESKTOP_URL, SUPPORT_EMAIL, usePlan } from "../plan";
 import { availableSections } from "../security";
+import { systemCandidates } from "./SystemMonitorScreen";
 
 type Section = "layout" | "appearance" | "home" | "weather" | "agenda" | "cameras" | "screensaver" | "rooms" | "navigation" | "device" | "plan" | "system";
 
@@ -475,6 +476,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
           <DevicePrefsRows general={draft.view_mode} generalBackground={draft.background.preset} generalKids={draft.kids_background ?? "sky"} hass={hass} onUpsell={() => plan.upsell("feature")} pro={plan.pro} sidebarRow={<Row description={t("hideHaSidebarDescription")} label={t("hideHaSidebar")}><Switch checked={hideHaSidebar} label={t("hideHaSidebar")} onChange={(hidden) => { setHideHaSidebar(hidden); setHideSidebarPreferred(hidden); }} /></Row>} t={t} />
         </section>}
 
+        {section === "system" && <SystemMonitorPanel draft={draft} hass={hass} t={t} update={update} />}
         {section === "system" && <StartScreenPanel hass={hass} t={t} />}
 
         {section === "system" && <section className="st-panel">
@@ -880,6 +882,53 @@ function StartScreenPanel({ hass, t }: { hass: HomeAssistant; t: (key: Translati
     <Row description={state.synced ? t("startScreenMineDescription") : t("startScreenBrowserDescription")} label={t("startScreenMine")}><Switch checked={state.user} label={t("startScreenMine")} onChange={(on) => void toggle("user", on)} /></Row>
     {state.synced && <Row description={t("startScreenEveryoneDescription")} label={t("startScreenEveryone")}><Switch checked={state.system} label={t("startScreenEveryone")} onChange={(on) => void toggle("system", on)} /></Row>}
     {error && <p className="hd-pro__error">{t(error)}</p>}
+  </section>;
+}
+
+/** Chooses custom sensors for the System Monitor dashboard cards. */
+function SystemMonitorPanel({ draft, hass, t, update }: { draft: HomeSmartConfig; hass: HomeAssistant; t: (key: TranslationKey) => string; update: (patch: Partial<HomeSmartConfig>) => void }) {
+  const sysConfig = draft.system_monitor ?? {};
+  const candidates = useMemo(() => systemCandidates(hass), [hass.states]);
+  const label = (id: string) => {
+    const s = hass.states[id];
+    if (!s) return id;
+    const name = s.attributes.friendly_name ?? id;
+    const unit = s.attributes.unit_of_measurement ? ` ${s.attributes.unit_of_measurement}` : "";
+    return `${name} (${s.state}${unit})`;
+  };
+
+  const fields: Array<[keyof NonNullable<HomeSmartConfig["system_monitor"]>, TranslationKey]> = [
+    ["cpu", "cpuUsage"],
+    ["memory", "ramUsage"],
+    ["disk", "diskUsage"],
+    ["temperature", "cpuTemp"],
+    ["network_in", "networkIn"],
+    ["network_out", "networkOut"],
+    ["uptime", "systemUptime"],
+  ];
+
+  return <section className="st-panel">
+    <h2>{t("systemMonitor")}</h2>
+    <p>{t("systemMonitorSensorsDescription")}</p>
+    {fields.map(([key, transKey]) => {
+      const current = sysConfig[key] ?? "";
+      const list = candidates[key] ?? [];
+      const options = [
+        { value: "", label: t("autoDetect") },
+        ...[...new Set([...(current ? [current] : []), ...list.map((s) => s.entity_id)])].map((id) => ({
+          value: id,
+          label: label(id),
+        })),
+      ];
+      return <Row key={key} label={t(transKey)}>
+        <HDSelect
+          ariaLabel={t(transKey)}
+          onChange={(id) => update({ system_monitor: { ...sysConfig, [key]: id } })}
+          options={options}
+          value={current}
+        />
+      </Row>;
+    })}
   </section>;
 }
 

@@ -1475,6 +1475,9 @@ const addedMessages: Record<string, Record<string, string>> = {
     greetingNight: "Good night!",
     contextRaining: "It's raining",
     assistVoice: "Voice Assistant",
+    selectSensor: "Select sensor",
+    systemMonitorSensorsDescription: "Choose custom sensors for the System Monitor dashboard cards.",
+    autoDetect: "Auto-detect",
     backgroundForest: "Forest", backgroundLagoon: "Lagoon", backgroundWine: "Wine", backgroundPlum: "Plum",
   },
   "pt-BR": {

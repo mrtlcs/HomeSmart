@@ -295,6 +295,16 @@ export interface HomeSmartConfig {
     message?: string;
     speaker?: string;
   };
+  /** System Monitor sensor assignments (Settings → System or in System Monitor). */
+  system_monitor?: {
+    cpu?: string;
+    memory?: string;
+    disk?: string;
+    temperature?: string;
+    network_in?: string;
+    network_out?: string;
+    uptime?: string;
+  };
   /** Pro: how cards look. corners 0-150 (% of the default roundness), glass 0 (solid) to 100 (see-through). */
   cards: HomeSmartCardStyle;
 }
