@@ -1,14 +1,18 @@
 import { useMemo, useRef, useState } from "react";
 import { ContextHeader } from "../components/ContextHeader";
+import { EditableGrid, type GridItem, useTallTile, useWideTile } from "../components/EditableGrid";
 import { EntityCard } from "../components/EntityCard";
 import { EntityModal } from "../components/EntityModal";
-import { HDIcon } from "../components/HDIcon";
+import { EntityPicker } from "../components/EntityPicker";
+import { HDIcon, type IconName } from "../components/HDIcon";
 import { Sparkline } from "../components/HistoryChart";
 import { useHistory } from "../history";
 import type { TranslationKey } from "../i18n";
-import { arrange, entityKey, getLayout, keyId, setHidden, showItem } from "../layout";
+import { arrange, entityKey, getLayout, keyId } from "../layout";
+import { usePlan } from "../plan";
+import type { ScreenLayout } from "../types/config";
 import type { DiscoveredEntity } from "../types/discovery";
-import type { HomeAssistant } from "../types/home-assistant";
+import type { HassEntity, HomeAssistant } from "../types/home-assistant";
 import { useSwipeGesture } from "../useSwipeGesture";
 import { entityIndex, type ScreenProps } from "./types";
 
@@ -19,18 +23,31 @@ interface SystemMetric {
   unit: string;
   formatted: string;
   subtitle?: string;
-  stateObj: any;
+  stateObj: HassEntity;
+}
+
+function asEntity(state: HassEntity): DiscoveredEntity {
+  return {
+    area_id: "",
+    device_class: (state.attributes.device_class as string | undefined) ?? null,
+    device_id: null,
+    domain: state.entity_id.split(".")[0],
+    entity_id: state.entity_id,
+    icon: typeof state.attributes.icon === "string" ? state.attributes.icon : null,
+    name: String(state.attributes.friendly_name ?? state.entity_id),
+  };
 }
 
 export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean }) {
-  const { config, editing, hass, language, onLayout, onSettings, t } = props;
+  const { catalogRooms, config, editing, hass, language, onLayout, onSettings, t } = props;
   const [modalEntity, setModalEntity] = useState<DiscoveredEntity | null>(null);
+  const [picking, setPicking] = useState(false);
   const screen = useRef<HTMLElement>(null);
+  const plan = usePlan();
 
   useSwipeGesture(screen, {
     disabled: editing || Boolean(props.embedded),
     onSwipeRight: () => {
-      // Swiping right takes the user back to Home/Rooms
       window.dispatchEvent(new CustomEvent("homesmart-navigate", { detail: "home" }));
     },
   });
@@ -46,21 +63,39 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
   const tempHistory = useHistory(hass, temp?.entityId, 24);
 
   // Layout arrangement for system sensor cards
-  const layout = getLayout(config, "system");
-  const nativeIds = allSystemEntities.map((e) => e.entity_id);
-  const nativeSet = new Set(nativeIds);
-  const added = (layout.added ?? []).filter((id) => !nativeSet.has(id));
-  const { visible } = arrange([...nativeIds, ...added].map(entityKey), layout, true);
-  const shownIds = new Set(visible.map(keyId));
+  const rawLayout = getLayout(config, "system");
+  const everywhere = useMemo(() => entityIndex(catalogRooms), [catalogRooms]);
 
-  const toggleSensor = (id: string) => {
-    const key = entityKey(id);
-    if (nativeSet.has(id)) {
-      onLayout("system", shownIds.has(id) ? setHidden(layout, key, true) : showItem(layout, key, visible));
+  // Candidates for the grid
+  const primaryKeys = [
+    "sys:cpu",
+    "sys:ram",
+    "sys:disk",
+    "sys:temp",
+    "sys:network",
+    "sys:uptime",
+    ...(cpuHistory && cpuHistory.length > 1 ? ["sys:chart_cpu"] : []),
+    ...(tempHistory && tempHistory.length > 1 ? ["sys:chart_temp"] : []),
+    ...(memHistory && memHistory.length > 1 ? ["sys:chart_ram"] : []),
+  ];
+
+  const addedEntityIds = rawLayout.added ?? [];
+  const candidateKeys = [...primaryKeys, ...addedEntityIds.map(entityKey)];
+
+  // Default layout setup if first time:
+  const layout: ScreenLayout = useMemo(() => {
+    const isFirstTime = rawLayout.order.length === 0 && rawLayout.wide.length === 0;
+    if (isFirstTime) {
+      return {
+        ...rawLayout,
+        order: candidateKeys,
+        wide: ["sys:network", "sys:uptime", "sys:chart_cpu", "sys:chart_temp"],
+      };
     }
-  };
+    return rawLayout;
+  }, [rawLayout, candidateKeys]);
 
-  const everywhere = useMemo(() => entityIndex(props.catalogRooms), [props.catalogRooms]);
+  const { visible, hidden } = arrange(candidateKeys, layout);
 
   // Overall system health indicator
   const isHighLoad = (cpu && cpu.value > 85) || (memory && memory.value > 90) || (temp && temp.value > 80);
@@ -72,6 +107,232 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
     : { color: "#10b981", bg: "rgba(16, 185, 129, 0.16)", text: t("systemHealthy") };
 
   const hasAnyVitals = Boolean(cpu || memory || disk || temp || allSystemEntities.length > 0);
+
+  const labelForKey = (key: string): string => {
+    if (key === "sys:cpu") return t("cpuUsage");
+    if (key === "sys:ram") return t("ramUsage");
+    if (key === "sys:disk") return t("diskUsage");
+    if (key === "sys:temp") return t("cpuTemp");
+    if (key === "sys:network") return t("networkIo");
+    if (key === "sys:uptime") return t("systemUptime");
+    if (key === "sys:chart_cpu") return `${t("cpuUsage")} (24h)`;
+    if (key === "sys:chart_temp") return `${t("cpuTemp")} (24h)`;
+    if (key === "sys:chart_ram") return `${t("ramUsage")} (24h)`;
+    if (key.startsWith("entity:")) {
+      const id = keyId(key);
+      return everywhere.byId.get(id)?.name ?? hass.states[id]?.attributes.friendly_name ?? id;
+    }
+    return key;
+  };
+
+  const handleEntityToggle = (entityId: string) => {
+    const key = entityKey(entityId);
+    const isAdded = addedEntityIds.includes(entityId);
+    let nextAdded: string[];
+    let nextOrder: string[];
+    let nextHidden: string[];
+
+    if (isAdded) {
+      nextAdded = addedEntityIds.filter((id) => id !== entityId);
+      nextOrder = layout.order.filter((k: string) => k !== key);
+      nextHidden = layout.hidden.filter((k: string) => k !== key);
+    } else {
+      nextAdded = [...addedEntityIds, entityId];
+      nextOrder = [...layout.order.filter((k: string) => k !== key), key];
+      nextHidden = layout.hidden.filter((k: string) => k !== key);
+    }
+
+    onLayout("system", {
+      ...layout,
+      added: nextAdded,
+      hidden: nextHidden,
+      order: nextOrder,
+    });
+  };
+
+  const items: GridItem[] = visible.map((key) => {
+    if (key === "sys:cpu") {
+      return {
+        key,
+        label: t("cpuUsage"),
+        node: (
+          <CyberGlowGauge
+            gradId="sys-grad-cpu"
+            gradientStops={[{ offset: "0%", color: "#00f2fe" }, { offset: "100%", color: "#4facfe" }]}
+            icon="monitor"
+            label={t("cpuUsage")}
+            onClick={() => cpu?.stateObj && setModalEntity(asEntity(cpu.stateObj))}
+            subtext={cpu?.subtitle || (load1m ? `Load: ${load1m.value.toFixed(2)}` : undefined)}
+            unit="%"
+            value={cpu?.value}
+          />
+        ),
+      };
+    }
+    if (key === "sys:ram") {
+      return {
+        key,
+        label: t("ramUsage"),
+        node: (
+          <CyberGlowGauge
+            detail={memory?.subtitle}
+            gradId="sys-grad-ram"
+            gradientStops={[{ offset: "0%", color: "#10b981" }, { offset: "100%", color: "#06b6d4" }]}
+            icon="grid"
+            label={t("ramUsage")}
+            onClick={() => memory?.stateObj && setModalEntity(asEntity(memory.stateObj))}
+            unit="%"
+            value={memory?.value}
+          />
+        ),
+      };
+    }
+    if (key === "sys:disk") {
+      return {
+        key,
+        label: t("diskUsage"),
+        node: (
+          <CyberGlowGauge
+            detail={disk?.subtitle}
+            gradId="sys-grad-disk"
+            gradientStops={[{ offset: "0%", color: "#f59e0b" }, { offset: "100%", color: "#f97316" }]}
+            icon="server"
+            label={t("diskUsage")}
+            onClick={() => disk?.stateObj && setModalEntity(asEntity(disk.stateObj))}
+            unit="%"
+            value={disk?.value}
+          />
+        ),
+      };
+    }
+    if (key === "sys:temp") {
+      const tempStops = getTempGlowGradient(temp?.value);
+      const tempStatus = temp?.value
+        ? temp.value < 55
+          ? "Mát mẻ"
+          : temp.value < 72
+          ? "Bình thường"
+          : temp.value < 82
+          ? "Ấm"
+          : "Nóng"
+        : undefined;
+      return {
+        key,
+        label: t("cpuTemp"),
+        node: (
+          <CyberGlowGauge
+            gradId="sys-grad-temp"
+            gradientStops={tempStops}
+            icon="flame"
+            label={t("cpuTemp")}
+            onClick={() => temp?.stateObj && setModalEntity(asEntity(temp.stateObj))}
+            subtext={temp?.subtitle || tempStatus}
+            unit="°C"
+            value={temp?.value}
+          />
+        ),
+      };
+    }
+    if (key === "sys:network") {
+      return {
+        key,
+        label: t("networkIo"),
+        node: (
+          <CyberNetworkCard
+            netIn={netIn}
+            netOut={netOut}
+            onClick={() => {
+              const ent = netIn?.stateObj || netOut?.stateObj;
+              if (ent) setModalEntity(asEntity(ent));
+            }}
+            t={t}
+          />
+        ),
+      };
+    }
+    if (key === "sys:uptime") {
+      return {
+        key,
+        label: t("systemUptime"),
+        node: (
+          <CyberUptimeCard
+            load1m={load1m}
+            load5m={load5m}
+            load15m={load15m}
+            onClick={() => uptime?.stateObj && setModalEntity(asEntity(uptime.stateObj))}
+            t={t}
+            uptime={uptime}
+          />
+        ),
+      };
+    }
+    if (key === "sys:chart_cpu") {
+      return {
+        key,
+        label: `${t("cpuUsage")} (24h)`,
+        node: (
+          <CyberTrendCard
+            color="#38bdf8"
+            history={cpuHistory}
+            label={`${t("cpuUsage")} (%)`}
+            onClick={() => cpu?.stateObj && setModalEntity(asEntity(cpu.stateObj))}
+            unit="%"
+            value={cpu?.formatted}
+          />
+        ),
+      };
+    }
+    if (key === "sys:chart_temp") {
+      return {
+        key,
+        label: `${t("cpuTemp")} (24h)`,
+        node: (
+          <CyberTrendCard
+            color="#ef4444"
+            history={tempHistory}
+            label={`${t("cpuTemp")} (°C)`}
+            onClick={() => temp?.stateObj && setModalEntity(asEntity(temp.stateObj))}
+            unit="°C"
+            value={temp?.formatted}
+          />
+        ),
+      };
+    }
+    if (key === "sys:chart_ram") {
+      return {
+        key,
+        label: `${t("ramUsage")} (24h)`,
+        node: (
+          <CyberTrendCard
+            color="#10b981"
+            history={memHistory}
+            label={`${t("ramUsage")} (%)`}
+            onClick={() => memory?.stateObj && setModalEntity(asEntity(memory.stateObj))}
+            unit="%"
+            value={memory?.formatted}
+          />
+        ),
+      };
+    }
+
+    // Custom or added sensor entity
+    const entityId = keyId(key);
+    const entity = everywhere.byId.get(entityId) || asEntity(hass.states[entityId]);
+    return {
+      key,
+      label: entity?.name || entityId,
+      removal: "remove",
+      node: (
+        <EntityCard
+          entity={entity}
+          hass={hass}
+          language={language}
+          onLongPress={setModalEntity}
+          t={t}
+        />
+      ),
+    };
+  });
 
   return (
     <main className={`screen collection-screen sys-screen ${editing ? "screen--editing" : ""}`} ref={screen}>
@@ -99,182 +360,27 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
           <p>{t("noSystemSensors")}</p>
         </section>
       ) : (
-        <>
-          {/* Top 4 Circular Gauges */}
-          <section className="sys-gauges-grid" aria-label={t("systemStatus")}>
-            <CircularGauge
-              icon="monitor"
-              label={t("cpuUsage")}
-              max={100}
-              statusColor={gaugeColor(cpu?.value ?? 0, 65, 85)}
-              subtext={cpu?.subtitle || (load1m ? `Load: ${load1m.value.toFixed(2)}` : undefined)}
-              unit="%"
-              value={cpu?.value}
-            />
-            <CircularGauge
-              icon="grid"
-              label={t("ramUsage")}
-              max={100}
-              statusColor={gaugeColor(memory?.value ?? 0, 75, 90)}
-              subtext={memory?.subtitle}
-              unit="%"
-              value={memory?.value}
-            />
-            <CircularGauge
-              icon="server"
-              label={t("diskUsage")}
-              max={100}
-              statusColor={gaugeColor(disk?.value ?? 0, 80, 92)}
-              subtext={disk?.subtitle}
-              unit="%"
-              value={disk?.value}
-            />
-            <CircularGauge
-              icon="flame"
-              label={t("cpuTemp")}
-              max={100}
-              statusColor={gaugeColor(temp?.value ?? 0, 65, 80)}
-              subtext={temp?.subtitle || (temp?.value ? (temp.value < 60 ? "Mát" : temp.value < 75 ? "Bình thường" : "Nóng") : undefined)}
-              unit="°C"
-              value={temp?.value}
-            />
-          </section>
-
-          {/* Network & Uptime / Load Cards */}
-          <section className="sys-cards-grid">
-            {/* Network Throughput Card */}
-            <div className="sys-card sys-network-card">
-              <div className="sys-card__head">
-                <span className="sys-card__icon"><HDIcon name="wifi" size={18} /></span>
-                <span className="sys-card__title">{t("networkIo")}</span>
-              </div>
-              <div className="sys-network-metrics">
-                <div className="sys-net-stat">
-                  <div className="sys-net-stat__label">
-                    <span className="sys-net-arrow sys-net-arrow--down">↓</span>
-                    <span>{t("networkIn")}</span>
-                  </div>
-                  <strong className="sys-net-stat__value">{netIn?.formatted || "0 kB/s"}</strong>
-                </div>
-                <div className="sys-net-stat">
-                  <div className="sys-net-stat__label">
-                    <span className="sys-net-arrow sys-net-arrow--up">↑</span>
-                    <span>{t("networkOut")}</span>
-                  </div>
-                  <strong className="sys-net-stat__value">{netOut?.formatted || "0 kB/s"}</strong>
-                </div>
-              </div>
-            </div>
-
-            {/* System Load & Uptime Card */}
-            <div className="sys-card sys-host-card">
-              <div className="sys-card__head">
-                <span className="sys-card__icon"><HDIcon name="clock" size={18} /></span>
-                <span className="sys-card__title">{t("systemUptime")}</span>
-              </div>
-              <div className="sys-host-metrics">
-                <div className="sys-host-uptime">
-                  <span className="sys-host-uptime__label">{t("systemUptime")}:</span>
-                  <strong className="sys-host-uptime__value">{uptime?.formatted || "Đang hoạt động"}</strong>
-                </div>
-                {(load1m || load5m || load15m) && (
-                  <div className="sys-load-bars">
-                    <span className="sys-load-title">{t("systemLoad")} (1m · 5m · 15m)</span>
-                    <div className="sys-load-row">
-                      <div className="sys-load-item">
-                        <span>1m:</span>
-                        <strong>{load1m?.value.toFixed(2) ?? "--"}</strong>
-                      </div>
-                      <div className="sys-load-item">
-                        <span>5m:</span>
-                        <strong>{load5m?.value.toFixed(2) ?? "--"}</strong>
-                      </div>
-                      <div className="sys-load-item">
-                        <span>15m:</span>
-                        <strong>{load15m?.value.toFixed(2) ?? "--"}</strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </section>
-
-          {/* 24-Hour Trend History */}
-          <section className="sys-trends-section">
-            <h2 className="sys-section-title">{t("history")} (24h)</h2>
-            <div className="sys-trends-grid">
-              {cpuHistory && cpuHistory.length > 1 && (
-                <div className="sys-trend-card">
-                  <div className="sys-trend-card__header">
-                    <span>{t("cpuUsage")} (%)</span>
-                    <strong>{cpu?.value ? `${cpu.value.toFixed(1)}%` : ""}</strong>
-                  </div>
-                  <div className="sys-trend-chart">
-                    <Sparkline compact hours={24} language={language} points={cpuHistory} unit="%" />
-                  </div>
-                </div>
-              )}
-              {memHistory && memHistory.length > 1 && (
-                <div className="sys-trend-card">
-                  <div className="sys-trend-card__header">
-                    <span>{t("ramUsage")} (%)</span>
-                    <strong>{memory?.value ? `${memory.value.toFixed(1)}%` : ""}</strong>
-                  </div>
-                  <div className="sys-trend-chart">
-                    <Sparkline compact hours={24} language={language} points={memHistory} unit="%" />
-                  </div>
-                </div>
-              )}
-              {tempHistory && tempHistory.length > 1 && (
-                <div className="sys-trend-card">
-                  <div className="sys-trend-card__header">
-                    <span>{t("cpuTemp")} (°C)</span>
-                    <strong>{temp?.value ? `${temp.value.toFixed(1)}°C` : ""}</strong>
-                  </div>
-                  <div className="sys-trend-chart">
-                    <Sparkline compact hours={24} language={language} points={tempHistory} unit="°C" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-
-          {/* All Detected System Sensors Grid */}
-          {allSystemEntities.length > 0 && (
-            <section className="sys-entities-section">
-              <h2 className="sys-section-title">{t("systemSensors")} ({shownIds.size})</h2>
-              <div className="device-grid collection-grid sys-entities-grid">
-                {allSystemEntities
-                  .filter((entity) => shownIds.has(entity.entity_id) || editing)
-                  .map((entity) => {
-                    const hidden = !shownIds.has(entity.entity_id);
-                    return (
-                      <div className={`sys-sensor-wrapper ${hidden ? "sys-sensor-wrapper--hidden" : ""}`} key={entity.entity_id}>
-                        {editing && (
-                          <button
-                            aria-label={hidden ? "Show" : "Hide"}
-                            className="sys-sensor-toggle"
-                            onClick={() => toggleSensor(entity.entity_id)}
-                            type="button"
-                          >
-                            {hidden ? "+" : "−"}
-                          </button>
-                        )}
-                        <EntityCard
-                          entity={entity}
-                          hass={hass}
-                          language={language}
-                          onLongPress={setModalEntity}
-                          t={t}
-                        />
-                      </div>
-                    );
-                  })}
-              </div>
-            </section>
-          )}
-        </>
+        <div className="sys-editable-container" style={{ width: "100%", marginTop: "calc(var(--u) * 1.5)" }}>
+          <EditableGrid
+            addLabel={t("addDevices")}
+            className="sys-grid device-grid collection-grid"
+            editing={editing}
+            hass={hass}
+            hiddenItems={hidden.map((k) => ({ key: k, label: labelForKey(k) }))}
+            items={items}
+            layout={layout}
+            onAdd={() => setPicking(true)}
+            onLayout={(next) => onLayout("system", next)}
+            onRemove={(removeKey) => {
+              if (removeKey.startsWith("entity:")) {
+                handleEntityToggle(keyId(removeKey));
+              }
+            }}
+            sections={false}
+            sizable={true}
+            t={t}
+          />
+        </div>
       )}
 
       {modalEntity && (
@@ -287,29 +393,53 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
           t={t}
         />
       )}
+
+      {picking && (
+        <EntityPicker
+          language={language}
+          onClose={() => setPicking(false)}
+          onToggle={(id) => {
+            if (addedEntityIds.includes(id)) {
+              handleEntityToggle(id);
+            } else if (plan.allow(id)) {
+              handleEntityToggle(id);
+            }
+          }}
+          rooms={catalogRooms}
+          selected={addedEntityIds}
+          t={t}
+        />
+      )}
     </main>
   );
 }
 
-/** SVG Arc Circular Gauge */
-function CircularGauge({
+/** Cyber Bento Glow Gauge */
+function CyberGlowGauge({
+  detail,
+  gradId,
+  gradientStops,
   icon,
   label,
   max = 100,
-  statusColor = "#10b981",
+  onClick,
   subtext,
   unit = "%",
   value,
 }: {
-  icon: any;
+  detail?: string;
+  gradId: string;
+  gradientStops: Array<{ offset: string; color: string }>;
+  icon: IconName;
   label: string;
   max?: number;
-  statusColor?: string;
+  onClick?: () => void;
   subtext?: string;
   unit?: string;
   value?: number;
 }) {
-  const radius = 40;
+  const wide = useWideTile();
+  const radius = 38;
   const strokeWidth = 7;
   const normalized = value != null ? Math.min(Math.max(value, 0), max) : 0;
   // 260 degree arc gauge
@@ -319,61 +449,297 @@ function CircularGauge({
   const strokeDashoffset = strokeDash - (strokeDash * (normalized / max));
   const rotation = 140; // start angle
 
+  const mainColor = gradientStops[0]?.color ?? "#38bdf8";
+
   return (
-    <div className="sys-gauge-card">
-      <div className="sys-gauge-card__ring">
-        <svg className="sys-gauge-svg" height="110" viewBox="0 0 100 100" width="110">
+    <div
+      className={`sys-gauge-card ${wide ? "sys-gauge-card--wide" : ""}`}
+      onClick={onClick}
+      role="button"
+      style={{
+        boxSizing: "border-box",
+        cursor: onClick ? "pointer" : "default",
+        display: "flex",
+        flexDirection: wide ? "row" : "column",
+        alignItems: "center",
+        justifyContent: wide ? "flex-start" : "center",
+        padding: wide ? "calc(var(--u) * 1.8) calc(var(--u) * 2.2)" : "calc(var(--u) * 2) calc(var(--u) * 1.6)",
+        gap: wide ? "calc(var(--u) * 2)" : "calc(var(--u) * 1.2)",
+        width: "100%",
+        height: "100%",
+        minHeight: "calc(var(--u) * 16)",
+      }}
+      tabIndex={0}
+    >
+      <div className="sys-gauge-card__ring" style={{ width: 96, height: 96, flexShrink: 0, position: "relative", display: "grid", placeItems: "center" }}>
+        <svg className="sys-gauge-svg" height="96" style={{ overflow: "visible" }} viewBox="0 0 100 100" width="96">
+          <defs>
+            <linearGradient id={gradId} x1="0%" x2="100%" y1="100%" y2="0%">
+              {gradientStops.map((s, idx) => (
+                <stop key={idx} offset={s.offset} stopColor={s.color} />
+              ))}
+            </linearGradient>
+            <filter id={`${gradId}-glow`} x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor={mainColor} floodOpacity="0.45" />
+            </filter>
+          </defs>
           {/* Background Track */}
           <circle
             cx="50"
             cy="50"
             fill="none"
             r={radius}
-            stroke="rgba(255, 255, 255, 0.1)"
+            stroke="rgba(255, 255, 255, 0.08)"
             strokeDasharray={`${strokeDash} ${circumference}`}
             strokeLinecap="round"
             strokeWidth={strokeWidth}
             transform={`rotate(${rotation} 50 50)`}
           />
-          {/* Active Progress */}
+          {/* Active Gradient Stroke */}
           {value != null && (
             <circle
               cx="50"
               cy="50"
               fill="none"
+              filter={`url(#${gradId}-glow)`}
               r={radius}
-              stroke={statusColor}
+              stroke={`url(#${gradId})`}
               strokeDasharray={`${strokeDash} ${circumference}`}
               strokeDashoffset={strokeDashoffset}
               strokeLinecap="round"
               strokeWidth={strokeWidth}
-              style={{ transition: "stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1), stroke 0.3s" }}
+              style={{ transition: "stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}
               transform={`rotate(${rotation} 50 50)`}
             />
           )}
         </svg>
-        <div className="sys-gauge-center">
-          <span className="sys-gauge-value">
+        <div className="sys-gauge-center" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
+          <span className="sys-gauge-value" style={{ font: "700 calc(var(--u) * 2.5)/1 var(--f-body)", display: "flex", alignItems: "baseline" }}>
             {value != null ? `${Math.round(value)}` : "--"}
-            <small className="sys-gauge-unit">{unit}</small>
+            <small className="sys-gauge-unit" style={{ fontSize: "0.55em", opacity: 0.8, marginLeft: 2 }}>{unit}</small>
           </span>
         </div>
       </div>
-      <div className="sys-gauge-info">
-        <div className="sys-gauge-head">
-          <span className="sys-gauge-icon"><HDIcon name={icon} size={15} /></span>
-          <strong className="sys-gauge-label">{label}</strong>
+
+      <div className="sys-gauge-info" style={{ display: "flex", flexDirection: "column", alignItems: wide ? "flex-start" : "center", textAlign: wide ? "left" : "center", flex: 1, minWidth: 0, width: wide ? "auto" : "100%" }}>
+        <div className="sys-gauge-head" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span className="sys-gauge-icon" style={{ color: mainColor, display: "flex" }}>
+            <HDIcon name={icon} size={16} />
+          </span>
+          <strong className="sys-gauge-label" style={{ fontSize: "calc(var(--u) * 1.6)", fontWeight: 600 }}>{label}</strong>
         </div>
-        {subtext && <span className="sys-gauge-sub">{subtext}</span>}
+        {detail && (
+          <div style={{ marginTop: 6, width: "100%" }}>
+            <div style={{ fontSize: "0.85em", opacity: 0.85, fontWeight: 500 }}>{detail}</div>
+            <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, marginTop: 4, overflow: "hidden" }}>
+              <div style={{ width: `${Math.min(100, Math.max(0, value ?? 0))}%`, height: "100%", background: `linear-gradient(90deg, ${mainColor}, ${gradientStops[1]?.color ?? mainColor})`, borderRadius: 2 }} />
+            </div>
+          </div>
+        )}
+        {subtext && <span className="sys-gauge-sub" style={{ fontSize: "0.8em", opacity: 0.7, marginTop: 4 }}>{subtext}</span>}
       </div>
     </div>
   );
 }
 
-function gaugeColor(value: number, warn: number, crit: number): string {
-  if (value >= crit) return "#ef4444"; // Coral red
-  if (value >= warn) return "#f59e0b"; // Warm amber
-  return "#10b981"; // Vibrant emerald
+function getTempGlowGradient(temp?: number): Array<{ offset: string; color: string }> {
+  if (temp == null) return [{ offset: "0%", color: "#38bdf8" }, { offset: "100%", color: "#0ea5e9" }];
+  if (temp < 55) {
+    return [{ offset: "0%", color: "#38bdf8" }, { offset: "100%", color: "#0ea5e9" }]; // Ice Blue
+  } else if (temp < 72) {
+    return [{ offset: "0%", color: "#10b981" }, { offset: "100%", color: "#34d399" }]; // Emerald Green
+  } else if (temp < 82) {
+    return [{ offset: "0%", color: "#f59e0b" }, { offset: "100%", color: "#fbbf24" }]; // Amber Gold
+  } else {
+    return [{ offset: "0%", color: "#ef4444" }, { offset: "100%", color: "#f43f5e" }]; // Crimson Red
+  }
+}
+
+/** Dual-Stream Cyber Network Card */
+function CyberNetworkCard({ netIn, netOut, onClick, t }: { netIn?: SystemMetric; netOut?: SystemMetric; onClick: () => void; t: (key: TranslationKey) => string }) {
+  const wide = useWideTile();
+  return (
+    <div
+      className={`sys-card sys-network-card ${wide ? "sys-network-card--wide" : ""}`}
+      onClick={onClick}
+      role="button"
+      style={{
+        boxSizing: "border-box",
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        width: "100%",
+        height: "100%",
+        minHeight: "calc(var(--u) * 16)",
+      }}
+      tabIndex={0}
+    >
+      <div className="sys-card__head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: wide ? 12 : 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "calc(var(--u) * 0.8)" }}>
+          <span className="sys-card__icon" style={{ color: "#38bdf8", filter: "drop-shadow(0 0 6px rgba(56,189,248,0.5))" }}>
+            <HDIcon name="wifi" size={18} />
+          </span>
+          <span className="sys-card__title" style={{ fontWeight: 600 }}>{t("networkIo")}</span>
+        </div>
+        <span style={{ fontSize: "0.75em", opacity: 0.8, background: "rgba(56,189,248,0.15)", color: "#38bdf8", padding: "2px 8px", borderRadius: 999 }}>Realtime</span>
+      </div>
+
+      <div className="sys-network-metrics" style={{ display: "flex", gap: "calc(var(--u) * 1.4)", flex: 1, alignItems: "center" }}>
+        {/* Download Capsule */}
+        <div
+          className="sys-net-stat"
+          style={{
+            flex: 1,
+            background: "linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.03))",
+            border: "1px solid rgba(16, 185, 129, 0.25)",
+            borderRadius: "calc(var(--u) * 1.4)",
+            padding: "calc(var(--u) * 1.2) calc(var(--u) * 1)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <div className="sys-net-stat__label" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "calc(var(--u) * 1.2)", color: "#10b981", fontWeight: 600 }}>
+            <span style={{ fontSize: "1.1em", filter: "drop-shadow(0 0 4px #10b981)" }}>↓</span>
+            <span>{t("networkIn")}</span>
+          </div>
+          <strong className="sys-net-stat__value" style={{ font: "700 calc(var(--u) * 2)/1.1 var(--f-body)", color: "var(--ink)" }}>
+            {netIn?.formatted || "0 kB/s"}
+          </strong>
+        </div>
+
+        {/* Upload Capsule */}
+        <div
+          className="sys-net-stat"
+          style={{
+            flex: 1,
+            background: "linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.03))",
+            border: "1px solid rgba(59, 130, 246, 0.25)",
+            borderRadius: "calc(var(--u) * 1.4)",
+            padding: "calc(var(--u) * 1.2) calc(var(--u) * 1)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            gap: 4,
+          }}
+        >
+          <div className="sys-net-stat__label" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "calc(var(--u) * 1.2)", color: "#60a5fa", fontWeight: 600 }}>
+            <span style={{ fontSize: "1.1em", filter: "drop-shadow(0 0 4px #3b82f6)" }}>↑</span>
+            <span>{t("networkOut")}</span>
+          </div>
+          <strong className="sys-net-stat__value" style={{ font: "700 calc(var(--u) * 2)/1.1 var(--f-body)", color: "var(--ink)" }}>
+            {netOut?.formatted || "0 kB/s"}
+          </strong>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Uptime & Host Status Card */
+function CyberUptimeCard({ load1m, load5m, load15m, onClick, t, uptime }: { load1m?: SystemMetric; load5m?: SystemMetric; load15m?: SystemMetric; onClick: () => void; t: (key: TranslationKey) => string; uptime?: SystemMetric }) {
+  const wide = useWideTile();
+  return (
+    <div
+      className={`sys-card sys-host-card ${wide ? "sys-host-card--wide" : ""}`}
+      onClick={onClick}
+      role="button"
+      style={{
+        boxSizing: "border-box",
+        cursor: "pointer",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        width: "100%",
+        height: "100%",
+        minHeight: "calc(var(--u) * 16)",
+      }}
+      tabIndex={0}
+    >
+      <div className="sys-card__head" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: wide ? 12 : 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "calc(var(--u) * 0.8)" }}>
+          <span className="sys-card__icon" style={{ color: "#10b981", filter: "drop-shadow(0 0 6px rgba(16,185,129,0.5))" }}>
+            <HDIcon name="clock" size={18} />
+          </span>
+          <span className="sys-card__title" style={{ fontWeight: 600 }}>{t("systemUptime")}</span>
+        </div>
+        <div className="sys-live-dot" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75em", color: "#10b981", background: "rgba(16,185,129,0.15)", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", animation: "sys-pulse 2s infinite ease-in-out" }} />
+          <span>Active</span>
+        </div>
+      </div>
+
+      <div style={{ display: "flex", flexDirection: wide ? "row" : "column", justifyContent: "space-between", alignItems: wide ? "center" : "stretch", gap: 12 }}>
+        <div className="sys-host-uptime">
+          <strong className="sys-host-uptime__value" style={{ font: "700 calc(var(--u) * 2.2)/1.1 var(--f-body)", color: "var(--ink)" }}>
+            {uptime?.formatted || "Đang hoạt động"}
+          </strong>
+        </div>
+
+        {(load1m || load5m || load15m) && (
+          <div className="sys-load-pills" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
+            <span style={{ fontSize: "0.75em", opacity: 0.7 }}>Load:</span>
+            <div style={{ display: "flex", gap: 6 }}>
+              {load1m && (
+                <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 6, fontSize: "0.8em", fontWeight: 600 }}>
+                  <small style={{ opacity: 0.6 }}>1m </small>{load1m.value.toFixed(2)}
+                </span>
+              )}
+              {load5m && (
+                <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 6, fontSize: "0.8em", fontWeight: 600 }}>
+                  <small style={{ opacity: 0.6 }}>5m </small>{load5m.value.toFixed(2)}
+                </span>
+              )}
+              {load15m && (
+                <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 6, fontSize: "0.8em", fontWeight: 600 }}>
+                  <small style={{ opacity: 0.6 }}>15m </small>{load15m.value.toFixed(2)}
+                </span>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/** 24h Area Trend Chart Card */
+function CyberTrendCard({ color = "#3b82f6", history, label, onClick, unit = "%", value }: { color?: string; history?: any[] | null; label: string; onClick?: () => void; unit?: string; value?: string | number }) {
+  return (
+    <div
+      className="sys-trend-card"
+      onClick={onClick}
+      role="button"
+      style={{
+        boxSizing: "border-box",
+        cursor: onClick ? "pointer" : "default",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+        width: "100%",
+        height: "100%",
+        minHeight: "calc(var(--u) * 16)",
+      }}
+      tabIndex={0}
+    >
+      <div className="sys-trend-card__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, filter: `drop-shadow(0 0 4px ${color})` }} />
+          <span style={{ fontWeight: 600 }}>{label}</span>
+        </div>
+        <strong style={{ color, font: "700 calc(var(--u) * 1.8)/1 var(--f-body)" }}>{value != null ? `${value}` : ""}</strong>
+      </div>
+      <div className="sys-trend-chart" style={{ flex: 1, minHeight: 48, display: "flex", alignItems: "flex-end" }}>
+        {history && history.length > 1 ? (
+          <Sparkline compact hours={24} points={history} unit={unit} />
+        ) : (
+          <div style={{ width: "100%", textAlign: "center", opacity: 0.5, fontSize: "0.85em" }}>Đang tải lịch sử...</div>
+        )}
+      </div>
+    </div>
+  );
 }
 
 /** Parses sensors from Home Assistant into vitals */
@@ -428,7 +794,7 @@ function parseSystemVitals(hass: HomeAssistant) {
     if (isSystemRelated) {
       allSystemEntities.push({
         area_id: "",
-        device_class: s.attributes.device_class ?? null,
+        device_class: (s.attributes.device_class as string | undefined) ?? null,
         device_id: null,
         domain: "sensor",
         entity_id: s.entity_id,
@@ -438,7 +804,15 @@ function parseSystemVitals(hass: HomeAssistant) {
     }
 
     // CPU Usage
-    if (!cpu && hasNum && (id.endsWith("processor_use") || id.endsWith("processor_use_percent") || id.endsWith("cpu_percent") || (friendly.includes("processor use") && unit === "%") || (friendly.includes("cpu usage") && unit === "%"))) {
+    if (
+      !cpu &&
+      hasNum &&
+      (id.endsWith("processor_use") ||
+        id.endsWith("processor_use_percent") ||
+        id.endsWith("cpu_percent") ||
+        (friendly.includes("processor use") && unit === "%") ||
+        (friendly.includes("cpu usage") && unit === "%"))
+    ) {
       cpu = {
         entityId: s.entity_id,
         formatted: `${val.toFixed(1)}%`,
@@ -450,7 +824,14 @@ function parseSystemVitals(hass: HomeAssistant) {
     }
 
     // Memory Usage %
-    if (!memory && hasNum && (id.endsWith("memory_use_percent") || id.endsWith("ram_percent") || (friendly.includes("memory use") && unit === "%") || (friendly.includes("ram usage") && unit === "%"))) {
+    if (
+      !memory &&
+      hasNum &&
+      (id.endsWith("memory_use_percent") ||
+        id.endsWith("ram_percent") ||
+        (friendly.includes("memory use") && unit === "%") ||
+        (friendly.includes("ram usage") && unit === "%"))
+    ) {
       memory = {
         entityId: s.entity_id,
         formatted: `${val.toFixed(1)}%`,
@@ -462,7 +843,13 @@ function parseSystemVitals(hass: HomeAssistant) {
     }
 
     // Disk Usage %
-    if (!disk && hasNum && (id.endsWith("disk_use_percent") || id.endsWith("disk_use_percent_home") || (friendly.includes("disk use") && unit === "%"))) {
+    if (
+      !disk &&
+      hasNum &&
+      (id.endsWith("disk_use_percent") ||
+        id.endsWith("disk_use_percent_home") ||
+        (friendly.includes("disk use") && unit === "%"))
+    ) {
       disk = {
         entityId: s.entity_id,
         formatted: `${val.toFixed(1)}%`,
@@ -474,7 +861,17 @@ function parseSystemVitals(hass: HomeAssistant) {
     }
 
     // CPU Temperature
-    if (!temp && hasNum && (s.attributes.device_class === "temperature" || unit === "°C" || unit === "°F") && (id.includes("cpu") || id.includes("processor") || id.includes("soc") || id.includes("core_temp") || friendly.includes("processor temp") || friendly.includes("cpu temp"))) {
+    if (
+      !temp &&
+      hasNum &&
+      (s.attributes.device_class === "temperature" || unit === "°C" || unit === "°F") &&
+      (id.includes("cpu") ||
+        id.includes("processor") ||
+        id.includes("soc") ||
+        id.includes("core_temp") ||
+        friendly.includes("processor temp") ||
+        friendly.includes("cpu temp"))
+    ) {
       temp = {
         entityId: s.entity_id,
         formatted: `${val.toFixed(1)}°C`,
@@ -486,7 +883,13 @@ function parseSystemVitals(hass: HomeAssistant) {
     }
 
     // Network In
-    if (!netIn && (id.includes("network_in") || id.includes("throughput_in") || id.includes("rx_") || friendly.includes("network in"))) {
+    if (
+      !netIn &&
+      (id.includes("network_in") ||
+        id.includes("throughput_in") ||
+        id.includes("rx_") ||
+        friendly.includes("network in"))
+    ) {
       netIn = {
         entityId: s.entity_id,
         formatted: hasNum ? `${val.toFixed(1)} ${unit}` : s.state,
@@ -498,7 +901,13 @@ function parseSystemVitals(hass: HomeAssistant) {
     }
 
     // Network Out
-    if (!netOut && (id.includes("network_out") || id.includes("throughput_out") || id.includes("tx_") || friendly.includes("network out"))) {
+    if (
+      !netOut &&
+      (id.includes("network_out") ||
+        id.includes("throughput_out") ||
+        id.includes("tx_") ||
+        friendly.includes("network out"))
+    ) {
       netOut = {
         entityId: s.entity_id,
         formatted: hasNum ? `${val.toFixed(1)} ${unit}` : s.state,

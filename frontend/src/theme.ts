@@ -417,6 +417,7 @@ export const theme = String.raw`
   background: var(--paper-2, rgba(255, 255, 255, 0.08));
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: var(--hd-round, 18px);
   padding: calc(var(--u) * 2);
   display: flex;
@@ -424,7 +425,22 @@ export const theme = String.raw`
   align-items: center;
   text-align: center;
   position: relative;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  box-sizing: border-box;
   transition: transform .18s, box-shadow .2s;
+}
+.app-shell .hd-item--wide .sys-gauge-card {
+  flex-direction: row;
+  align-items: center;
+  text-align: left;
+  padding: calc(var(--u) * 1.8) calc(var(--u) * 2.4);
+  gap: calc(var(--u) * 2);
+}
+.app-shell .hd-item--wide .sys-gauge-info {
+  align-items: flex-start;
+  text-align: left;
 }
 .app-shell .sys-gauge-card:hover {
   transform: translateY(-2px);
@@ -488,8 +504,18 @@ export const theme = String.raw`
   background: var(--paper-2, rgba(255, 255, 255, 0.08));
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: var(--hd-round, 18px);
   padding: calc(var(--u) * 2);
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  transition: transform .18s, box-shadow .2s;
+}
+.app-shell .sys-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 calc(var(--u)*1) calc(var(--u)*2.4) rgba(0,0,0,.18);
 }
 .app-shell .sys-card__head {
   display: flex;
@@ -581,11 +607,21 @@ export const theme = String.raw`
   background: var(--paper-2, rgba(255, 255, 255, 0.08));
   border: 1px solid rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: var(--hd-round, 18px);
   padding: calc(var(--u) * 1.8);
   display: flex;
   flex-direction: column;
   gap: calc(var(--u) * 1);
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  transition: transform .18s, box-shadow .2s;
+}
+.app-shell .sys-trend-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 calc(var(--u)*1) calc(var(--u)*2.4) rgba(0,0,0,.18);
 }
 .app-shell .sys-trend-card__header {
   display: flex;
