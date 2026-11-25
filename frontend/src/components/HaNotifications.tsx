@@ -2,6 +2,7 @@ import { hourOptions } from "../clock";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { safeIntlLocale, type TranslationKey } from "../i18n";
+import { useCustomize } from "../personalize";
 import type { HomeAssistant } from "../types/home-assistant";
 import { HDIcon } from "./HDIcon";
 
@@ -51,7 +52,13 @@ function Message({ text }: { text: string }) {
  * a tap lists them, each one can be dismissed (in Home Assistant too), or all at once. */
 export function NotificationBell({ hass, language, shell, t }: { hass: HomeAssistant; language?: string; shell: Element | null; t: (key: TranslationKey) => string }) {
   const notes = useHaNotifications(hass, true);
+  const customize = useCustomize();
   const [open, setOpen] = useState(false);
+  const rooms = customize?.rooms() ?? [];
+  const matchRoom = (note: HaNotification) => {
+    const hay = `${note.title ?? ""} ${note.message}`.toLowerCase();
+    return rooms.find((room) => room.id !== "__unassigned__" && hay.includes(room.name.toLowerCase()));
+  };
   const dismiss = (ids: string[]) => { for (const id of ids) void hass.callService("persistent_notification", "dismiss", { notification_id: id }).catch(() => undefined); };
   const when = (iso: string) => {
     const date = new Date(iso);
@@ -82,11 +89,31 @@ export function NotificationBell({ hass, language, shell, t }: { hass: HomeAssis
           ? <p className="hd-notes__empty">{t("haNotificationsNone")}</p>
           : <>
               <div className="hd-notes__list">
-                {notes.map((note) => <article className="hd-notes__item" key={note.notification_id}>
-                  <div className="hd-notes__head"><b>{note.title || t("haNotification")}</b><small>{when(note.created_at)}</small></div>
-                  <Message text={note.message} />
-                  <button className="hd-pill" onClick={() => dismiss([note.notification_id])} type="button"><HDIcon name="check" size={14} />{t("haNotificationDismiss")}</button>
-                </article>)}
+                {notes.map((note) => {
+                  const matchedRoom = matchRoom(note);
+                  return (
+                    <article className="hd-notes__item" key={note.notification_id}>
+                      <div className="hd-notes__head"><b>{note.title || t("haNotification")}</b><small>{when(note.created_at)}</small></div>
+                      <Message text={note.message} />
+                      <div className="hs-note-context">
+                        {matchedRoom && (
+                          <button
+                            className="hs-note-badge"
+                            onClick={() => {
+                              setOpen(false);
+                              window.dispatchEvent(new CustomEvent("HOMESMART-open-room", { detail: matchedRoom.id }));
+                            }}
+                            type="button"
+                          >
+                            <HDIcon name="arrow" size={11} />
+                            {t("haNotificationJump")}: {matchedRoom.name}
+                          </button>
+                        )}
+                        <button className="hd-pill" onClick={() => dismiss([note.notification_id])} type="button"><HDIcon name="check" size={14} />{t("haNotificationDismiss")}</button>
+                      </div>
+                    </article>
+                  );
+                })}
               </div>
               {notes.length > 1 && <button className="hd-pill hd-notes__all" onClick={() => dismiss(notes.map((note) => note.notification_id))} type="button">{t("haNotificationDismissAll")}</button>}
             </>}

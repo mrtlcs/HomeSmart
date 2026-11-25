@@ -20,6 +20,7 @@ import { CardLinks } from "./CardLinks";
 import { usePlan } from "../plan";
 import { mediaActive, showsPlayer, usePlayers } from "../spotify";
 import { climateModeStyle, SensorStyledCard } from "./SensorVisuals";
+import { triggerHaptic } from "../haptics";
 
 const ACTIVE_STATES = new Set(["on", "open", "opening", "playing", "paused", "heat", "cool", "heat_cool", "auto", "dry", "fan_only", "unlocked", "cleaning", "returning", ...ALARM_ARMED]);
 export const TOGGLES = new Set(["light", "switch", "fan", "input_boolean", "automation"]);
@@ -251,20 +252,51 @@ function DeviceCard({ entity, hass, language, onLongPress, state: passedState, t
 
   // A pick in a dropdown (rendered elsewhere, but its events still reach the card) is not a tap on the card.
   const fromControl = (target: EventTarget) => Boolean((target as HTMLElement).closest("button, input, label, [role='option'], [role='listbox'], .hdx-select__backdrop"));
+  const swipeDone = useRef(false);
   const cancelHold = () => { if (holdTimer.current != null) window.clearTimeout(holdTimer.current); holdTimer.current = null; holdOrigin.current = null; };
   const startHold = (event: PointerEvent<HTMLElement>) => {
     held.current = false;
+    swipeDone.current = false;
     if (fromControl(event.target)) return;
     cancelHold();
     holdOrigin.current = { x: event.clientX, y: event.clientY };
-    holdTimer.current = window.setTimeout(() => { holdTimer.current = null; held.current = true; openDetails(entity); }, HOLD_MS);
+    holdTimer.current = window.setTimeout(() => {
+      holdTimer.current = null;
+      held.current = true;
+      triggerHaptic("medium");
+      openDetails(entity);
+    }, HOLD_MS);
   };
   const moveHold = (event: PointerEvent<HTMLElement>) => {
-    if (holdOrigin.current && Math.hypot(event.clientX - holdOrigin.current.x, event.clientY - holdOrigin.current.y) > 10) cancelHold();
+    if (!holdOrigin.current) return;
+    const dx = event.clientX - holdOrigin.current.x;
+    const dy = event.clientY - holdOrigin.current.y;
+    if (Math.hypot(dx, dy) > 10 && holdTimer.current != null) {
+      window.clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+    }
+    // Vertical swipe gesture shortcut on touch screens for lights, switches, fans, covers
+    if (event.pointerType === "touch" && !swipeDone.current && Math.abs(dy) > 40 && Math.abs(dx) < 22) {
+      swipeDone.current = true;
+      held.current = true;
+      holdOrigin.current = null;
+      const domain = entity.domain;
+      if (domain === "light") {
+        triggerHaptic("light");
+        void run(() => hass.callService("light", dy < 0 ? "turn_on" : "turn_off", dy < 0 ? { entity_id: entity.entity_id, brightness_pct: 100 } : { entity_id: entity.entity_id }));
+      } else if (TOGGLES.has(domain)) {
+        triggerHaptic("light");
+        void run(() => hass.callService("homeassistant", dy < 0 ? "turn_on" : "turn_off", { entity_id: entity.entity_id }));
+      } else if (domain === "cover") {
+        triggerHaptic("light");
+        void run(() => hass.callService("cover", coverMove(entity, dy < 0 ? "up" : "down"), { entity_id: entity.entity_id }));
+      }
+    }
   };
   const click = (event: MouseEvent<HTMLElement>) => {
-    if (held.current) { held.current = false; return; }
+    if (held.current || swipeDone.current) { held.current = false; swipeDone.current = false; return; }
     if (fromControl(event.target)) return;
+    triggerHaptic("light");
     tap();
   };
   const key = (event: KeyboardEvent<HTMLElement>) => {

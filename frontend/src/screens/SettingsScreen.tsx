@@ -560,6 +560,8 @@ function CardStylePanel({ cards, kids = false, locked, onChange, onUpsell, t }: 
       {!kids && <Row label={t("glass")}><Range ends={[t("glassSolid"), t("glassClear")]} label={t("glass")} max={100} onChange={(glass) => onChange({ ...cards, glass })} value={cards.glass} /></Row>}
       {!kids && <Row description={t("frameDescription")} label={t("frame")}><Switch checked={cards.frame} label={t("frame")} onChange={(frame) => onChange({ ...cards, frame })} /></Row>}
       {!kids && <Row description={t("shineDescription")} label={t("shine")}><Switch checked={Boolean(cards.shine)} label={t("shine")} onChange={(shine) => onChange({ ...cards, shine })} /></Row>}
+      {!kids && <Row description={t("glassDepthDescription")} label={t("glassDepth")}><HDSegmented ariaLabel={t("glassDepth")} onChange={(glass_depth) => onChange({ ...cards, glass_depth: glass_depth as HomeSmartCardStyle["glass_depth"] })} options={[{ value: "subtle", label: t("glassDepthSubtle") }, { value: "standard", label: t("glassDepthStandard") }, { value: "intense", label: t("glassDepthIntense") }]} value={cards.glass_depth ?? "standard"} /></Row>}
+      <Row description={t("hapticsDescription")} label={t("haptics")}><Switch checked={cards.haptics !== false} label={t("haptics")} onChange={(haptics) => onChange({ ...cards, haptics })} /></Row>
       <Row description={t("sparklinesDescription")} label={t("sparklines")}><Switch checked={Boolean(cards.sparklines)} label={t("sparklines")} onChange={(sparklines) => onChange({ ...cards, sparklines })} /></Row>
       <Row description={t("roomPowerDescription")} label={t("roomPower")}><Switch checked={cards.room_power !== false} label={t("roomPower")} onChange={(room_power) => onChange({ ...cards, room_power })} /></Row>
       <Row description={t("sensorSinceDescription")} label={t("sensorSince")}><Switch checked={Boolean(cards.sensor_since)} label={t("sensorSince")} onChange={(sensor_since) => onChange({ ...cards, sensor_since })} /></Row>
@@ -627,6 +629,7 @@ function ExtraCardsPanel({ draft, hass, onUpsell, pro, t, update }: { draft: Hom
       </div>}
     </div>
     <BinsSettings bins={draft.bins ?? []} enabled={Boolean(widgets.bins)} hass={hass} onBins={(bins) => update({ bins })} onEnabled={(on) => { set({ bins: on }); if (on && (draft.bins ?? []).length === 0) update({ widgets: { ...widgets, bins: true }, bins: [{ entity: "", name: "", color: "black" }] }); }} onUpsell={onUpsell} pro={pro} t={t} />
+    <Row description={t("aiInsightsDescription")} label={t("aiInsights")}><Switch checked={Boolean(widgets.insights)} label={t("aiInsights")} onChange={(insights) => set({ insights })} /></Row>
   </section>;
 }
 

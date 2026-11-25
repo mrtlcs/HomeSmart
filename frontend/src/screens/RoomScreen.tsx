@@ -101,7 +101,7 @@ export function RoomScreen(props: ScreenProps & { onSelectRoom: (roomId: string)
           </div>
         </aside>
 
-        <section className={`room-pane ${slideDir === "next" ? "room-pane-slide-next" : slideDir === "prev" ? "room-pane-slide-prev" : "room-pane-fade"}`} key={room.id} ref={roomPaneRef}>
+        <section className={`room-pane ${slideDir === "next" ? "room-pane-slide-next" : slideDir === "prev" ? "room-pane-slide-prev" : "room-pane-fade"}`} data-room-accent={room.accent || undefined} key={room.id} ref={roomPaneRef} style={room.accent ? ({ "--room-theme": room.accent } as React.CSSProperties) : undefined}>
           <header className="room-operational-header">
             <div>
               <span className="eyebrow">{activeLights.length === 0 ? t("allOff") : (activeLights.length === 1 ? t("oneRoomLightOn") : t("roomLightsOn").replace("{count}", String(activeLights.length)))}</span>

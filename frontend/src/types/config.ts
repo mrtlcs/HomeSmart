@@ -43,12 +43,17 @@ export interface HomeSmartPageConfig {
   columns?: number;
 }
 
+export type BentoSpan = "1x1" | "2x1" | "1x2" | "2x2" | "3x1";
+export type GlassDepth = "subtle" | "standard" | "intense";
+
 export interface ScreenLayout {
   order: string[];
   hidden: string[];
   wide: string[];
   /** Item keys shown large (two columns and two rows); always also in `wide`. */
   tall?: string[];
+  /** Flexible asymmetric Bento spans by item key ("1x2", "2x2", "3x1", etc.). */
+  bento?: Record<string, BentoSpan>;
   /** Bigger sizes by item: 6 or 8 for camera cards, 4, 9 or 16 cells on a camera page. */
   cells?: Record<string, number>;
   /** Sensor keys shown small (half the height of a normal card). */
@@ -259,7 +264,7 @@ export interface HomeSmartConfig {
     /** "large" makes the date, weather and temperatures bigger, to read from across the room. */
     size?: "normal" | "large";
   };
-  /** Optional cards on Home: the bigger weather card, the sun and (Pro) energy. All off by default. */
+  /** Optional cards on Home: the bigger weather card, the sun, insights and (Pro) energy. */
   widgets: {
     weather: boolean;
     sun: boolean;
@@ -269,6 +274,8 @@ export interface HomeSmartConfig {
     plan?: boolean;
     /** Pro: covers of the media recently added to a library. */
     recent?: boolean;
+    /** Smart local home insight & anomaly card. */
+    insights?: boolean;
   };
   /** The "recently added" sensors of that card (Plex Recently Added, Jellyfin, Sonarr, Radarr...). */
   recent_media?: string[];
@@ -331,6 +338,8 @@ export interface HOMESMARTRoomOptions {
   temperature?: string;
   /** A humidity sensor shown beside the temperature on the room card (none by default). */
   humidity?: string;
+  /** Custom room theme swatch accent hex color. */
+  accent?: string;
 }
 
 export interface HomeSmartEntityOptions {
@@ -422,6 +431,10 @@ export interface HomeSmartCardStyle {
   sensor_since?: boolean;
   /** The lights button on room cards; on unless set to false. */
   room_power?: boolean;
+  /** Liquid Glass 2.0 frosting intensity & edge highlights. */
+  glass_depth?: GlassDepth;
+  /** Tactile vibration & spring gesture feedback on touch devices. */
+  haptics?: boolean;
 }
 
 export type HomeSmartBinColor = "black" | "brown" | "green" | "blue" | "yellow" | "grey" | "red";

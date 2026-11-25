@@ -23,9 +23,9 @@ export const useWideTile = () => useContext(WideTile);
  * whose card works as a one-line switch. Cameras, players, climate and the like need their room. */
 const NOT_SMALL = /^entity:(camera|media_player|climate|vacuum|plant|weather|water_heater|humidifier)\./;
 const canBeSmall = (key: string) => isSensorKey(key) || (key.startsWith("entity:") && !NOT_SMALL.test(key));
-type CardSize = "small" | "normal" | "double" | "large" | "x6" | "x8" | "c4" | "c9" | "c16";
-const SIZE_LABELS: Partial<Record<CardSize, TranslationKey>> = { small: "sizeSmall", normal: "sizeNormal", double: "sizeDouble", large: "sizeLarge" };
-const SIZE_MARKS: Record<CardSize, string> = { small: "½×", normal: "1×", double: "2×", large: "4×", x6: "6×", x8: "8×", c4: "4×", c9: "9×", c16: "16×" };
+type CardSize = "small" | "normal" | "double" | "tall1x2" | "banner3x1" | "large" | "x6" | "x8" | "c4" | "c9" | "c16";
+const SIZE_LABELS: Partial<Record<CardSize, TranslationKey>> = { small: "sizeSmall", normal: "sizeNormal", double: "sizeDouble", tall1x2: "sizeTall", banner3x1: "sizeBanner", large: "sizeLarge" };
+const SIZE_MARKS: Record<CardSize, string> = { small: "½×", normal: "1×", double: "2×", tall1x2: "1×2", banner3x1: "3×1", large: "4×", x6: "6×", x8: "8×", c4: "4×", c9: "9×", c16: "16×" };
 const CELLS: Partial<Record<CardSize, number>> = { x6: 6, x8: 8, c4: 4, c9: 9, c16: 16 };
 const isCamera = (key: string) => key.startsWith("entity:camera.");
 
@@ -362,38 +362,45 @@ export function EditableGrid({ addLabel, roomScreen, cameraGrid, className, edit
     const item = byKey.get(key);
     if (!item) return null;
     const section = isSectionKey(key);
-    const wide = !section && layout.wide.includes(key);
-    const tall = wide && (layout.tall ?? []).includes(key);
-    const small = !section && !wide && canBeSmall(key) && (layout.small ?? []).includes(key);
+    const bento = !section ? layout.bento?.[key] : undefined;
+    const wide = !section && (layout.wide.includes(key) || bento === "2x1" || bento === "2x2" || bento === "3x1");
+    const tall = wide && ((layout.tall ?? []).includes(key) || bento === "2x2");
+    const bentoClass = bento && bento !== "1x1" && bento !== "2x1" && bento !== "2x2" ? `hd-item--bento-${bento}` : "";
+    const small = !section && !wide && !bento && canBeSmall(key) && (layout.small ?? []).includes(key);
     const cells = !section ? layout.cells?.[key] : undefined;
     // On a camera page a size can't be larger than the columns the page has now.
     const pageCells = cameraGrid && cells ? Math.min(cells, cameraGrid * cameraGrid) : undefined;
     const size: CardSize = cameraGrid
       ? pageCells === 16 ? "c16" : pageCells === 9 ? "c9" : pageCells === 4 ? "c4" : "normal"
+      : bento === "3x1" ? "banner3x1"
+      : bento === "1x2" ? "tall1x2"
       : wide && isCamera(key) && cells === 8 ? "x8" : wide && isCamera(key) && cells === 6 ? "x6" : small ? "small" : tall ? "large" : wide ? "double" : "normal";
     const without = (list?: string[]) => (list ?? []).filter((entry) => entry !== key);
     // The size badge opens a menu with every size (small only for sensors), the current one marked.
     // Largest at the top, so the stack grows up from the button.
     const sizes: CardSize[] = cameraGrid
       ? [...(cameraGrid >= 4 ? ["c16" as const] : []), ...(cameraGrid >= 3 ? ["c9" as const] : []), ...(cameraGrid >= 2 ? ["c4" as const] : []), "normal"]
-      : isCamera(key) ? ["x8", "x6", "large", "double", "normal"]
-      : canBeSmall(key) ? ["large", "double", "normal", "small"] : ["large", "double", "normal"];
+      : isCamera(key) ? ["x8", "x6", "banner3x1", "large", "tall1x2", "double", "normal"]
+      : canBeSmall(key) ? ["banner3x1", "large", "tall1x2", "double", "normal", "small"] : ["banner3x1", "large", "tall1x2", "double", "normal"];
     const choose = (next: CardSize) => {
       setSizing(null);
       if (next === size) return;
       if (next !== "normal" && !plan.pro) { plan.upsell("feature"); return; }
       const big = next === "large" || next === "x6" || next === "x8";
       const { [key]: _old, ...otherCells } = layout.cells ?? {};
+      const { [key]: _oldBento, ...otherBento } = layout.bento ?? {};
+      const nextBento = next === "banner3x1" ? "3x1" : next === "tall1x2" ? "1x2" : undefined;
       onLayout({
         ...layout,
         cells: CELLS[next] ? { ...otherCells, [key]: CELLS[next]! } : otherCells,
-        wide: !cameraGrid && (next === "double" || big) ? [...without(layout.wide), key] : without(layout.wide),
+        bento: nextBento ? { ...otherBento, [key]: nextBento } : otherBento,
+        wide: !cameraGrid && (next === "double" || big || next === "banner3x1") ? [...without(layout.wide), key] : without(layout.wide),
         tall: !cameraGrid && big ? [...without(layout.tall), key] : without(layout.tall),
         small: next === "small" ? [...without(layout.small), key] : without(layout.small),
       });
     };
     return <div
-      className={`hd-item ${wide ? "hd-item--wide" : ""} ${tall ? "hd-item--tall" : ""} ${small ? "hd-item--small" : ""} ${sizing === key ? "hd-item--sizing" : ""} ${customize?.restricted(key) ? "hd-item--restricted" : ""} ${size === "x6" || size === "x8" ? `hd-item--${size}` : ""} ${pageCells ? `hd-item--c${pageCells}` : ""} ${section ? "hd-item--section" : ""} ${dragKey === key ? "hd-item--dragging" : ""}`}
+      className={`hd-item ${wide ? "hd-item--wide" : ""} ${tall ? "hd-item--tall" : ""} ${bentoClass} ${small ? "hd-item--small" : ""} ${sizing === key ? "hd-item--sizing" : ""} ${customize?.restricted(key) ? "hd-item--restricted" : ""} ${size === "x6" || size === "x8" ? `hd-item--${size}` : ""} ${pageCells ? `hd-item--c${pageCells}` : ""} ${section ? "hd-item--section" : ""} ${dragKey === key ? "hd-item--dragging" : ""}`}
       data-hd-key={key}
       key={key}
       onPointerDown={start(key)}

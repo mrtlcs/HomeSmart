@@ -33,12 +33,22 @@ export function IconChooser({ action, children, current, label }: { action: stri
   </>;
 }
 
+const ROOM_SWATCHES = ["#60a5fa", "#a78bfa", "#fb923c", "#34d399", "#f472b6", "#2dd4bf", "#fbbf24"];
+
 /** Edit mode, on a room: its icon and the sensor that gives its temperature. "Automatic" keeps the
  * icon guessed from the name and the temperature of the climate device, as before. */
 export function RoomOptions({ allRooms, compact, hass, room, t }: { allRooms: Room[]; compact?: { on: boolean; onChange: (on: boolean) => void }; hass: HomeAssistant; room: Room; t: (key: TranslationKey) => string }) {
   const customize = useCustomize();
+  const [copiedLink, setCopiedLink] = useState(false);
   if (!customize || room.id === "__unassigned__") return null;
   const chosen = room.display_icon ?? "";
+  const deepLinkUrl = typeof window !== "undefined" ? `${window.location.origin}${window.location.pathname}#hs-room=${encodeURIComponent(room.id)}` : `#hs-room=${encodeURIComponent(room.id)}`;
+  const copyDeepLink = () => {
+    void navigator.clipboard?.writeText(deepLinkUrl).then(() => {
+      setCopiedLink(true);
+      window.setTimeout(() => setCopiedLink(false), 2000);
+    }).catch(() => undefined);
+  };
   const areaIcon = room.icon && room.icon.includes(":") && typeof customElements !== "undefined" && customElements.get("ha-icon") ? room.icon : null;
   // The room's own temperature sensors first, then the others with their room's name.
   const own = new Set(room.entities.map((entity) => entity.entity_id));
@@ -76,6 +86,22 @@ export function RoomOptions({ allRooms, compact, hass, room, t }: { allRooms: Ro
       <HDSelect ariaLabel={t("roomHumidity")} className="room-options__select" onChange={(humidity) => customize.setRoom(room.id, { humidity })} options={humidityOptions} value={room.humidity_entity ?? ""} />
     </label>}
     {compact && <label className="hd-detail__confirm room-options__compact"><span><b>{t("compactSensors")}</b><small>{t("compactSensorsDescription")}</small></span><input checked={compact.on} className="st-switch" onChange={(event) => compact.onChange(event.target.checked)} type="checkbox" /></label>}
+    <div className="room-options__row">
+      <span className="eyebrow">{t("roomTheme")}</span>
+      <div aria-label={t("roomTheme")} className="hs-room-swatches" role="radiogroup">
+        <button aria-checked={!room.accent} aria-label={t("roomThemeAuto")} className={`hs-color-swatch hs-color-swatch--auto${!room.accent ? " hs-color-swatch--on" : ""}`} onClick={() => customize.setRoom(room.id, { accent: "" })} role="radio" title={t("roomThemeAuto")} type="button"><HDIcon name="palette" size={13} /></button>
+        {ROOM_SWATCHES.map((hex) => (
+          <button aria-checked={room.accent === hex} aria-label={hex} className={`hs-color-swatch${room.accent === hex ? " hs-color-swatch--on" : ""}`} key={hex} onClick={() => customize.setRoom(room.id, { accent: hex })} role="radio" style={{ background: hex }} type="button" />
+        ))}
+      </div>
+    </div>
+    <div className="room-options__row">
+      <span className="eyebrow">{t("deepLinksTitle")}</span>
+      <div className="hs-deeplink-row">
+        <code>{deepLinkUrl}</code>
+        <button className="hd-pill" onClick={copyDeepLink} type="button">{copiedLink ? t("deepLinkCopied") : t("deepLinkCopy")}</button>
+      </div>
+    </div>
     <AudienceEditor hass={hass} itemKey={`room:${room.id}`} t={t} />
   </section>;
 }

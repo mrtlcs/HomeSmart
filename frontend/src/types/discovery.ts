@@ -80,6 +80,8 @@ export interface Room {
   /** Sensor chosen for the room's temperature; none: the climate device, as before. */
   temperature_entity?: string;
   humidity_entity?: string;
+  /** Custom room theme swatch accent hex color. */
+  accent?: string;
 }
 
 export interface DiscoveryResponse {

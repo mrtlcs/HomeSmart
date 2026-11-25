@@ -189,7 +189,9 @@ export function RoomSummaryCard({ room, hass, language, t, onClick }: RoomSummar
     <button
       aria-label={`${roomName}: ${summaryText}`}
       className={cardClasses}
+      data-room-accent={room.accent || undefined}
       onClick={onClick}
+      style={room.accent ? ({ "--room-theme": room.accent } as CSSProperties) : undefined}
       type="button"
     >
       <div className="hs-room-summary__top">

@@ -28,6 +28,7 @@ export function extraWidgets(config: HomeSmartConfig, hass: HomeAssistant): Widg
   if (config.widgets?.bins && (config.bins ?? []).some((bin) => bin.entity && hass.states[bin.entity])) keys.push("widget:bins");
   if (config.widgets?.plan && config.navigation?.plan) keys.push("widget:plan");
   if (config.widgets?.recent && (config.recent_media ?? []).some((id) => hass.states[id])) keys.push("widget:recent");
+  if (config.widgets?.insights) keys.push("widget:insights");
   return keys;
 }
 

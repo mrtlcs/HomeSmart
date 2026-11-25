@@ -53,25 +53,18 @@ export function VersionModal({
         if (!cancelled) {
           setReleases([
             {
-              body: `${t("versionReleaseLabel")} v1.5.0`,
-              name: "v1.5.0 - System Monitor & Large MDI Icons",
-              published_at: "2026-11-23",
-              tag_name: "v1.5.0",
-              zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v1.5.0/homesmart.zip",
+              body: `${t("versionReleaseLabel")} v2.0.0`,
+              name: "v2.0.0 - Next-Gen Adaptive Dashboard (Circadian, Bento, AI Insights)",
+              published_at: "2026-11-25",
+              tag_name: "v2.0.0",
+              zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v2.0.0/homesmart.zip",
             },
             {
-              body: `${t("versionReleaseLabel")} v1.4.0`,
-              name: "v1.4.0 - Touch-Swipe Navigation & Bubble Sliders",
-              published_at: "2026-11-23",
-              tag_name: "v1.4.0",
-              zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v1.4.0/homesmart.zip",
-            },
-            {
-              body: `${t("versionReleaseLabel")} v1.3.2`,
-              name: "v1.3.2 - Stable Release",
-              published_at: "2026-11-20",
-              tag_name: "v1.3.2",
-              zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v1.3.2/homesmart.zip",
+              body: `${t("versionReleaseLabel")} v1.6.3`,
+              name: "v1.6.3 - System Monitor Styles & Multi-Language Sync",
+              published_at: "2026-11-25",
+              tag_name: "v1.6.3",
+              zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v1.6.3/homesmart.zip",
             },
           ]);
         }

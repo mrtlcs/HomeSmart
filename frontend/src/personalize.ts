@@ -46,6 +46,7 @@ export function personalize(data: DiscoveryResponse, names: HomeSmartConfig["nam
         display_icon: typeof own.icon === "string" && own.icon ? own.icon : haRoomIcons && room.icon?.includes(":") ? "ha" : undefined,
         temperature_entity: typeof own.temperature === "string" && own.temperature ? own.temperature : undefined,
         humidity_entity: typeof own.humidity === "string" && own.humidity ? own.humidity : undefined,
+        accent: typeof own.accent === "string" && own.accent ? own.accent : undefined,
         entities: room.entities.map((entity) => {
           const nickname = nicknames[entity.entity_id];
           const own = perEntity[entity.entity_id] ?? {};

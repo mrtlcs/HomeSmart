@@ -1,7 +1,7 @@
 {
   "name": "homesmart-frontend",
   "private": true,
-  "version": "1.6.3",
+  "version": "2.0.0",
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && vite build",

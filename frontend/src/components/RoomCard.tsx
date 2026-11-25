@@ -33,7 +33,10 @@ export function RoomCard({ featured = false, hass, index, room, t, onOpen }: Roo
   const unavailable = room.entities.length > 0 && room.entities.every((entity) => ["unavailable", "unknown"].includes(hass.states[entity.entity_id]?.state));
   const temperature = roomTemperature(hass, room);
   const active = activeLights.length > 0;
-  const accentStyle = { "--room-accent": ACCENTS[index % ACCENTS.length] } as CSSProperties;
+  const accentStyle = {
+    "--room-accent": room.accent || ACCENTS[index % ACCENTS.length],
+    ...(room.accent ? { "--room-theme": room.accent } : {}),
+  } as CSSProperties;
   const roomName = room.id === "__unassigned__" ? t("unassigned") : room.name;
   const lightIds = useMemo(() => lights.map((light) => light.entity_id), [lights]);
 
@@ -48,7 +51,11 @@ export function RoomCard({ featured = false, hass, index, room, t, onOpen }: Roo
   };
 
   return (
-    <article className={`room-card ${active ? "room-card--active" : ""} ${featured ? "room-card--featured" : ""} ${unavailable ? "room-card--unavailable" : ""}`} style={accentStyle}>
+    <article
+      className={`room-card ${active ? "room-card--active" : ""} ${featured ? "room-card--featured" : ""} ${unavailable ? "room-card--unavailable" : ""}`}
+      data-room-accent={room.accent || undefined}
+      style={accentStyle}
+    >
       {/* A big faded drawing of the room's icon, only shown by the Kids layout. */}
       <span aria-hidden="true" className="room-card__art"><RoomIcon room={room} size={96} /></span>
       <button aria-label={`${t("openRoom")} ${roomName}`} className="room-card__open" onClick={onOpen} type="button"><span /></button>

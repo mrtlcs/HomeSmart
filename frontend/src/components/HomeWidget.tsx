@@ -22,6 +22,7 @@ import type { HomeSmartConfig } from "../types/config";
 import { TodayCard } from "./Agenda";
 import { EnergyWidget, SunWidget, WeatherWidget } from "./ExtraWidgets";
 import { PlanWidget } from "./FloorPlan";
+import { AIInsightsCard } from "./AIInsightsCard";
 
 function uniqueEntities(data: DiscoveryResponse): DiscoveredEntity[] {
   const seen = new Set<string>();
@@ -50,6 +51,7 @@ export const WIDGET_LABELS: Record<WidgetKey, TranslationKey> = {
   "widget:bins": "binsCard",
   "widget:plan": "floorplan",
   "widget:recent": "recentMedia",
+  "widget:insights": "aiInsightTitle",
 };
 
 interface HomeWidgetProps {
@@ -70,6 +72,7 @@ export function HomeWidget(props: HomeWidgetProps) {
   if (props.kind === "widget:recent") return <RecentMediaCard config={props.config} hass={props.hass} onOpen={props.onOpen} t={props.t} />;
   if (props.kind === "widget:plan") return <PlanWidget config={props.config} data={props.data} hass={props.hass} t={props.t} />;
   if (props.kind === "widget:energy") return <EnergyWidget config={props.config} hass={props.hass} language={props.language} onOpen={props.onOpen} t={props.t} />;
+  if (props.kind === "widget:insights") return <AIInsightsCard config={props.config} data={props.data} hass={props.hass} language={props.language} onOpen={props.onOpen} t={props.t} />;
   return <DeviceWidget {...props} />;
 }
 

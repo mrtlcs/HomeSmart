@@ -273,6 +273,7 @@ export function FloorPlan(props: ScreenProps & { embedded?: boolean; onOpenRoom:
   // 3D: the plan tilted back, kept per device (a wall tablet can show it, a phone not).
   const stage = useRef<HTMLDivElement>(null);
   const [threeD, setThreeD] = useState(() => { try { return window.localStorage.getItem(THREE_D_KEY) === "1"; } catch { return false; } });
+  const [thermal, setThermal] = useState(false);
   // The view: tilt and turn (3D), zoom and pan, changed with the fingers or the mouse and kept per device.
   const [view, setView] = useState<View>(() => {
     try { const saved = JSON.parse(window.localStorage.getItem(VIEW_KEY) ?? "null") as View | null; if (saved && typeof saved.zoom === "number") return saved; } catch { /* default below */ }
@@ -557,6 +558,9 @@ export function FloorPlan(props: ScreenProps & { embedded?: boolean; onOpenRoom:
       {floors.length > 1 && <HDSegmented ariaLabel={t("floorplan")} onChange={setFloorKey} options={floors.map((item) => ({ value: item.key, label: floorName(item.key) }))} value={floor?.key ?? ""} />}
       {!editing && <div className="fp-tools">
         {changed && <button aria-label={t("floorplanResetView")} className="hd-pill" onClick={resetView} type="button"><HDIcon name="refresh" size={14} />{t("floorplanResetView")}</button>}
+        <button aria-label={t("floorplanZoomOut")} className="hd-pill" onClick={() => { const next = { ...view, zoom: clamp(view.zoom / 1.25, 0.6, 3.5) }; setView(next); keepView(next); }} type="button">−</button>
+        <button aria-label={t("floorplanZoomIn")} className="hd-pill" onClick={() => { const next = { ...view, zoom: clamp(view.zoom * 1.25, 0.6, 3.5) }; setView(next); keepView(next); }} type="button">+</button>
+        <button aria-pressed={thermal} className={`hd-pill${thermal ? " fp-3d-toggle--on" : ""}`} onClick={() => setThermal((v) => !v)} type="button"><HDIcon name="flame" size={13} />{t("floorplanThermal")}</button>
         <button aria-pressed={threeD} className={`hd-pill fp-3d-toggle${threeD ? " fp-3d-toggle--on" : ""}`} onClick={toggle3D} type="button">3D</button>
       </div>}
       {editing && <div className="fp-tools">
@@ -594,21 +598,24 @@ export function FloorPlan(props: ScreenProps & { embedded?: boolean; onOpenRoom:
           const lights = devices.filter((entity) => entity.domain === "light");
           const lit = lights.filter((entity) => hass.states[entity.entity_id]?.state === "on");
           const glow = lights.length === 0 ? 0 : lit.length / lights.length;
-          const temperature = room.entities.find((entity) => entity.domain === "sensor" && entity.device_class === "temperature");
+          const temperature = room.temperature_entity ? room.entities.find((e) => e.entity_id === room.temperature_entity) : room.entities.find((entity) => entity.domain === "sensor" && entity.device_class === "temperature");
           const temperatureState = temperature ? hass.states[temperature.entity_id] : undefined;
+          const tempNumeric = temperatureState ? Number.parseFloat(temperatureState.state) : Number.NaN;
           const loc = safeIntlLocale(language);
           const temperatureText = temperatureState && Number.isFinite(Number(temperatureState.state)) ? `${new Intl.NumberFormat(loc, { maximumFractionDigits: 1 }).format(Number(temperatureState.state))}°` : null;
+          const thermalColor = !Number.isFinite(tempNumeric) ? undefined : tempNumeric < 22 ? "#60a5fa" : tempNumeric < 26 ? "#34d399" : tempNumeric < 29 ? "#fbbf24" : "#f87171";
           const motion = room.entities.some((entity) => entity.domain === "binary_sensor" && MOTION.has(entity.device_class ?? "") && hass.states[entity.entity_id]?.state === "on");
           const open = room.entities.some((entity) => entity.domain === "binary_sensor" && OPENINGS.has(entity.device_class ?? "") && hass.states[entity.entity_id]?.state === "on");
           const auto = autoSpots(devices.length, box, upright);
-          const roomClass = `fp-room ${glow > 0 ? "fp-room--lit" : ""} ${motion ? "fp-room--motion" : ""} ${open ? "fp-room--open" : ""} ${parts.length > 0 ? "fp-room--joined" : ""}`;
+          const roomClass = `fp-room ${glow > 0 ? "fp-room--lit" : ""} ${motion ? "fp-room--motion" : ""} ${open ? "fp-room--open" : ""} ${thermal && thermalColor ? "fp-room--thermal" : ""} ${parts.length > 0 ? "fp-room--joined" : ""}`;
           const label = labelOf(room);
           // A room of several rectangles: its floor and walls drawn once for the whole shape.
           const shape = parts.length > 0 ? shapeOf([rect, ...parts], 2 / (upright ? unitY : unitX), 2 / (upright ? unitX : unitY), (x, y) => (upright ? [ROWS - y, x] : [x, y])) : null;
           return <Fragment key={room.id}>
             <section className={roomClass}
               onPointerDown={editing ? (event) => beginDrag(event, { kind: "move", id: room.id, rect, parts }) : undefined}
-              style={{ ...place(rect), "--fp-glow": glow } as CSSProperties}>
+              style={{ ...place(rect), "--fp-glow": glow, ...(thermal && thermalColor ? { "--fp-thermal-color": thermalColor } : {}) } as CSSProperties}>
+              {thermal && temperatureText && !editing && <span className="fp-thermal-pill">{temperatureText}</span>}
               {editing && <header className="fp-room__head">
                 <span>{showNames ? "" : room.name}</span>
                 {temperatureText && <span className="fp-room__temp">{temperatureText}</span>}

@@ -23,6 +23,7 @@ import { guardHass, type ChildLockState } from "./childLock";
 import { VIEW_MODES } from "./components/LayoutPicker";
 import { KIDS_SCENES } from "./components/KidsScene";
 import { keepAwakeWanted, startKeepAwake } from "./keepAwake";
+import { setHapticsEnabled } from "./haptics";
 import { createTranslator, normalizeLanguage } from "./i18n";
 import { inDesktopApp, reportLicenseToDesktop, wantsProSheet } from "./desktop";
 import { entityKey, getLayout, migrateLayouts, roomScreen, setHidden, withLayout } from "./layout";
@@ -193,8 +194,9 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const devView = useDevicePref(deviceViewMode);
   const devBackground = useDevicePref(deviceBackground);
   const devKids = useDevicePref(deviceKidsScene);
-  // Every clock and time follows the chosen format (or the Home Assistant profile's).
+  // Every clock, haptics and time follows the chosen format (or the Home Assistant profile's).
   setClockFormat(config?.preferences?.clock, hass.locale?.time_format);
+  setHapticsEnabled(config?.cards?.haptics !== false);
   const view = useMemo(() => (config ? effectiveConfig(onThisDevice(config, devView, devBackground, devKids), pro) : null), [config, pro, devView, devBackground, devKids]);
 
   const plan = useMemo<PlanState>(() => ({
@@ -218,7 +220,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     return {
     lookup: (entityId: string) => byId.get(entityId),
     rename: (entityId: string, name: string, original: string) => void updateConfig((current) => withNickname(current, entityId, name, original)),
-    setRoom: (roomId: string, change: { icon?: string; temperature?: string }) => void updateConfig((current) => withRoomOptions(current, roomId, change)),
+    setRoom: (roomId: string, change: { icon?: string; temperature?: string; humidity?: string; accent?: string }) => void updateConfig((current) => withRoomOptions(current, roomId, change)),
     setEntity: (entityId: string, change: HomeSmartEntityOptions) => void updateConfig((current) => withEntityOptions(current, entityId, change)),
     rooms: () => data?.rooms ?? [],
     restricted: (itemKey: string) => Boolean(hass.user && hiddenFor?.[itemKey]?.includes(hass.user.id)),
@@ -359,11 +361,31 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     };
   }, [view, data, allowed, pro]);
 
-  // Cards that open a page (the floor plan card) ask for it with an event, as they don't hold the navigation.
+  // Cards, rich notifications and companion deep links (?hs_room= / #hs-room= / #hs-page=) navigate via events & URL.
   useEffect(() => {
     const go = (event: Event) => { const page = (event as CustomEvent<string>).detail; if (typeof page === "string") { setSelectedRoomId(null); setActivePage(page); } };
+    const goRoom = (event: Event) => { const roomId = (event as CustomEvent<string>).detail; if (typeof roomId === "string" && roomId) { setSelectedRoomId(roomId); setActivePage("rooms"); } };
+    const applyDeepLink = () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const hash = window.location.hash;
+        const hashRoom = /hs-room=([^&]+)/.exec(hash)?.[1];
+        const hashPage = /hs-page=([^&]+)/.exec(hash)?.[1];
+        const roomParam = params.get("hs_room") ?? (hashRoom ? decodeURIComponent(hashRoom) : null);
+        const pageParam = params.get("hs_page") ?? (hashPage ? decodeURIComponent(hashPage) : null);
+        if (roomParam) { setSelectedRoomId(roomParam); setActivePage("rooms"); }
+        else if (pageParam) { setSelectedRoomId(null); setActivePage(pageParam); }
+      } catch { /* ignore malformed URLs */ }
+    };
+    applyDeepLink();
     window.addEventListener("HOMESMART-navigate", go);
-    return () => window.removeEventListener("HOMESMART-navigate", go);
+    window.addEventListener("HOMESMART-open-room", goRoom);
+    window.addEventListener("hashchange", applyDeepLink);
+    return () => {
+      window.removeEventListener("HOMESMART-navigate", go);
+      window.removeEventListener("HOMESMART-open-room", goRoom);
+      window.removeEventListener("hashchange", applyDeepLink);
+    };
   }, []);
   const navigate = useCallback((page: HomeSmartPage) => {
     if (page === "rooms") {
@@ -399,6 +421,14 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
       <main className="screen center-state">
         <span className="loader-mark"><HDIcon name="home" size={26} /></span>
         <p>{t("loading")}</p>
+        <div aria-hidden="true" className="hs-skeleton-grid">
+          <div className="hs-skeleton hs-skeleton--wide" />
+          <div className="hs-skeleton hs-skeleton--tall" />
+          <div className="hs-skeleton" />
+          <div className="hs-skeleton" />
+          <div className="hs-skeleton" />
+          <div className="hs-skeleton" />
+        </div>
         <button
           className="secondary-button"
           style={{ marginTop: 20, opacity: 0.85 }}
