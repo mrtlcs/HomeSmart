@@ -346,6 +346,13 @@ async def websocket_floorplan_upload(
 GITHUB_RELEASES_URL = "https://api.github.com/repos/mrtlcs/HomeSmart/releases"
 FALLBACK_RELEASES = [
     {
+        "tag_name": "v2.2.2",
+        "name": "v2.2.2 - Drag-to-Reorder Tabs in Photo & Sidebar Layouts",
+        "published_at": "2026-11-25T04:25:00Z",
+        "body": "Added horizontal and vertical drag-and-drop tab reordering in Edit mode for Photo and Sidebar layouts, matching the bottom navigation dock.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v2.2.2/homesmart.zip",
+    },
+    {
         "tag_name": "v2.2.1",
         "name": "v2.2.1 - Dreame Robot Vacuum Card & Studio Redesign",
         "published_at": "2026-11-25T03:56:00Z",

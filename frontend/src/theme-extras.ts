@@ -8,6 +8,12 @@ export const themeExtras = String.raw`
 .app-shell .navigation-dock--editing { touch-action: none; outline: 1.5px dashed color-mix(in srgb, var(--ink) 35%, transparent); outline-offset: calc(var(--u)*.4); }
 .app-shell .navigation-dock--editing button[data-tab] { cursor: grab; background: color-mix(in srgb, var(--ink) 8%, transparent); user-select: none; -webkit-user-select: none; }
 .app-shell .navigation-dock--editing button.navigation-dock__dragging { cursor: grabbing; background: var(--paper); color: var(--paper-ink); }
+.app-shell .ph-tabs--editing { touch-action: none; outline: 1.5px dashed color-mix(in srgb, var(--ink) 35%, transparent); outline-offset: 2px; }
+.app-shell .ph-tabs--editing button[data-tab] { cursor: grab; background: color-mix(in srgb, var(--ink) 8%, transparent); user-select: none; -webkit-user-select: none; }
+.app-shell .ph-tabs--editing button.ph-tabs__dragging { cursor: grabbing; background: var(--paper); color: var(--paper-ink); }
+.app-shell .sb-links--editing { touch-action: none; outline: 1.5px dashed color-mix(in srgb, var(--ink) 28%, transparent); outline-offset: 4px; border-radius: calc(var(--u)*1.8*var(--hd-r,1)); padding: calc(var(--u)*1.2) calc(var(--u)*.6) calc(var(--u)*.6); }
+.app-shell .sb-links--editing button[data-tab] { cursor: grab; background: color-mix(in srgb, var(--ink) 7%, transparent); user-select: none; -webkit-user-select: none; }
+.app-shell .sb-links--editing button.sb-links__dragging { cursor: grabbing; background: var(--paper); color: var(--paper-ink); }
 .app-shell .edit-fab {
   position: fixed; right: calc(var(--u)*4); bottom: var(--dock-bottom); z-index: 21; width: var(--dock-height); height: var(--dock-height);
   display: inline-flex; align-items: center; justify-content: center; padding: 0; border-radius: var(--hd-round,50%);

@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { useState } from "react";
+import type { PointerEvent as ReactPointerEvent, ReactNode } from "react";
+import { useRef, useState } from "react";
 import { ContextHeader } from "../../components/ContextHeader";
 import { EditableGrid } from "../../components/EditableGrid";
 import { EntityCard } from "../../components/EntityCard";
@@ -34,6 +34,53 @@ interface SidebarLayoutProps extends ScreenProps {
 export function SidebarLayout(props: SidebarLayoutProps) {
   const { allRooms, config, custom, customId, data, editing, hass, language, links, onAddPage, onNavigate, onSelectRoom, page, roomId, t } = props;
   const [modalEntity, setModalEntity] = useState<DiscoveredEntity | null>(null);
+  const linkNavRef = useRef<HTMLElement>(null);
+  const [draggingLink, setDraggingLink] = useState<string | null>(null);
+  const [liveLinkOrder, setLiveLinkOrder] = useState<string[] | null>(null);
+  const linkOrderRef = useRef<string[] | null>(null);
+  const linkStartY = useRef(0);
+  const didDragLink = useRef(false);
+  const shownLinks = liveLinkOrder
+    ? liveLinkOrder.map((id) => links.find((l) => l.id === id)).filter((l): l is NavLink => Boolean(l))
+    : links;
+
+  const startLinkDrag = (event: ReactPointerEvent, id: string) => {
+    if (!editing) return;
+    event.preventDefault();
+    linkNavRef.current?.setPointerCapture(event.pointerId);
+    linkStartY.current = event.clientY;
+    didDragLink.current = false;
+    linkOrderRef.current = links.map((l) => l.id);
+    setDraggingLink(id);
+    setLiveLinkOrder(linkOrderRef.current);
+  };
+  const moveLinkDrag = (event: ReactPointerEvent) => {
+    const cur = linkOrderRef.current;
+    if (!draggingLink || !cur || !linkNavRef.current) return;
+    if (Math.abs(event.clientY - linkStartY.current) > 5) didDragLink.current = true;
+    const over = [...linkNavRef.current.querySelectorAll<HTMLElement>("[data-tab]")].find((btn) => {
+      const box = btn.getBoundingClientRect();
+      return event.clientY >= box.top && event.clientY <= box.bottom;
+    })?.dataset.tab;
+    if (!over || over === draggingLink) return;
+    const next = cur.filter((id) => id !== draggingLink);
+    next.splice(cur.indexOf(over), 0, draggingLink);
+    linkOrderRef.current = next;
+    setLiveLinkOrder(next);
+  };
+  const endLinkDrag = () => {
+    const next = linkOrderRef.current;
+    linkOrderRef.current = null;
+    if (next && next.join() !== links.map((l) => l.id).join()) {
+      const merged = [
+        ...(config.navigation.rooms ? ["rooms"] : []),
+        ...next,
+      ];
+      props.onConfig((current) => ({ ...current, navigation: { ...current.navigation, order: merged } }));
+    }
+    setDraggingLink(null);
+    setLiveLinkOrder(null);
+  };
   const roomList = useSidebarRoomList(props);
   const room = roomList.rooms.find((item) => item.id === roomId);
   const { roomName } = entityIndex(allRooms);
@@ -62,10 +109,36 @@ export function SidebarLayout(props: SidebarLayoutProps) {
           t={t}
         />
       </nav>
-      {(links.length > 0 && !editing) || (editing && onAddPage) ? <nav className="sb-links" aria-label={t("pages")}>
-        {!editing && links.map((link) => <button aria-current={(page && pageId(page) === link.id) || customId === link.id ? "page" : undefined} key={link.id} onClick={() => onNavigate(link.id)} type="button"><HDIcon name={link.icon} size={16} /><span>{link.label}</span></button>)}
-        {editing && onAddPage && <button className="sb-links__add" onClick={onAddPage} type="button"><HDIcon name="plus" size={16} /><span>{t("createTab")}</span></button>}
-      </nav> : null}
+      {links.length > 0 || (editing && onAddPage) ? (
+        <nav
+          aria-label={t("pages")}
+          className={editing ? "sb-links sb-links--editing" : "sb-links"}
+          onLostPointerCapture={endLinkDrag}
+          onPointerMove={moveLinkDrag}
+          onPointerUp={endLinkDrag}
+          ref={linkNavRef}
+        >
+          {shownLinks.map((link) => (
+            <button
+              aria-current={(page && pageId(page) === link.id) || customId === link.id ? "page" : undefined}
+              aria-label={editing ? `${link.label}: ${t("dragToReorder")}` : link.label}
+              className={draggingLink === link.id ? "sb-links__dragging" : undefined}
+              data-tab={link.id}
+              key={link.id}
+              onClick={() => {
+                if (didDragLink.current) { didDragLink.current = false; return; }
+                onNavigate(link.id);
+              }}
+              onPointerDown={editing ? (event) => startLinkDrag(event, link.id) : undefined}
+              type="button"
+            >
+              <HDIcon name={editing ? "grip" : link.icon} size={16} />
+              <span>{link.label}</span>
+            </button>
+          ))}
+          {editing && onAddPage && <button className="sb-links__add" onClick={onAddPage} type="button"><HDIcon name="plus" size={16} /><span>{t("createTab")}</span></button>}
+        </nav>
+      ) : null}
     </aside>
 
     <section className="sb-main" key={customId ?? (page ? pageId(page) : room?.id ?? "home")}>

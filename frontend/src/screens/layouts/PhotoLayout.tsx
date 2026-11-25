@@ -1,4 +1,4 @@
-import type { CSSProperties, MouseEvent, ReactNode } from "react";
+import type { CSSProperties, MouseEvent, PointerEvent as ReactPointerEvent, ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { hourOptions } from "../../clock";
 import { ContextHeader } from "../../components/ContextHeader";
@@ -92,11 +92,64 @@ export function PhotoLayout(props: PhotoLayoutProps) {
   const capital = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
   const litText = (count: number, total: number) => (total === 0 ? "" : count === 0 ? t("allOff") : t("roomLitOf").replace("{on}", String(count)).replace("{total}", String(total)));
 
+  const tabNavRef = useRef<HTMLElement>(null);
+  const [draggingTab, setDraggingTab] = useState<string | null>(null);
+  const [liveTabOrder, setLiveTabOrder] = useState<string[] | null>(null);
+  const tabOrderRef = useRef<string[] | null>(null);
+  const dragStartX = useRef(0);
+  const didDragTab = useRef(false);
+
+  const orderedLinks = liveTabOrder
+    ? liveTabOrder.map((id) => links.find((l) => l.id === id)).filter((l): l is NavLink => Boolean(l))
+    : links;
+
   const tabs: Array<{ id: string; label: string; icon: IconName; go: () => void }> = [
     { id: "home", label: t("home"), icon: "home", go: () => onGo("home") },
-    ...links.map((link) => ({ id: link.id, label: link.label, icon: link.icon, go: () => onGo(link.id) })),
+    ...orderedLinks.map((link) => ({ id: link.id, label: link.label, icon: link.icon, go: () => onGo(link.id) })),
   ];
   const active = current === "rooms" ? "home" : current;
+
+  const startTabDrag = (event: ReactPointerEvent, id: string) => {
+    if (!editing) return;
+    event.preventDefault();
+    tabNavRef.current?.setPointerCapture(event.pointerId);
+    dragStartX.current = event.clientX;
+    didDragTab.current = false;
+    tabOrderRef.current = links.map((l) => l.id);
+    setDraggingTab(id);
+    setLiveTabOrder(tabOrderRef.current);
+  };
+  const moveTabDrag = (event: ReactPointerEvent) => {
+    const cur = tabOrderRef.current;
+    if (!draggingTab || !cur || !tabNavRef.current) return;
+    if (Math.abs(event.clientX - dragStartX.current) > 5) didDragTab.current = true;
+    const bar = tabNavRef.current.getBoundingClientRect();
+    const edge = Math.min(44, bar.width / 6);
+    if (event.clientX < bar.left + edge) tabNavRef.current.scrollLeft -= 10;
+    else if (event.clientX > bar.right - edge) tabNavRef.current.scrollLeft += 10;
+    const over = [...tabNavRef.current.querySelectorAll<HTMLElement>("[data-tab]")].find((btn) => {
+      const box = btn.getBoundingClientRect();
+      return event.clientX >= box.left && event.clientX <= box.right;
+    })?.dataset.tab;
+    if (!over || over === draggingTab) return;
+    const next = cur.filter((id) => id !== draggingTab);
+    next.splice(cur.indexOf(over), 0, draggingTab);
+    tabOrderRef.current = next;
+    setLiveTabOrder(next);
+  };
+  const endTabDrag = () => {
+    const next = tabOrderRef.current;
+    tabOrderRef.current = null;
+    if (next && next.join() !== links.map((l) => l.id).join()) {
+      const merged = [
+        ...(config.navigation.rooms ? ["rooms"] : []),
+        ...next,
+      ];
+      props.onConfig((current) => ({ ...current, navigation: { ...current.navigation, order: merged } }));
+    }
+    setDraggingTab(null);
+    setLiveTabOrder(null);
+  };
 
   const card = (entity: DiscoveredEntity) => <EntityCard entity={entity} hass={hass} language={language} onLongPress={setModalEntity} t={t} />;
   const allLights = (turnOn: boolean) => {
@@ -152,8 +205,35 @@ export function PhotoLayout(props: PhotoLayoutProps) {
     </aside>
     <section className="ph-panel">
       <div className="ph-bar">
-        <nav aria-label={t("navigation")} className="ph-tabs">
-          {tabs.map((tab) => <button aria-current={active === tab.id ? "page" : undefined} key={tab.id} onClick={tab.go} type="button"><HDIcon name={tab.icon} size={16} /><span>{tab.label}</span></button>)}
+        <nav
+          aria-label={t("navigation")}
+          className={editing ? "ph-tabs ph-tabs--editing" : "ph-tabs"}
+          onLostPointerCapture={endTabDrag}
+          onPointerMove={moveTabDrag}
+          onPointerUp={endTabDrag}
+          ref={tabNavRef}
+        >
+          {tabs.map((tab) => {
+            const movable = editing && tab.id !== "home";
+            return (
+              <button
+                aria-current={active === tab.id ? "page" : undefined}
+                aria-label={movable ? `${tab.label}: ${t("dragToReorder")}` : tab.label}
+                className={draggingTab === tab.id ? "ph-tabs__dragging" : undefined}
+                data-tab={tab.id !== "home" ? tab.id : undefined}
+                key={tab.id}
+                onClick={() => {
+                  if (didDragTab.current) { didDragTab.current = false; return; }
+                  tab.go();
+                }}
+                onPointerDown={movable ? (event) => startTabDrag(event, tab.id) : undefined}
+                type="button"
+              >
+                <HDIcon name={movable ? "grip" : tab.icon} size={16} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
           {editing && props.onAddPage && (
             <button className="ph-tabs__add" onClick={props.onAddPage} type="button">
               <HDIcon name="plus" size={16} /><span>{t("createTab")}</span>
