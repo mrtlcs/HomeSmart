@@ -96,7 +96,10 @@ export interface HOMESMARTFolder {
   layout?: ScreenLayout;
 }
 
-/** A card with several entities, one per line, each with its value or control. */
+/** Visual layout modes for a grouped Multi-Sensor Container (EntityList). */
+export type EntityListStyle = "rows" | "tiles" | "rings" | "hero_chips" | "grid_2col";
+
+/** A card with several entities, one per line or grouped into metric tiles / progress rings. */
 export interface HomeSmartEntityList {
   title: string;
   entities: string[];
@@ -104,6 +107,10 @@ export interface HomeSmartEntityList {
   names?: Record<string, string>;
   /** Its entities leave the other cards of the same screen. */
   hide_cards?: boolean;
+  /** Visual layout style inside the container ("rows" default, "tiles" dual/grid boxes, "rings", "hero_chips", "grid_2col"). */
+  style?: EntityListStyle;
+  /** Custom hex accent colors per entity inside tiles / rings modes. */
+  colors?: Record<string, string>;
 }
 
 export interface HomeSmartConfig {
@@ -192,6 +199,8 @@ export interface HomeSmartConfig {
     security: boolean;
     cameras?: boolean;
     system?: boolean;
+    /** Dedicated Robot Vacuum control screen (auto-shown when vacuum entities exist). */
+    vacuum?: boolean;
     /** Pro: the floor plan page. */
     plan?: boolean;
     /** The floor plan's name, on its tab and its card (default: "Floor plan" / "Home floor plan"). */

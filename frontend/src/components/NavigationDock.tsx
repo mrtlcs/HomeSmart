@@ -24,7 +24,7 @@ export function orderTabs<T extends { id: string }>(tabs: T[], order: string[] =
 }
 
 /** The bottom bar. Home stays first; in Edit mode the other tabs are dragged sideways to reorder them. */
-export function NavigationDock({ active, config, editing, hasMedia, hasScenes, hasSecurity, hasCameras, onNavigate, onOrder, t }: { active: HomeSmartPage; config: HomeSmartConfig; editing: boolean; hasMedia: boolean; hasScenes: boolean; hasSecurity: boolean; hasCameras: boolean; onNavigate: (page: HomeSmartPage) => void; onOrder: (order: string[]) => void; t: (key: TranslationKey) => string }) {
+export function NavigationDock({ active, config, editing, hasMedia, hasScenes, hasSecurity, hasCameras, hasVacuums, onNavigate, onOrder, t }: { active: HomeSmartPage; config: HomeSmartConfig; editing: boolean; hasMedia: boolean; hasScenes: boolean; hasSecurity: boolean; hasCameras: boolean; hasVacuums?: boolean; onNavigate: (page: HomeSmartPage) => void; onOrder: (order: string[]) => void; t: (key: TranslationKey) => string }) {
   const tabs = orderTabs<Tab>([
     ...(config.navigation.rooms ? [{ id: "rooms", icon: "grid" as const, label: t("roomsPage") }] : []),
     ...(config.navigation.scenes && hasScenes ? [{ id: "scenes", icon: "scene" as const, label: t("scenes") }] : []),
@@ -32,6 +32,7 @@ export function NavigationDock({ active, config, editing, hasMedia, hasScenes, h
     ...(config.navigation.security && hasSecurity ? [{ id: "security", icon: "shield" as const, label: t("security") }] : []),
     ...(config.navigation.cameras && hasCameras ? [{ id: "cameras", icon: "camera" as const, label: t("camerasTitle") }] : []),
     ...(config.navigation.system !== false ? [{ id: "system", icon: "monitor" as const, label: t("systemMonitor") }] : []),
+    ...(hasVacuums && config.navigation.vacuum !== false ? [{ id: "vacuum", icon: "vacuum" as const, label: t("vacuumTabTitle") }] : []),
     ...(config.navigation.plan ? [{ id: "plan", icon: "plan" as const, label: planTitle(config, t) }] : []),
     ...config.pages.map((page) => ({ id: page.id, icon: pageIcon(page), label: page.title })),
   ], config.navigation.order);

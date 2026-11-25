@@ -346,6 +346,13 @@ async def websocket_floorplan_upload(
 GITHUB_RELEASES_URL = "https://api.github.com/repos/mrtlcs/HomeSmart/releases"
 FALLBACK_RELEASES = [
     {
+        "tag_name": "v2.1.0",
+        "name": "v2.1.0 - Dreame X40 Master Tab & Multi-Sensor Bento Container",
+        "published_at": "2026-11-25T03:15:00Z",
+        "body": "Dedicated Robot Vacuum control center (Dreame X40 Master auto-discovery, live map, dock water status, care rings, rooms) & Multi-Sensor Bento Container.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v2.1.0/homesmart.zip",
+    },
+    {
         "tag_name": "v2.0.0",
         "name": "v2.0.0 - Next-Gen Adaptive Dashboard (Circadian, Bento, AI Insights)",
         "published_at": "2026-11-25T02:42:00Z",

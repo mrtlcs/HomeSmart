@@ -108,6 +108,17 @@ def _normalize_lists(value: Any) -> dict[str, dict[str, Any]]:
                 clean["names"] = clean_names
         if item.get("hide_cards") is True:
             clean["hide_cards"] = True
+        if item.get("style") in ("rows", "tiles", "rings", "hero_chips", "grid_2col"):
+            clean["style"] = item["style"]
+        colors = item.get("colors")
+        if isinstance(colors, dict):
+            clean_colors = {
+                entity: color.lower()
+                for entity, color in colors.items()
+                if entity in entities and isinstance(color, str) and _HEX_COLOR.match(color)
+            }
+            if clean_colors:
+                clean["colors"] = clean_colors
         lists[key] = clean
     return lists
 
@@ -765,7 +776,7 @@ def normalize_config(value: Any) -> homesmartConfig:
 
     navigation = value.get("navigation")
     if isinstance(navigation, dict):
-        for key in ("rooms", "scenes", "media", "security", "cameras", "system", "plan"):
+        for key in ("rooms", "scenes", "media", "security", "cameras", "system", "vacuum", "plan"):
             if isinstance(navigation.get(key), bool):
                 config["navigation"][key] = navigation[key]
         if "order" in navigation:

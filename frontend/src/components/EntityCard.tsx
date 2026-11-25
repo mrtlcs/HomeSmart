@@ -20,6 +20,7 @@ import { CardLinks } from "./CardLinks";
 import { usePlan } from "../plan";
 import { mediaActive, showsPlayer, usePlayers } from "../spotify";
 import { climateModeStyle, SensorStyledCard } from "./SensorVisuals";
+import { VacuumExpandedTile } from "./DreameVacuum";
 import { triggerHaptic } from "../haptics";
 
 const ACTIVE_STATES = new Set(["on", "open", "opening", "playing", "paused", "heat", "cool", "heat_cool", "auto", "dry", "fan_only", "unlocked", "cleaning", "returning", ...ALARM_ARMED]);
@@ -362,6 +363,8 @@ function DeviceCard({ entity, hass, language, onLongPress, state: passedState, t
           unit={sensorUnit}
           value={Number.isFinite(sensorNum) ? sensorNum : null}
         />
+      ) : wide && entity.domain === "vacuum" ? (
+        <VacuumExpandedTile entity={entity} hass={hass} onOpenDetails={openDetails} t={t} />
       ) : (
         <>
           <div className="device-tile__top">

@@ -383,6 +383,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
             <Row description={missing(draft.navigation.security, found.hasSecurity, "navNoSecurity")} label={t("security")}><Switch checked={draft.navigation.security} label={t("security")} onChange={(security) => update({ navigation: { ...draft.navigation, security } })} /></Row>
             <Row description={missing(Boolean(draft.navigation.cameras), found.hasCameras, "navNoCameras")} label={t("camerasTitle")}><Switch checked={Boolean(draft.navigation.cameras)} label={t("camerasTitle")} onChange={(cameras) => update({ navigation: { ...draft.navigation, cameras } })} /></Row>
             <Row description={t("systemMonitorDescription")} label={t("systemMonitor")}><Switch checked={draft.navigation.system !== false} label={t("systemMonitor")} onChange={(system) => update({ navigation: { ...draft.navigation, system } })} /></Row>
+            {rooms.some((r) => r.entities.some((e) => e.domain === "vacuum")) && <Row description={t("vacuumTabDescription")} label={t("vacuumTabTitle")}><Switch checked={draft.navigation.vacuum !== false} label={t("vacuumTabTitle")} onChange={(vacuum) => update({ navigation: { ...draft.navigation, vacuum } })} /></Row>}
             <Row description={t("floorplanDescription")} label={t("floorplan")}>{plan.pro ? <Switch checked={Boolean(draft.navigation.plan)} label={t("floorplan")} onChange={(on) => update({ navigation: { ...draft.navigation, plan: on } })} /> : <button className="hd-pill" onClick={() => plan.upsell("feature")} type="button"><HDIcon name="lock" size={14} />Pro</button>}</Row>
             {plan.pro && draft.navigation.plan && <div className="st-sub"><label className="st-sub__row"><span>{t("floorplanName")}</span><input aria-label={t("floorplanName")} className="st-input st-input--framed" maxLength={30} onChange={(event) => update({ navigation: { ...draft.navigation, plan_title: event.target.value } })} placeholder={t("floorplanCardLabel")} value={draft.navigation.plan_title ?? ""} /></label></div>}
           </section>
@@ -396,6 +397,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
               ...(draft.navigation.security ? [{ value: "security", label: t("security") }] : []),
               ...(draft.navigation.cameras ? [{ value: "cameras", label: t("camerasTitle") }] : []),
               ...(draft.navigation.system !== false ? [{ value: "system", label: t("systemMonitor") }] : []),
+              ...(draft.navigation.vacuum !== false && rooms.some((r) => r.entities.some((e) => e.domain === "vacuum")) ? [{ value: "vacuum", label: t("vacuumTabTitle") }] : []),
               ...(plan.pro && draft.navigation.plan ? [{ value: "plan", label: draft.navigation.plan_title || t("floorplan") }] : []),
               ...(plan.pro ? draft.pages.map((page) => ({ value: page.id, label: page.title })) : []),
             ]} value={draft.navigation.start ?? "home"} /></Row>
