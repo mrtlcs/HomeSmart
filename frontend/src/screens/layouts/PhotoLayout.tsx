@@ -32,6 +32,7 @@ interface PhotoLayoutProps extends ScreenProps {
   activePage: string;
   roomId: string | null;
   links: NavLink[];
+  onAddPage?: () => void;
   /** Opens a page (and a room, on "rooms"); "home" goes back to Home. */
   onGo: (page: string, roomId?: string | null) => void;
   page: PageRef | null;
@@ -153,6 +154,11 @@ export function PhotoLayout(props: PhotoLayoutProps) {
       <div className="ph-bar">
         <nav aria-label={t("navigation")} className="ph-tabs">
           {tabs.map((tab) => <button aria-current={active === tab.id ? "page" : undefined} key={tab.id} onClick={tab.go} type="button"><HDIcon name={tab.icon} size={16} /><span>{tab.label}</span></button>)}
+          {editing && props.onAddPage && (
+            <button className="ph-tabs__add" onClick={props.onAddPage} type="button">
+              <HDIcon name="plus" size={16} /><span>{t("createTab")}</span>
+            </button>
+          )}
         </nav>
         <ContextHeader config={config} hass={hass} language={language} onSettings={props.onSettings} part="status" t={t} />
       </div>

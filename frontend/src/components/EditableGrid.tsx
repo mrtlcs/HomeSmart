@@ -67,6 +67,8 @@ interface EditableGridProps {
   folders?: boolean;
   /** Allows vehicle cards too (with sections); off on focused screens like System Monitor. */
   vehicles?: boolean;
+  /** Additional studio action tiles appended inside the edit grid add-row. */
+  extraAddTiles?: ReactNode;
   t: (key: TranslationKey) => string;
 }
 
@@ -95,7 +97,7 @@ function stretchedRow(root: HTMLElement | null): string | null {
   return /^\d+(\.\d+)?px$/.test(first) ? first : null;
 }
 
-export function EditableGrid({ addLabel, roomScreen, cameraGrid, className, editing, folders: allowFolders = true, hass, hiddenItems = [], items: allCards, layout, onAdd, onLayout, onRemove, sections = false, sizable = true, t, trayDevices = false, vehicles: allowVehicles = true }: EditableGridProps) {
+export function EditableGrid({ addLabel, roomScreen, cameraGrid, className, editing, extraAddTiles, folders: allowFolders = true, hass, hiddenItems = [], items: allCards, layout, onAdd, onLayout, onRemove, sections = false, sizable = true, t, trayDevices = false, vehicles: allowVehicles = true }: EditableGridProps) {
   // A hidden device simply leaves the screen and goes back to the "add" list; rooms and widgets stay in the tray.
   const tray = hiddenItems.filter((item) => trayDevices || !item.key.startsWith("entity:"));
   const rootRef = useRef<HTMLDivElement>(null);
@@ -422,6 +424,7 @@ export function EditableGrid({ addLabel, roomScreen, cameraGrid, className, edit
     {editing && sections && allowFolders && hass && <button className="hd-add-tile hd-add-tile--list" onClick={addFolder} type="button"><span><HDIcon name="grid" size={22} /></span>{t("addFolder")}{!plan.pro && <HDIcon name="lock" size={12} />}</button>}
     {editing && sections && hass && <button className="hd-add-tile hd-add-tile--list" onClick={addList} type="button"><span><HDIcon name="list" size={22} /></span>{t("addList")}{!plan.pro && <HDIcon name="lock" size={12} />}</button>}
     {editing && sections && allowVehicles && hass && <button className="hd-add-tile hd-add-tile--list" onClick={addVehicle} type="button"><span><HDIcon name="car" size={22} /></span>{t("addVehicle")}{!plan.pro && <HDIcon name="lock" size={12} />}</button>}
+    {editing && extraAddTiles}
   </>;
   const gridClass = `${className} hd-grid ${editing ? "hd-grid--editing" : ""}`;
   const gridStyle = editing && rowLock.current ? { gridAutoRows: rowLock.current } : undefined;

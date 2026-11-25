@@ -19,6 +19,7 @@ export interface NavLink { id: string; label: string; icon: IconName }
 
 interface SidebarLayoutProps extends ScreenProps {
   links: NavLink[];
+  onAddPage?: () => void;
   onNavigate: (page: string) => void;
   onSelectRoom: (roomId: string | null) => void;
   /** Media, Security, Scenes or a custom page, shown on the right like a room. */
@@ -31,7 +32,7 @@ interface SidebarLayoutProps extends ScreenProps {
 
 /** Control-center layout: a fixed column with context and navigation, content on the right. */
 export function SidebarLayout(props: SidebarLayoutProps) {
-  const { allRooms, config, custom, customId, data, editing, hass, language, links, onNavigate, onSelectRoom, page, roomId, t } = props;
+  const { allRooms, config, custom, customId, data, editing, hass, language, links, onAddPage, onNavigate, onSelectRoom, page, roomId, t } = props;
   const [modalEntity, setModalEntity] = useState<DiscoveredEntity | null>(null);
   const roomList = useSidebarRoomList(props);
   const room = roomList.rooms.find((item) => item.id === roomId);
@@ -61,9 +62,10 @@ export function SidebarLayout(props: SidebarLayoutProps) {
           t={t}
         />
       </nav>
-      {links.length > 0 && !editing && <nav className="sb-links" aria-label={t("pages")}>
-        {links.map((link) => <button aria-current={(page && pageId(page) === link.id) || customId === link.id ? "page" : undefined} key={link.id} onClick={() => onNavigate(link.id)} type="button"><HDIcon name={link.icon} size={16} /><span>{link.label}</span></button>)}
-      </nav>}
+      {(links.length > 0 && !editing) || (editing && onAddPage) ? <nav className="sb-links" aria-label={t("pages")}>
+        {!editing && links.map((link) => <button aria-current={(page && pageId(page) === link.id) || customId === link.id ? "page" : undefined} key={link.id} onClick={() => onNavigate(link.id)} type="button"><HDIcon name={link.icon} size={16} /><span>{link.label}</span></button>)}
+        {editing && onAddPage && <button className="sb-links__add" onClick={onAddPage} type="button"><HDIcon name="plus" size={16} /><span>{t("createTab")}</span></button>}
+      </nav> : null}
     </aside>
 
     <section className="sb-main" key={customId ?? (page ? pageId(page) : room?.id ?? "home")}>

@@ -32,6 +32,23 @@ export type HomeSmartViewMode = "grid" | "sidebar" | "list" | "focus" | "kids" |
 export type HOMESMARTKidsScene = "sky" | "ocean" | "space" | "candy" | "fairy" | "road";
 
 export type HomeSmartPageType = "favorites" | "scenes" | "custom" | "cameras";
+export type HomeSmartPageTemplate = "blank" | "server" | "energy" | "environment" | "favorites" | "scenes" | "cameras";
+
+export interface PageCustomGauge {
+  id: string;
+  entity_id: string;
+  label?: string;
+  style?: SensorStyleMode;
+  color?: string;
+  min?: number;
+  max?: number;
+}
+
+export interface PageAutoFilter {
+  domains?: string[];
+  device_classes?: string[];
+  areas?: string[];
+}
 
 export interface HomeSmartPageConfig {
   id: string;
@@ -39,8 +56,20 @@ export interface HomeSmartPageConfig {
   type: HomeSmartPageType;
   icon: string;
   entity_ids: string[];
-  /** Camera pages: how many cameras fit side by side (1 to 4). */
+  /** Camera / custom studio pages: grid columns (1 to 4). */
   columns?: number;
+  /** Visual Tab Studio template metadata. */
+  template?: HomeSmartPageTemplate;
+  /** Dashboard widgets pinned onto this custom tab ("widget:energy", "widget:insights", etc.). */
+  widgets?: string[];
+  /** Custom sensor gauges / charts pinned onto this tab. */
+  custom_gauges?: PageCustomGauge[];
+  /** Optional smart auto-fill filter by domain / device_class / area. */
+  auto_filter?: PageAutoFilter;
+  /** Optional custom hex accent color for the tab header. */
+  accent?: string;
+  /** Optional subtitle displayed in the tab header eyebrow. */
+  subtitle?: string;
 }
 
 export type BentoSpan = "1x1" | "2x1" | "1x2" | "2x2" | "3x1";

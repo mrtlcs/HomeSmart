@@ -26,7 +26,8 @@ import { keepAwakeWanted, startKeepAwake } from "./keepAwake";
 import { setHapticsEnabled } from "./haptics";
 import { createTranslator, normalizeLanguage } from "./i18n";
 import { inDesktopApp, reportLicenseToDesktop, wantsProSheet } from "./desktop";
-import { entityKey, getLayout, migrateLayouts, roomScreen, setHidden, withLayout } from "./layout";
+import { PageCreatorModal } from "./components/PageStudio";
+import { entityKey, getLayout, migrateLayouts, pageScreen, roomScreen, setHidden, withLayout } from "./layout";
 import { effectiveConfig, freeDevices, isControllable, overFreeLimits, panelRoomIds, PlanContext, restrictRooms, type PlanState, type UpsellReason } from "./plan";
 import { availableSections } from "./security";
 import { setStateText } from "./devices";
@@ -75,6 +76,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const [editing, setEditing] = useState(false);
   const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
   const [activePage, setActivePage] = useState<HomeSmartPage>("home");
+  const [creatingPage, setCreatingPage] = useState(false);
   const saveQueue = useRef(Promise.resolve());
   const configRef = useRef<HomeSmartConfig | null>(null);
   const lastActivity = useRef(Date.now());
@@ -489,12 +491,18 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     onLayout: (screen: string, layout: ScreenLayout) => void updateConfig((current) => withLayout(current, screen, pro ? layout : { ...layout, wide: current.layouts[screen]?.wide ?? [], tall: current.layouts[screen]?.tall ?? [] })),
     onSettings: () => { if (childOn) { childLockNote("hold"); return; } setEditing(false); setSettingsOpen(true); },
     onToggleEdit: () => { if (!locked) setEditing((current) => !current); },
+    onNavigate: navigate,
     t,
   };
 
   const selectedRoom = activePage === "rooms" ? (visibleData.rooms.find((room) => room.id === selectedRoomId) ?? visibleData.rooms[0]) : undefined;
   const customPage = view.pages.find((page) => page.id === activePage);
   const { hasCameras, hasMedia, hasScenes, hasSecurity, hasVacuums } = availableSections(visibleData.rooms.flatMap((room) => room.entities));
+
+  const openPageCreator = () => {
+    if (!pro) { setUpsellReason("feature"); return; }
+    setCreatingPage(true);
+  };
 
   // Every screen follows the chosen layout: Home, rooms, Media, Security, Scenes and custom pages.
   const mode = view.view_mode;
@@ -518,8 +526,8 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const systemOpen = activePage === "system" && !selectedRoom && view.navigation.system !== false;
   const vacuumOpen = activePage === "vacuum" && !selectedRoom && hasVacuums && view.navigation.vacuum !== false;
   let screen;
-  if (mode === "photo") screen = <PhotoLayout {...screenProps} activePage={activePage} links={links} onGo={(target, roomId) => { setSelectedRoomId(roomId ?? null); setActivePage(target); }} page={pageRef} plan={planOpen ? <FloorPlan {...screenProps} embedded onOpenRoom={openRoom} /> : systemOpen ? <SystemMonitorScreen {...screenProps} embedded /> : vacuumOpen ? <VacuumScreen {...screenProps} embedded /> : undefined} roomId={selectedRoomId} />;
-  else if (mode === "sidebar") screen = <SidebarLayout {...screenProps} custom={planOpen ? <FloorPlan {...screenProps} embedded onOpenRoom={openRoom} /> : systemOpen ? <SystemMonitorScreen {...screenProps} embedded /> : vacuumOpen ? <VacuumScreen {...screenProps} embedded /> : undefined} customId={planOpen ? "plan" : systemOpen ? "system" : vacuumOpen ? "vacuum" : undefined} links={links} onNavigate={navigate} onSelectRoom={openRoom} page={pageRef} roomId={selectedRoom?.id ?? null} />;
+  if (mode === "photo") screen = <PhotoLayout {...screenProps} activePage={activePage} links={links} onAddPage={openPageCreator} onGo={(target, roomId) => { setSelectedRoomId(roomId ?? null); setActivePage(target); }} page={pageRef} plan={planOpen ? <FloorPlan {...screenProps} embedded onOpenRoom={openRoom} /> : systemOpen ? <SystemMonitorScreen {...screenProps} embedded /> : vacuumOpen ? <VacuumScreen {...screenProps} embedded /> : undefined} roomId={selectedRoomId} />;
+  else if (mode === "sidebar") screen = <SidebarLayout {...screenProps} custom={planOpen ? <FloorPlan {...screenProps} embedded onOpenRoom={openRoom} /> : systemOpen ? <SystemMonitorScreen {...screenProps} embedded /> : vacuumOpen ? <VacuumScreen {...screenProps} embedded /> : undefined} customId={planOpen ? "plan" : systemOpen ? "system" : vacuumOpen ? "vacuum" : undefined} links={links} onAddPage={openPageCreator} onNavigate={navigate} onSelectRoom={openRoom} page={pageRef} roomId={selectedRoom?.id ?? null} />;
   else if (planOpen) screen = <FloorPlan {...screenProps} onOpenRoom={openRoom} />;
   else if (systemOpen) screen = <SystemMonitorScreen {...screenProps} />;
   else if (vacuumOpen) screen = <VacuumScreen {...screenProps} />;
@@ -537,7 +545,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   return withPlan(
     <DynamicShell config={view} data={visibleData} hass={hass} mode={mode} season={season}>
       <div className="hs-screen-wrapper" key={pageKey}>{screen}</div>
-      {mode !== "sidebar" && mode !== "photo" && <NavigationDock active={active} config={view} editing={editing} hasMedia={hasMedia} hasScenes={hasScenes} hasSecurity={hasSecurity} hasCameras={hasCameras} hasVacuums={hasVacuums} onNavigate={navigate} onOrder={(order) => void updateConfig((current) => ({ ...current, navigation: { ...current.navigation, order } }))} t={t} />}
+      {mode !== "sidebar" && mode !== "photo" && <NavigationDock active={active} config={view} editing={editing} hasMedia={hasMedia} hasScenes={hasScenes} hasSecurity={hasSecurity} hasCameras={hasCameras} hasVacuums={hasVacuums} onAddPage={openPageCreator} onNavigate={navigate} onOrder={(order) => void updateConfig((current) => ({ ...current, navigation: { ...current.navigation, order } }))} t={t} />}
       {!locked && <button aria-label={editing ? t("doneEditing") : t("editScreen")} aria-pressed={editing} className={editing ? "edit-fab edit-fab--on" : "edit-fab"} onClick={() => setEditing((current) => !current)} type="button">
         <HDIcon name={editing ? "check" : "pencil"} size={20} />
       </button>}
@@ -546,6 +554,26 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
       {lockNote && <div className="hd-lock-note" role="status"><HDIcon name="lock" size={16} />{lockNote === "blocked" ? t("childLockBlocked") : childOn ? t("childLockHoldOff") : t("childLockHoldOn")}</div>}
       {saverOn && <Screensaver config={view} hass={hass} language={language} onDismiss={dismissSaver} rooms={data?.rooms} t={t} />}
       {ringing && <DoorbellPopup camera={view.doorbell.camera} config={view.doorbell} hass={hass} onClose={stopRinging} seconds={view.doorbell.seconds} t={t} />}
+      {creatingPage && (
+        <PageCreatorModal
+          catalogRooms={data.rooms}
+          config={view}
+          hass={hass}
+          language={language}
+          onClose={() => setCreatingPage(false)}
+          onCreate={({ page, layout }) => {
+            void updateConfig((current) => ({
+              ...current,
+              pages: [...current.pages, page],
+              ...(layout ? { layouts: { ...current.layouts, [pageScreen(page.id)]: layout } } : {}),
+            }));
+            setCreatingPage(false);
+            setSelectedRoomId(null);
+            setActivePage(page.id);
+          }}
+          t={t}
+        />
+      )}
     </DynamicShell>,
   );
 }

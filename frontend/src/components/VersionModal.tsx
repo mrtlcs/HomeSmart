@@ -53,6 +53,13 @@ export function VersionModal({
         if (!cancelled) {
           setReleases([
             {
+              body: `${t("versionReleaseLabel")} v2.2.0`,
+              name: "v2.2.0 - Visual Tab Studio & No-Code Templates",
+              published_at: "2026-11-25",
+              tag_name: "v2.2.0",
+              zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v2.2.0/homesmart.zip",
+            },
+            {
               body: `${t("versionReleaseLabel")} v2.1.0`,
               name: "v2.1.0 - Dreame X40 Master Studio & Multi-Sensor Container",
               published_at: "2026-11-25",

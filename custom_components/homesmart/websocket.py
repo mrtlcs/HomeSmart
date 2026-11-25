@@ -346,6 +346,13 @@ async def websocket_floorplan_upload(
 GITHUB_RELEASES_URL = "https://api.github.com/repos/mrtlcs/HomeSmart/releases"
 FALLBACK_RELEASES = [
     {
+        "tag_name": "v2.2.0",
+        "name": "v2.2.0 - Visual Tab Studio & No-Code Page Templates",
+        "published_at": "2026-11-25T03:35:00Z",
+        "body": "Create custom dashboard tabs directly from the UI with pre-built templates (Server/NAS Monitor, Energy Flow, Environment, Bento Free Grid), Widgets, Sensor Gauges, and Auto-Filters.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v2.2.0/homesmart.zip",
+    },
+    {
         "tag_name": "v2.1.0",
         "name": "v2.1.0 - Dreame X40 Master Tab & Multi-Sensor Bento Container",
         "published_at": "2026-11-25T03:15:00Z",

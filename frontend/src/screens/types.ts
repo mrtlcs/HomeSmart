@@ -21,6 +21,8 @@ export interface ScreenProps {
   onSettings: () => void;
   /** Opens the layout picker (Grade, Lateral, Lista, Foco). */
   onToggleEdit: () => void;
+  /** Optional navigation callback for switching dock tabs programmatically (e.g. duplicate/delete custom tab). */
+  onNavigate?: (page: string) => void;
   t: (key: TranslationKey) => string;
 }
 

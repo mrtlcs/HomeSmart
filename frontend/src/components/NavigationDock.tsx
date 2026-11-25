@@ -24,7 +24,7 @@ export function orderTabs<T extends { id: string }>(tabs: T[], order: string[] =
 }
 
 /** The bottom bar. Home stays first; in Edit mode the other tabs are dragged sideways to reorder them. */
-export function NavigationDock({ active, config, editing, hasMedia, hasScenes, hasSecurity, hasCameras, hasVacuums, onNavigate, onOrder, t }: { active: HomeSmartPage; config: HomeSmartConfig; editing: boolean; hasMedia: boolean; hasScenes: boolean; hasSecurity: boolean; hasCameras: boolean; hasVacuums?: boolean; onNavigate: (page: HomeSmartPage) => void; onOrder: (order: string[]) => void; t: (key: TranslationKey) => string }) {
+export function NavigationDock({ active, config, editing, hasMedia, hasScenes, hasSecurity, hasCameras, hasVacuums, onAddPage, onNavigate, onOrder, t }: { active: HomeSmartPage; config: HomeSmartConfig; editing: boolean; hasMedia: boolean; hasScenes: boolean; hasSecurity: boolean; hasCameras: boolean; hasVacuums?: boolean; onAddPage?: () => void; onNavigate: (page: HomeSmartPage) => void; onOrder: (order: string[]) => void; t: (key: TranslationKey) => string }) {
   const tabs = orderTabs<Tab>([
     ...(config.navigation.rooms ? [{ id: "rooms", icon: "grid" as const, label: t("roomsPage") }] : []),
     ...(config.navigation.scenes && hasScenes ? [{ id: "scenes", icon: "scene" as const, label: t("scenes") }] : []),
@@ -107,5 +107,11 @@ export function NavigationDock({ active, config, editing, hasMedia, hasScenes, h
     {pill && !editing && <span aria-hidden="true" className="navigation-dock__pill" style={{ left: pill.left, top: pill.top, width: pill.width, height: pill.height }} />}
     {item({ id: "home", icon: "home", label: t("home") }, false)}
     {shown.map((tab) => item(tab, true))}
+    {editing && onAddPage && (
+      <button aria-label={t("createTab")} className="navigation-dock__add" onClick={onAddPage} type="button">
+        <HDIcon name="plus" size={18} />
+        <span>{t("createTab")}</span>
+      </button>
+    )}
   </nav>;
 }

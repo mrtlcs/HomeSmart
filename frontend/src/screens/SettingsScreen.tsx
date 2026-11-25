@@ -29,6 +29,8 @@ import { LICENSE_ERRORS } from "../components/ProSheet";
 import { getDefaultPanel, setSystemDefault, setUserDefault, type DefaultPanelState } from "../api/defaultPanel";
 import { EntityPicker } from "../components/EntityPicker";
 import { FeedbackSheet } from "../components/FeedbackSheet";
+import { PageCreatorModal } from "../components/PageStudio";
+import { pageScreen } from "../layout";
 import { VersionModal } from "../components/VersionModal";
 import { LayoutPicker, Thumb as LayoutThumb, VIEW_MODES } from "../components/LayoutPicker";
 import { OPEN_METEO } from "../weather";
@@ -121,6 +123,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
   const [importing, setImporting] = useState<Element | null>(null);
   const [imported, setImported] = useState(false);
   const [feedback, setFeedback] = useState(false);
+  const [creatingPage, setCreatingPage] = useState(false);
   const [versionModal, setVersionModal] = useState(false);
   const [hideHaSidebar, setHideHaSidebar] = useState(hideSidebarPreferred);
   // Pro-only options stay visible with a lock; choosing one opens the Pro sheet.
@@ -413,11 +416,29 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
               <button aria-label={`${t("deletePage")}: ${page.title}`} className="st-icon-button st-icon-button--danger" onClick={() => update({ pages: draft.pages.filter((item) => item.id !== page.id) })} type="button"><HDIcon name="trash" size={18} /></button>
             </div>{iconPage === page.id && <PageIconPicker onPick={(icon) => { update({ pages: draft.pages.map((item) => item.id === page.id ? { ...item, icon } : item) }); setIconPage(null); }} t={t} value={isIconName(page.icon) ? page.icon : PAGE_ICONS[page.type]} />}</div>)}</div>}
             <div className="st-actions">
+              <button className="hd-pill" onClick={() => setCreatingPage(true)} type="button"><HDIcon name="plus" size={16} />{t("createTab")}</button>
               <button className="hd-pill" onClick={() => addPage("favorites")} type="button"><HDIcon name="star" size={16} />{t("favorites")}</button>
               <button className="hd-pill" onClick={() => addPage("scenes")} type="button"><HDIcon name="scene" size={16} />{t("scenes")}</button>
               <button className="hd-pill" onClick={() => addPage("cameras")} type="button"><HDIcon name="camera" size={16} />{t("camerasTitle")}</button>
-              <button className="hd-pill" onClick={() => addPage("custom")} type="button"><HDIcon name="plus" size={16} />{t("newPage")}</button>
-            </div></>}
+              <button className="hd-pill" onClick={() => addPage("custom")} type="button"><HDIcon name="grid" size={16} />{t("newPage")}</button>
+            </div>
+            {creatingPage && (
+              <PageCreatorModal
+                catalogRooms={rooms}
+                config={draft}
+                hass={hass}
+                language={language}
+                onClose={() => setCreatingPage(false)}
+                onCreate={({ page, layout }) => {
+                  update({
+                    pages: [...draft.pages, page],
+                    ...(layout ? { layouts: { ...draft.layouts, [pageScreen(page.id)]: layout } } : {}),
+                  });
+                  setCreatingPage(false);
+                }}
+                t={t}
+              />
+            )}</>}
             {imported && <p className="hd-import__done">{t("importDone")}</p>}
           </section>
           <section className="st-panel">

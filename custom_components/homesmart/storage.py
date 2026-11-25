@@ -607,6 +607,64 @@ def _normalize_layouts(value: Any) -> dict[str, dict[str, Any]]:
     return layouts
 
 
+_PAGE_TEMPLATES = {"blank", "server", "energy", "environment", "favorites", "scenes", "cameras"}
+_SENSOR_STYLES = {"default", "gauge", "line", "bar", "gradient"}
+_HEX_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _normalize_custom_gauges(value: Any) -> list[dict[str, Any]]:
+    """Return safe custom sensor gauges / charts pinned to a custom page."""
+    if not isinstance(value, list):
+        return []
+    result: list[dict[str, Any]] = []
+    used_ids: set[str] = set()
+    for item in value[:24]:
+        if not isinstance(item, dict):
+            continue
+        gid = item.get("id")
+        entity_id = item.get("entity_id")
+        if (
+            not isinstance(gid, str)
+            or not gid
+            or gid in used_ids
+            or not isinstance(entity_id, str)
+            or not _BADGE_ENTITY.match(entity_id)
+        ):
+            continue
+        used_ids.add(gid[:80])
+        entry: dict[str, Any] = {
+            "id": gid[:80],
+            "entity_id": entity_id[:_MAX_KEY_LENGTH],
+        }
+        label = item.get("label")
+        if isinstance(label, str) and label.strip():
+            entry["label"] = label.strip()[:60]
+        style = item.get("style")
+        if isinstance(style, str) and style in _SENSOR_STYLES:
+            entry["style"] = style
+        color = item.get("color")
+        if isinstance(color, str) and _HEX_COLOR.match(color):
+            entry["color"] = color
+        for bound in ("min", "max"):
+            num = item.get(bound)
+            if isinstance(num, (int, float)) and not isinstance(num, bool):
+                entry[bound] = float(num)
+        result.append(entry)
+    return result
+
+
+def _normalize_auto_filter(value: Any) -> dict[str, list[str]] | None:
+    """Return safe auto-fill domain / device_class / area filters for custom tabs."""
+    if not isinstance(value, dict):
+        return None
+    out: dict[str, list[str]] = {}
+    for key in ("domains", "device_classes", "areas"):
+        items = [s[:40] for s in _unique_strings(value.get(key)) if s.strip()][:24]
+        if items:
+            out[key] = items
+    return out or None
+
+
 def _normalize_pages(value: Any) -> list[dict[str, Any]]:
     """Return safe user-created page definitions."""
     if not isinstance(value, list):
@@ -630,16 +688,38 @@ def _normalize_pages(value: Any) -> list[dict[str, Any]]:
             continue
         used_ids.add(page_id)
         icon = item.get("icon")
-        pages.append(
-            {
-                "id": page_id[:80],
-                "title": title.strip()[:80],
-                "type": page_type,
-                "icon": icon[:40] if isinstance(icon, str) else "grid",
-                "entity_ids": _unique_strings(item.get("entity_ids")),
-                **({"columns": item["columns"]} if item.get("columns") in (1, 2, 3, 4) else {}),
-            }
-        )
+        page: dict[str, Any] = {
+            "id": page_id[:80],
+            "title": title.strip()[:80],
+            "type": page_type,
+            "icon": icon[:40] if isinstance(icon, str) else "grid",
+            "entity_ids": _unique_strings(item.get("entity_ids")),
+        }
+        if item.get("columns") in (1, 2, 3, 4):
+            page["columns"] = item["columns"]
+        template = item.get("template")
+        if isinstance(template, str) and template in _PAGE_TEMPLATES:
+            page["template"] = template
+        widgets = [
+            w[:80]
+            for w in _unique_strings(item.get("widgets"))
+            if w.startswith("widget:")
+        ][:24]
+        if widgets:
+            page["widgets"] = widgets
+        gauges = _normalize_custom_gauges(item.get("custom_gauges"))
+        if gauges:
+            page["custom_gauges"] = gauges
+        auto_filter = _normalize_auto_filter(item.get("auto_filter"))
+        if auto_filter:
+            page["auto_filter"] = auto_filter
+        accent = item.get("accent")
+        if isinstance(accent, str) and _HEX_COLOR.match(accent):
+            page["accent"] = accent
+        subtitle = item.get("subtitle")
+        if isinstance(subtitle, str) and subtitle.strip():
+            page["subtitle"] = subtitle.strip()[:80]
+        pages.append(page)
     return pages
 
 
