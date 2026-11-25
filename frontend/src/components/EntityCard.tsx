@@ -20,7 +20,7 @@ import { CardLinks } from "./CardLinks";
 import { usePlan } from "../plan";
 import { mediaActive, showsPlayer, usePlayers } from "../spotify";
 import { climateModeStyle, SensorStyledCard } from "./SensorVisuals";
-import { VacuumExpandedTile } from "./DreameVacuum";
+import { getVacuumMiniStats, VacuumExpandedTile } from "./DreameVacuum";
 import { triggerHaptic } from "../haptics";
 
 const ACTIVE_STATES = new Set(["on", "open", "opening", "playing", "paused", "heat", "cool", "heat_cool", "auto", "dry", "fan_only", "unlocked", "cleaning", "returning", ...ALARM_ARMED]);
@@ -152,7 +152,8 @@ function DeviceCardWrapper(props: EntityCardProps) {
   const wide = useWideTile();
   const customize = useCustomize();
   const links = wide ? (customize?.linksFor(`entity:${props.entity.entity_id}`) ?? []) : [];
-  const linkKey = links.map((id) => props.hass.states[id]?.state ?? "").join("|");
+  const vacKey = props.entity.domain === "vacuum" ? (() => { const m = getVacuumMiniStats(props.hass, props.entity.entity_id); return `${m.batteryPct ?? ""}:${m.subline ?? ""}:${wide ? Object.keys(props.hass.states).filter((k) => k.includes(props.entity.entity_id.replace(/^vacuum\./, ""))).map((k) => `${props.hass.states[k]?.state ?? ""}@${props.hass.states[k]?.last_updated ?? ""}`).join(",") : ""}`; })() : "";
+  const linkKey = `${links.map((id) => props.hass.states[id]?.state ?? "").join("|")}|${vacKey}`;
   return <MemoDeviceCard {...props} linkKey={linkKey} state={props.hass.states[props.entity.entity_id]} wide={wide} />;
 }
 
@@ -373,6 +374,16 @@ function DeviceCard({ entity, hass, language, onLongPress, state: passedState, t
               : <span className="device-tile__icon"><EntityIcon entity={entity} /></span>}
             {entity.confirm && <span aria-hidden="true" className="device-tile__guard"><HDIcon name="lock" size={13} /></span>}
             <div className="device-tile__sub-buttons">
+              {!wide && entity.domain === "vacuum" && (() => {
+                const vacMini = getVacuumMiniStats(hass, entity.entity_id);
+                if (vacMini.batteryPct == null) return null;
+                const pct = Math.round(vacMini.batteryPct);
+                return (
+                  <span className={`hs-vac-mini-bat${pct <= 20 ? " hs-vac-mini-bat--low" : pct >= 60 ? " hs-vac-mini-bat--ok" : ""}`}>
+                    {vacMini.charging ? "⚡ " : ""}{pct}%
+                  </span>
+                );
+              })()}
               {entity.domain === "light" && colorModes.some((m) => ["hs", "rgb", "xy", "color_temp"].includes(m)) && state?.state === "on" && (
                 <button
                   aria-label={t("changeIcon") || "Color"}
@@ -410,6 +421,10 @@ function DeviceCard({ entity, hass, language, onLongPress, state: passedState, t
                 {status}
               </span>
             )}
+            {!wide && entity.domain === "vacuum" && (() => {
+              const subline = getVacuumMiniStats(hass, entity.entity_id).subline;
+              return subline ? <small className="device-tile__since">{subline}</small> : null;
+            })()}
             {showSince && sinceText && <small className="device-tile__since">{sinceText}</small>}
           </div>
 
@@ -439,6 +454,7 @@ function DeviceCard({ entity, hass, language, onLongPress, state: passedState, t
             const actions = vacuumActions(hass, state, t);
             return <div className="device-controls device-controls--vacuum">
               {[actions.main, actions.dock].map((action) => <button aria-label={action.label} key={action.label} onClick={() => void run(action.run)} type="button"><HDIcon name={action.icon} size={17} /></button>)}
+              <button aria-label={t("vacuumLocate")} onClick={() => void run(() => hass.callService("vacuum", "locate", { entity_id: entity.entity_id }))} type="button"><HDIcon name="pin" size={16} /></button>
             </div>;
           })()}
 

@@ -53,6 +53,13 @@ export function VersionModal({
         if (!cancelled) {
           setReleases([
             {
+              body: `${t("versionReleaseLabel")} v2.2.1`,
+              name: "v2.2.1 - Dreame Robot Vacuum Card & Studio Redesign",
+              published_at: "2026-11-25",
+              tag_name: "v2.2.1",
+              zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v2.2.1/homesmart.zip",
+            },
+            {
               body: `${t("versionReleaseLabel")} v2.2.0`,
               name: "v2.2.0 - Visual Tab Studio & No-Code Templates",
               published_at: "2026-11-25",

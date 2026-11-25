@@ -346,6 +346,13 @@ async def websocket_floorplan_upload(
 GITHUB_RELEASES_URL = "https://api.github.com/repos/mrtlcs/HomeSmart/releases"
 FALLBACK_RELEASES = [
     {
+        "tag_name": "v2.2.1",
+        "name": "v2.2.1 - Dreame Robot Vacuum Card & Studio Redesign",
+        "published_at": "2026-11-25T03:56:00Z",
+        "body": "Fixed 2x vacuum tile full-width layout, enriched 1x vacuum cards with live battery pill and quick actions, and scaled Vacuum Studio UI to native --u units with interactive Clean With & Suction controls.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v2.2.1/homesmart.zip",
+    },
+    {
         "tag_name": "v2.2.0",
         "name": "v2.2.0 - Visual Tab Studio & No-Code Page Templates",
         "published_at": "2026-11-25T03:35:00Z",
