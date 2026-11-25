@@ -16,6 +16,7 @@ import { usePlan } from "../plan";
 import { KidsScene } from "./KidsScene";
 import { HassContext } from "./HDIcon";
 import type { Occasion } from "../seasons";
+import { applyCircadianShift, circadianPhase, computeCircadianTint, estimateElevationFromClock } from "../circadian";
 
 type Palette = [string, string, string, string];
 type Stop = [number, Palette];
@@ -224,7 +225,19 @@ export function DynamicShell({ children, config, data, hass, mode = "grid", seas
   const kidsScene = config.kids_background ?? "sky";
   const level = useMemo(() => activityLevel(config, data, hass), [config.background.include_devices, data, hass.states]);
   const highlight = /^#[0-9a-f]{6}$/i.test(config.highlight_color ?? "") ? config.highlight_color : "#ffc94d";
-  const palette = FIXED[config.background.preset] ?? paletteAt(ADAPTIVE[config.background.preset] ?? ADAPTIVE.adaptive_ember, level);
+  const basePalette = FIXED[config.background.preset] ?? paletteAt(ADAPTIVE[config.background.preset] ?? ADAPTIVE.adaptive_ember, level);
+  const circadianOn = !kids && config.circadian_ui !== false;
+  const sunState = hass.states["sun.sun"];
+  const rawElevation = sunState?.attributes?.elevation;
+  const sunClock = useMemo(() => estimateElevationFromClock(), [Math.floor(Date.now() / 300_000)]);
+  const elevation = typeof rawElevation === "number" && Number.isFinite(rawElevation) ? rawElevation : sunClock.elevation;
+  const rising = sunState ? sunState.attributes?.rising !== false : sunClock.rising;
+  const phase = circadianOn ? circadianPhase(elevation, rising) : null;
+  const palette = useMemo(() => {
+    if (!circadianOn) return basePalette;
+    const { warmth, brightness } = computeCircadianTint(elevation);
+    return applyCircadianShift(basePalette, warmth, brightness);
+  }, [circadianOn, basePalette[0], basePalette[1], basePalette[2], basePalette[3], elevation]);
   const style = {
     "--hd-font": textSize,
     "--hd-ui": UI_SCALE[interfaceSize],
@@ -243,7 +256,7 @@ export function DynamicShell({ children, config, data, hass, mode = "grid", seas
     ...(viewportUnit ? { "--hd-vh": viewportUnit } : {}),
   } as CSSProperties;
   return (
-    <div className={`app-shell theme-${config.theme} view-${mode} ${bar.on ? `has-keybar${bar.hideDock ? " keybar-nodock" : ""}` : ""} ${kids ? `kids-scene--${kidsScene}` : ""} ${motion.background ? "ambient-animated" : "ambient-still"} ${motion.cards && pro ? "hd-anim" : ""} ${motion.ui ? "hd-motion" : ""} ${config.cards?.shine && pro ? "hd-shine" : ""}`} data-activity={level.toFixed(2)} lang={normalizeLanguage(hass.locale?.language ?? hass.language)} ref={shellRef} style={style}>
+    <div className={`app-shell theme-${config.theme} view-${mode} ${bar.on ? `has-keybar${bar.hideDock ? " keybar-nodock" : ""}` : ""} ${kids ? `kids-scene--${kidsScene}` : ""} ${phase ? `circadian-${phase}` : ""} ${motion.background ? "ambient-animated" : "ambient-still"} ${motion.cards && pro ? "hd-anim" : ""} ${motion.ui ? "hd-motion" : ""} ${config.cards?.shine && pro ? "hd-shine" : ""}`} data-activity={level.toFixed(2)} lang={normalizeLanguage(hass.locale?.language ?? hass.language)} ref={shellRef} style={style}>
       <div aria-hidden="true" className="ambient-background"><i /><i /><i /></div>
       {kids && <KidsScene scene={kidsScene} />}
       {season && (season.occasion?.effect || season.fireworks) && <SeasonLayer effect={season.occasion?.effect ?? null} fireworks={season.fireworks} intensity={season.occasion?.phase === "lead" ? 0.45 : 1} />}

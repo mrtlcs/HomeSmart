@@ -295,6 +295,10 @@ export interface HomeSmartConfig {
     message?: string;
     speaker?: string;
   };
+  /** Circadian UI: shift the dashboard color palette based on sun position (on by default). */
+  circadian_ui?: boolean;
+  /** Popup-centric room cards: compact overview on Home, tap for popup detail (off by default). */
+  room_popup_mode?: boolean;
   /** System Monitor sensor assignments and display styles (Settings → System or in System Monitor). */
   system_monitor?: {
     cpu?: string;

@@ -12,6 +12,9 @@ import { themePlan } from "./theme-plan";
 import { themeLayouts } from "./theme-layouts";
 import { themeKids } from "./theme-kids";
 import { themePhoto } from "./theme-photo";
+import { CIRCADIAN_OVERLAY_CSS } from "./circadian";
+import { ROOM_POPUP_CSS } from "./components/RoomPopup";
+import { ENERGY_FLOW_CSS } from "./components/EnergyFlowCard";
 import type { HomeAssistant, HomeSmartPanelInfo } from "./types/home-assistant";
 import { hideSidebar, hideSidebarPreferred, restoreSidebar } from "./sidebar";
 import { hidePageScrollbars } from "./scrollbars";
@@ -66,7 +69,7 @@ class HomeSmartPanel extends HTMLElement {
     installFonts();
     const shadow = this.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = scaleFonts(`@layer legacy{${styles}}${theme}${themeEditing}${themeExtras}${themePlan}${themeLayouts}${themeKids}${themePhoto}`);
+    style.textContent = scaleFonts(`@layer legacy{${styles}}${theme}${themeEditing}${themeExtras}${themePlan}${themeLayouts}${themeKids}${themePhoto}${CIRCADIAN_OVERLAY_CSS}${ROOM_POPUP_CSS}${ENERGY_FLOW_CSS}`);
     const mount = document.createElement("div");
     shadow.append(style, mount);
     this.root = createRoot(mount);

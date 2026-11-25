@@ -11,6 +11,7 @@ import { todayCardAvailable } from "../components/Agenda";
 import { extraWidgets } from "../components/ExtraWidgets";
 import { HomeWidget, WIDGET_LABELS, availableWidgets } from "../components/HomeWidget";
 import { RoomCard } from "../components/RoomCard";
+import { RoomPopup, RoomSummaryCard } from "../components/RoomPopup";
 import { SceneStrip } from "../components/SceneStrip";
 import { HOME_SCREEN, arrange, entityKey, getLayout, keyId, roomKey, type WidgetKey } from "../layout";
 import type { DiscoveredEntity } from "../types/discovery";
@@ -92,6 +93,7 @@ function useFitToScreen(screen: { current: HTMLElement | null }) {
 export function HomeGrid(props: ScreenProps & { className: string; onOpenRoom: (roomId: string) => void }) {
   const { allRooms, config, data, editing, hass, language, onConfig, onLayout, onOpenRoom, t } = props;
   const [modalEntity, setModalEntity] = useState<DiscoveredEntity | null>(null);
+  const [popupRoomId, setPopupRoomId] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const plan = usePlan();
   const layout = getLayout(config, HOME_SCREEN);
@@ -119,8 +121,17 @@ export function HomeGrid(props: ScreenProps & { className: string; onOpenRoom: (
       return { key, label: entity.name, removal: "remove", node: <EntityCard entity={entity} hass={hass} language={language} onLongPress={setModalEntity} t={t} /> };
     }
     const room = rooms.get(keyId(key))!;
+    if (config.room_popup_mode) {
+      return {
+        key,
+        label: label(key),
+        node: <RoomSummaryCard hass={hass} language={language} onClick={() => { if (!editing) setPopupRoomId(room.id); }} room={room} t={t} />,
+      };
+    }
     return { key, label: label(key), node: <RoomCard hass={hass} index={index} onOpen={() => onOpenRoom(room.id)} room={room} t={t} /> };
   });
+
+  const popupRoom = popupRoomId ? (rooms.get(popupRoomId) ?? null) : null;
 
   return <>
     <EditableGrid
@@ -137,6 +148,7 @@ export function HomeGrid(props: ScreenProps & { className: string; onOpenRoom: (
       sections
       t={t}
     />
+    {popupRoom && <RoomPopup config={config} editing={editing} hass={hass} language={language} onClose={() => setPopupRoomId(null)} onOpenFullRoom={() => { setPopupRoomId(null); onOpenRoom(popupRoom.id); }} room={popupRoom} t={t} />}
     {modalEntity && <EntityModal entity={modalEntity} hass={hass} language={language} onClose={() => setModalEntity(null)} roomName={roomName(modalEntity)} t={t} />}
     {picking && <EntityPicker language={language} onClose={() => setPicking(false)} onToggle={(id) => { if (homeEntities.includes(id)) setHomeEntities(homeEntities.filter((item) => item !== id)); else if (plan.allow(id)) setHomeEntities([...homeEntities, id]); }} rooms={props.catalogRooms} selected={homeEntities} t={t} />}
   </>;

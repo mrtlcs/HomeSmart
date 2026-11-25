@@ -277,6 +277,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
           {draft.view_mode !== "kids" && <section className="st-panel">
             <h2>{t("background")}</h2><p>{t("lightsOnly")}</p>
             <div className="st-backgrounds">{BACKGROUNDS.map(([preset, label, preview]) => <button aria-pressed={draft.background.preset === preset} key={preset} onClick={() => (locked(!FREE_BACKGROUNDS.includes(preset)) ? plan.upsell("feature") : update({ background: { ...draft.background, preset } }))} type="button"><i style={{ background: preview }}>{locked(!FREE_BACKGROUNDS.includes(preset)) && <Lock />}</i><b>{t(label)}</b><small>{locked(!FREE_BACKGROUNDS.includes(preset)) ? "Pro" : preset.startsWith("adaptive_") ? t("automatic") : t("fixedBackground")}</small></button>)}</div>
+            <Row description={t("circadianUiDescription")} label={t("circadianUi")}><Switch checked={draft.circadian_ui !== false} label={t("circadianUi")} onChange={(circadian_ui) => update({ circadian_ui })} /></Row>
           </section>}
           <CardStylePanel cards={draft.cards} kids={draft.view_mode === "kids"} locked={!plan.pro} onChange={(cards) => update({ cards })} onUpsell={() => plan.upsell("feature")} t={t} />
           <section className="st-panel">
@@ -316,6 +317,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
             <Row label={t("turnAllOn")}><Switch checked={draft.global_actions.lights_on} label={t("turnAllOn")} onChange={(lights_on) => update({ global_actions: { ...draft.global_actions, lights_on } })} /></Row>
             <Row label={t("turnAllOff")}><Switch checked={draft.global_actions.lights_off} label={t("turnAllOff")} onChange={(lights_off) => update({ global_actions: { ...draft.global_actions, lights_off } })} /></Row>
             <Row label={t("showScenesStrip")}><Switch checked={Boolean(draft.visibility?.home_cards?.scenes)} label={t("showScenesStrip")} onChange={(scenes) => update({ visibility: { ...(draft.visibility ?? { hidden_home_rooms: [], hidden_home_entities: [], visible_home_entities: [], hidden_room_entities: [], home_cards: { status: true, priority: true, rooms: true, shortcuts: true, scenes: true } }), home_cards: { ...(draft.visibility?.home_cards ?? { status: true, priority: true, rooms: true, shortcuts: true, scenes: true }), scenes } } })} /></Row>
+            <Row description={t("roomPopupModeDescription")} label={t("roomPopupMode")}><Switch checked={Boolean(draft.room_popup_mode)} label={t("roomPopupMode")} onChange={(room_popup_mode) => update({ room_popup_mode })} /></Row>
           </section>
 
           <ExtraCardsPanel draft={draft} hass={hass} onUpsell={() => plan.upsell("feature")} pro={plan.pro} t={t} update={update} />
