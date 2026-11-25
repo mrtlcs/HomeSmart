@@ -346,25 +346,18 @@ async def websocket_floorplan_upload(
 GITHUB_RELEASES_URL = "https://api.github.com/repos/mrtlcs/HomeSmart/releases"
 FALLBACK_RELEASES = [
     {
-        "tag_name": "v1.5.0",
-        "name": "v1.5.0 - System Monitor Dashboard & MDI Sizing",
-        "published_at": "2026-11-23T02:18:00Z",
-        "body": "Dedicated System Monitor dashboard, large MDI icon scaling & custom icon selector.",
-        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v1.5.0/homesmart.zip",
+        "tag_name": "v2.0.0",
+        "name": "v2.0.0 - Next-Gen Adaptive Dashboard (Circadian, Bento, AI Insights)",
+        "published_at": "2026-11-25T02:42:00Z",
+        "body": "Circadian UI, Popup Rooms, Animated Energy Flow, Liquid Glass 2.0, Bento Grid, AI Insights, Thermal Floorplan & Gestures.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v2.0.0/homesmart.zip",
     },
     {
-        "tag_name": "v1.4.0",
-        "name": "v1.4.0 - Touch-Swipe Navigation & Bubble Sliders",
-        "published_at": "2026-11-23T01:05:00Z",
-        "body": "Touch-swipe navigation, bubble sub-buttons, spring physics.",
-        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v1.4.0/homesmart.zip",
-    },
-    {
-        "tag_name": "v1.3.2",
-        "name": "v1.3.2 - Stable Release",
-        "published_at": "2026-11-20T00:00:00Z",
-        "body": "Stable release with complete Vietnamese translations.",
-        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v1.3.2/homesmart.zip",
+        "tag_name": "v1.6.3",
+        "name": "v1.6.3 - System Monitor Styles & Multi-Language Sync",
+        "published_at": "2026-11-25T02:10:00Z",
+        "body": "Customizable sensor styles, climate HVAC mode colors, mobile optimization & 100% EN/VI translation parity.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v1.6.3/homesmart.zip",
     },
 ]
 

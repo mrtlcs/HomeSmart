@@ -133,6 +133,9 @@ def _normalize_rooms(value: Any) -> dict[str, dict[str, str]]:
         humidity = options.get("humidity")
         if isinstance(humidity, str) and humidity.startswith("sensor.") and len(humidity) <= _MAX_KEY_LENGTH:
             clean["humidity"] = humidity
+        accent = options.get("accent")
+        if isinstance(accent, str) and _HEX_COLOR.match(accent):
+            clean["accent"] = accent.lower()
         if clean:
             rooms[room_id] = clean
     return rooms
@@ -450,6 +453,17 @@ def _normalize_entity_options(value: Any) -> dict[str, dict[str, Any]]:
                 clean[flag] = True
         if options.get("cover_control") in ("buttons", "slider"):
             clean["cover_control"] = options["cover_control"]
+        if options.get("sensor_style") in ("default", "gauge", "line", "bar", "gradient"):
+            clean["sensor_style"] = options["sensor_style"]
+        s_color = options.get("sensor_color")
+        if isinstance(s_color, str) and _HEX_COLOR.match(s_color):
+            clean["sensor_color"] = s_color.lower()
+        for bound in ("sensor_min", "sensor_max"):
+            bval = options.get(bound)
+            if isinstance(bval, (int, float)) and not isinstance(bval, bool):
+                clean[bound] = float(bval) if isinstance(bval, float) and not bval.is_integer() else int(bval)
+        if isinstance(options.get("climate_color_mode"), bool):
+            clean["climate_color_mode"] = options["climate_color_mode"]
         when = _normalize_condition(options.get("visible_when"))
         if when:
             clean["visible_when"] = when
@@ -478,6 +492,15 @@ def _normalize_layout(layout: dict[str, Any], folders: bool = True) -> dict[str,
         }
         if clean_cells:
             clean["cells"] = clean_cells
+    bento = layout.get("bento")
+    if isinstance(bento, dict):
+        clean_bento = {
+            key: span
+            for key, span in list(bento.items())[:_MAX_LAYOUT_ITEMS]
+            if isinstance(key, str) and len(key) <= _MAX_KEY_LENGTH and span in ("1x1", "2x1", "1x2", "2x2", "3x1")
+        }
+        if clean_bento:
+            clean["bento"] = clean_bento
     sections = _normalize_sections(layout.get("sections"))
     if sections:
         clean["sections"] = sections
@@ -668,6 +691,10 @@ def normalize_config(value: Any) -> homesmartConfig:
         config["room_sensors"] = value["room_sensors"]
     if isinstance(value.get("rooms_by_floor"), bool):
         config["rooms_by_floor"] = value["rooms_by_floor"]
+    if isinstance(value.get("circadian_ui"), bool):
+        config["circadian_ui"] = value["circadian_ui"]
+    if isinstance(value.get("room_popup_mode"), bool):
+        config["room_popup_mode"] = value["room_popup_mode"]
 
     dashboard = value.get("dashboard")
     if isinstance(dashboard, dict):
@@ -738,7 +765,7 @@ def normalize_config(value: Any) -> homesmartConfig:
 
     navigation = value.get("navigation")
     if isinstance(navigation, dict):
-        for key in ("rooms", "scenes", "media", "security", "cameras", "plan"):
+        for key in ("rooms", "scenes", "media", "security", "cameras", "system", "plan"):
             if isinstance(navigation.get(key), bool):
                 config["navigation"][key] = navigation[key]
         if "order" in navigation:
@@ -842,13 +869,15 @@ def normalize_config(value: Any) -> homesmartConfig:
             number = cards.get(key)
             if isinstance(number, (int, float)) and not isinstance(number, bool):
                 config["cards"][key] = max(0, min(high, round(number)))
-        for key in ("frame", "animations", "sparklines", "players", "sensor_since", "room_power", "shine"):
+        for key in ("frame", "animations", "sparklines", "players", "sensor_since", "room_power", "shine", "haptics"):
             if isinstance(cards.get(key), bool):
                 config["cards"][key] = cards[key]
+        if cards.get("glass_depth") in ("subtle", "standard", "intense"):
+            config["cards"]["glass_depth"] = cards["glass_depth"]
 
     widgets = value.get("widgets")
     if isinstance(widgets, dict):
-        for key in ("weather", "sun", "energy", "bins", "plan", "recent"):
+        for key in ("weather", "sun", "energy", "bins", "plan", "recent", "insights"):
             if isinstance(widgets.get(key), bool):
                 config["widgets"][key] = widgets[key]
 
@@ -858,6 +887,70 @@ def normalize_config(value: Any) -> homesmartConfig:
             entity_id = energy.get(key)
             if isinstance(entity_id, str) and (entity_id == "" or (entity_id.startswith("sensor.") and len(entity_id) <= _MAX_KEY_LENGTH)):
                 config["energy"][key] = entity_id
+        tariff = energy.get("tariff")
+        if isinstance(tariff, dict):
+            clean_tariff: dict[str, Any] = {
+                "mode": tariff["mode"] if tariff.get("mode") in ("tiered", "flat") else "tiered",
+                "currency": tariff["currency"][:8] if isinstance(tariff.get("currency"), str) else "đ",
+                "currency_position": tariff["currency_position"] if tariff.get("currency_position") in ("prefix", "suffix") else "suffix",
+                "include_vat": tariff.get("include_vat") is not False,
+            }
+            for num_k in ("flat_rate", "vat_percent", "fixed_monthly_fee"):
+                nv = tariff.get(num_k)
+                if isinstance(nv, (int, float)) and not isinstance(nv, bool):
+                    clean_tariff[num_k] = nv
+            if isinstance(tariff.get("preset"), str):
+                clean_tariff["preset"] = tariff["preset"][:40]
+            if isinstance(tariff.get("tiers"), list):
+                clean_tiers = []
+                for tier in tariff["tiers"][:20]:
+                    if not isinstance(tier, dict):
+                        continue
+                    rate = tier.get("rate")
+                    if not isinstance(rate, (int, float)) or isinstance(rate, bool):
+                        continue
+                    mx = tier.get("max")
+                    item: dict[str, Any] = {
+                        "max": mx if isinstance(mx, (int, float)) and not isinstance(mx, bool) else None,
+                        "rate": rate,
+                    }
+                    if isinstance(tier.get("name"), str) and tier["name"].strip():
+                        item["name"] = tier["name"].strip()[:60]
+                    if isinstance(tier.get("id"), str) and tier["id"]:
+                        item["id"] = tier["id"][:40]
+                    clean_tiers.append(item)
+                if clean_tiers:
+                    clean_tariff["tiers"] = clean_tiers
+            config["energy"]["tariff"] = clean_tariff
+
+    sys_mon = value.get("system_monitor")
+    if isinstance(sys_mon, dict):
+        clean_sm: dict[str, Any] = {}
+        for key in ("cpu", "memory", "disk", "temperature", "network_in", "network_out", "uptime"):
+            eid = sys_mon.get(key)
+            if isinstance(eid, str) and (eid == "" or (eid.startswith("sensor.") and len(eid) <= _MAX_KEY_LENGTH)):
+                clean_sm[key] = eid
+        styles = sys_mon.get("styles")
+        if isinstance(styles, dict):
+            clean_styles: dict[str, dict[str, Any]] = {}
+            for skey, sopt in list(styles.items())[:40]:
+                if not (isinstance(skey, str) and 0 < len(skey) <= _MAX_KEY_LENGTH and isinstance(sopt, dict)):
+                    continue
+                cs: dict[str, Any] = {}
+                if sopt.get("style") in ("default", "gauge", "line", "bar", "gradient"):
+                    cs["style"] = sopt["style"]
+                if isinstance(sopt.get("color"), str) and _HEX_COLOR.match(sopt["color"]):
+                    cs["color"] = sopt["color"].lower()
+                for bk in ("min", "max"):
+                    bv = sopt.get(bk)
+                    if isinstance(bv, (int, float)) and not isinstance(bv, bool):
+                        cs[bk] = bv
+                if cs:
+                    clean_styles[skey] = cs
+            if clean_styles:
+                clean_sm["styles"] = clean_styles
+        if clean_sm:
+            config["system_monitor"] = clean_sm
 
     seasons = value.get("seasons")
     if isinstance(seasons, dict):
@@ -893,6 +986,13 @@ def normalize_config(value: Any) -> homesmartConfig:
         seconds = doorbell.get("seconds")
         if isinstance(seconds, int) and not isinstance(seconds, bool) and seconds in (30, 60, 120, 300):
             config["doorbell"]["seconds"] = seconds
+        for opt_k in ("lock", "light", "speaker"):
+            ov = doorbell.get(opt_k)
+            if isinstance(ov, str) and (ov == "" or (_BADGE_ENTITY.match(ov) and len(ov) <= _MAX_KEY_LENGTH)):
+                config["doorbell"][opt_k] = ov
+        msg_val = doorbell.get("message")
+        if isinstance(msg_val, str) and msg_val.strip():
+            config["doorbell"]["message"] = msg_val.strip()[:200]
 
     return config
 
