@@ -346,6 +346,13 @@ async def websocket_floorplan_upload(
 GITHUB_RELEASES_URL = "https://api.github.com/repos/mrtlcs/HomeSmart/releases"
 FALLBACK_RELEASES = [
     {
+        "tag_name": "v2.2.3",
+        "name": "v2.2.3 - Fix Active Tab Highlight in Photo Layout",
+        "published_at": "2026-11-25T06:50:00Z",
+        "body": "Fixed active tab pill highlighting in Photo Layout when System Monitor or Robot Vacuum Studio tabs are selected.",
+        "zip_url": "https://github.com/mrtlcs/HomeSmart/releases/download/v2.2.3/homesmart.zip",
+    },
+    {
         "tag_name": "v2.2.2",
         "name": "v2.2.2 - Drag-to-Reorder Tabs in Photo & Sidebar Layouts",
         "published_at": "2026-11-25T04:25:00Z",

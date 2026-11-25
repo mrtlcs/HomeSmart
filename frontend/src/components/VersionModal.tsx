@@ -53,6 +53,13 @@ export function VersionModal({
         if (!cancelled) {
           setReleases([
             {
+              body: `${t("versionReleaseLabel")} v2.2.3`,
+              name: "v2.2.3 - Fix Active Tab Highlight in Photo Layout",
+              published_at: "2026-11-25",
+              tag_name: "v2.2.3",
+              zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v2.2.3/homesmart.zip",
+            },
+            {
               body: `${t("versionReleaseLabel")} v2.2.2`,
               name: "v2.2.2 - Drag-to-Reorder Tabs in Photo & Sidebar Layouts",
               published_at: "2026-11-25",

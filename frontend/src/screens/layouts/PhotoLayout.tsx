@@ -68,7 +68,7 @@ export function PhotoLayout(props: PhotoLayoutProps) {
   const roomList = useSidebarRoomList(props);
   const { roomName } = useMemo(() => entityIndex(allRooms), [allRooms]);
   const room = activePage === "rooms" && roomId ? roomList.rooms.find((item) => item.id === roomId) ?? data.rooms.find((item) => item.id === roomId) : undefined;
-  const current = plan ? "plan" : room ? "rooms" : page ? pageId(page) : "home";
+  const current = room ? "rooms" : page ? pageId(page) : plan ? activePage : "home";
   const name = (item: Room) => (item.id === "__unassigned__" ? t("unassigned") : item.name);
   const key = room ? room.id : HOME;
   const photo = config.room_photos?.[key];
