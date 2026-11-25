@@ -1,4 +1,4 @@
-import type { HomeSmartCondition } from "./config";
+import type { HomeSmartCondition, SensorStyleMode } from "./config";
 
 export interface DiscoveredEntity {
   entity_id: string;
@@ -50,6 +50,15 @@ export interface DiscoveredEntity {
   global_name?: string;
   /** Hidden from its room in Edit mode: left out of the light counts and of "turn all on/off". */
   hidden?: boolean;
+  /** Sensors: custom display style. */
+  sensor_style?: SensorStyleMode;
+  /** Sensors: custom accent hex color. */
+  sensor_color?: string;
+  /** Sensors: gauge min/max bounds. */
+  sensor_min?: number;
+  sensor_max?: number;
+  /** Climate: mode-based card color (true by default unless set to false). */
+  climate_color_mode?: boolean;
 }
 
 export interface Room {

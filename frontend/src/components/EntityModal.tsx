@@ -17,6 +17,7 @@ import { showsPlayer, usePlayers } from "../spotify";
 import { usePlan } from "../plan";
 import { isNumericState } from "../history";
 import { HistoryChart } from "./HistoryChart";
+import { SensorStylePicker } from "./SensorVisuals";
 import { MAX_NAME, useCustomize } from "../personalize";
 import { HDSegmented, HDSelect } from "./HDSelect";
 import { canJoinSecurity, isSecurityKind } from "../security";
@@ -305,6 +306,26 @@ function DeviceOptions({ entity: opened, state, t }: { entity: DiscoveredEntity;
     {!["sensor", "binary_sensor", "weather", "person", "calendar", "todo", "event"].includes(entity.domain) && <label className="hd-detail__confirm"><span><b>{t("childLockCard")}</b><small>{t("childLockCardDescription")}</small></span><input checked={Boolean(entity.child_lock)} className="st-switch" onChange={(event) => customize.setEntity(entity.entity_id, { child_lock: event.target.checked })} type="checkbox" /></label>}
     {switches && <label className="hd-detail__confirm"><span><b>{t("confirmToggle")}</b><small>{t("confirmToggleDescription")}</small></span><input checked={Boolean(entity.confirm)} className="st-switch" onChange={(event) => customize.setEntity(entity.entity_id, { confirm: event.target.checked })} type="checkbox" /></label>}
     {colorLight && <label className="hd-detail__confirm"><span><b>{t("lightAccent")}</b><small>{t("lightAccentDescription")}</small></span><input checked={Boolean(entity.light_accent)} className="st-switch" onChange={(event) => customize.setEntity(entity.entity_id, { light_accent: event.target.checked })} type="checkbox" /></label>}
+    {entity.domain === "climate" && <label className="hd-detail__confirm"><span><b>{t("climateColorMode")}</b><small>{t("climateColorModeDescription")}</small></span><input checked={entity.climate_color_mode !== false} className="st-switch" onChange={(event) => customize.setEntity(entity.entity_id, { climate_color_mode: event.target.checked })} type="checkbox" /></label>}
+    {entity.domain === "sensor" && (
+      <SensorStylePicker
+        onChange={(next) =>
+          customize.setEntity(entity.entity_id, {
+            sensor_style: next.style ?? "default",
+            sensor_color: next.color ?? "",
+            sensor_min: next.min,
+            sensor_max: next.max,
+          })
+        }
+        t={t}
+        value={{
+          style: entity.sensor_style ?? "default",
+          color: entity.sensor_color,
+          min: entity.sensor_min,
+          max: entity.sensor_max,
+        }}
+      />
+    )}
     {entity.domain === "cover" && <div className="hd-detail__confirm hd-detail__choice"><span><b>{t("coverControl")}</b><small>{t("coverControlDescription")}</small></span><HDSegmented ariaLabel={t("coverControl")} onChange={(value) => customize.setEntity(entity.entity_id, { cover_control: value === "both" ? undefined : value as "buttons" | "slider" })} options={[{ value: "both", label: t("coverControlBoth") }, { value: "buttons", label: t("coverControlButtons") }, { value: "slider", label: t("coverControlSlider") }]} value={entity.cover_control ?? "both"} /></div>}
     {entity.domain === "cover" && ([["cover_no_tap", "coverNoTap", "coverNoTapDescription"], ["cover_swap_buttons", "coverSwapButtons", "coverSwapButtonsDescription"], ["cover_invert_position", "coverInvertPosition", "coverInvertPositionDescription"], ["cover_invert_state", "coverInvertState", "coverInvertStateDescription"], ["cover_side_buttons", "coverSideButtons", "coverSideButtonsDescription"], ["cover_no_highlight", "coverNoHighlight", "coverNoHighlightDescription"]] as const).map(([flag, label, description]) => <label className="hd-detail__confirm" key={flag}><span><b>{t(label)}</b><small>{t(description)}</small></span><input checked={Boolean(entity[flag])} className="st-switch" onChange={(event) => customize.setEntity(entity.entity_id, { [flag]: event.target.checked })} type="checkbox" /></label>)}
     {entity.domain === "alarm_control_panel" && <label className="hd-detail__confirm"><span><b>{t("alarmButtons")}</b><small>{t("alarmButtonsDescription")}</small></span><input checked={Boolean(entity.alarm_buttons)} className="st-switch" onChange={(event) => customize.setEntity(entity.entity_id, { alarm_buttons: event.target.checked })} type="checkbox" /></label>}

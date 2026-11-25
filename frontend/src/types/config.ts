@@ -295,7 +295,7 @@ export interface HomeSmartConfig {
     message?: string;
     speaker?: string;
   };
-  /** System Monitor sensor assignments (Settings → System or in System Monitor). */
+  /** System Monitor sensor assignments and display styles (Settings → System or in System Monitor). */
   system_monitor?: {
     cpu?: string;
     memory?: string;
@@ -304,9 +304,20 @@ export interface HomeSmartConfig {
     network_in?: string;
     network_out?: string;
     uptime?: string;
+    /** Per-card visual customization for built-in system metrics ("sys:cpu", "sys:ram", etc.). */
+    styles?: Record<string, SensorDisplayOptions>;
   };
   /** Pro: how cards look. corners 0-150 (% of the default roundness), glass 0 (solid) to 100 (see-through). */
   cards: HomeSmartCardStyle;
+}
+
+export type SensorStyleMode = "default" | "gauge" | "line" | "bar" | "gradient";
+
+export interface SensorDisplayOptions {
+  style?: SensorStyleMode;
+  color?: string;
+  min?: number;
+  max?: number;
 }
 
 export interface HOMESMARTRoomOptions {
@@ -349,6 +360,16 @@ export interface HomeSmartEntityOptions {
   alarm_buttons?: boolean;
   /** Cameras: MJPEG first, even when the camera offers WebRTC. */
   camera_mjpeg?: boolean;
+  /** Sensors: custom visual presentation (Cyber Gauge, Smooth Line, Bar Chart, Trend Area). */
+  sensor_style?: SensorStyleMode;
+  /** Sensors: custom accent color hex. */
+  sensor_color?: string;
+  /** Sensors: optional gauge minimum value. */
+  sensor_min?: number;
+  /** Sensors: optional gauge maximum value. */
+  sensor_max?: number;
+  /** Climate: color the card and controls based on current HVAC mode (cool, heat, auto, dry, fan_only). */
+  climate_color_mode?: boolean;
 }
 
 /** A tap that dismisses the notice until it changes, turns its entity off or runs a script, button, automation or scene. */

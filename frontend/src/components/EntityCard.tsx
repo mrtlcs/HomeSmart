@@ -1,5 +1,5 @@
 import { useCustomize, useMinute } from "../personalize";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, MouseEvent, PointerEvent } from "react";
 import { hvacLabel, type TranslationKey } from "../i18n";
 import type { DiscoveredEntity } from "../types/discovery";
@@ -19,6 +19,7 @@ import { MediaIdle, SpotifyCard } from "./SpotifyCard";
 import { CardLinks } from "./CardLinks";
 import { usePlan } from "../plan";
 import { mediaActive, showsPlayer, usePlayers } from "../spotify";
+import { climateModeStyle, SensorStyledCard } from "./SensorVisuals";
 
 const ACTIVE_STATES = new Set(["on", "open", "opening", "playing", "paused", "heat", "cool", "heat_cool", "auto", "dry", "fan_only", "unlocked", "cleaning", "returning", ...ALARM_ARMED]);
 export const TOGGLES = new Set(["light", "switch", "fan", "input_boolean", "automation"]);
@@ -126,16 +127,45 @@ interface EntityCardProps {
  */
 /** A device card; Spotify (on Pro) uses the same player card as Home, wherever it appears, and a
  * camera shows its picture. */
-export function EntityCard(props: EntityCardProps) {
-  const plan = usePlan();
-  const everyPlayer = usePlayers();
-  if (showsPlayer(props.entity, plan.pro, everyPlayer)) return <SpotifyCard entity={props.entity} hass={props.hass} onOpen={props.onLongPress} t={props.t} />;
-  if (props.entity.domain === "media_player" && !mediaActive(props.hass.states[props.entity.entity_id])) return <MediaIdle entity={props.entity} hass={props.hass} onOpen={props.onLongPress} t={props.t} />;
-  if (props.entity.domain === "camera") return <CameraCard entity={props.entity} hass={props.hass} onOpen={props.onLongPress} t={props.t} />;
-  return <DeviceCard {...props} />;
+export const EntityCard = memo(
+  function EntityCard(props: EntityCardProps) {
+    const plan = usePlan();
+    const everyPlayer = usePlayers();
+    if (showsPlayer(props.entity, plan.pro, everyPlayer)) return <SpotifyCard entity={props.entity} hass={props.hass} onOpen={props.onLongPress} t={props.t} />;
+    if (props.entity.domain === "media_player" && !mediaActive(props.hass.states[props.entity.entity_id])) return <MediaIdle entity={props.entity} hass={props.hass} onOpen={props.onLongPress} t={props.t} />;
+    if (props.entity.domain === "camera") return <CameraCard entity={props.entity} hass={props.hass} onOpen={props.onLongPress} t={props.t} />;
+    return <DeviceCardWrapper {...props} />;
+  },
+  (prev, next) => {
+    if (prev.entity !== next.entity || prev.language !== next.language || prev.t !== next.t || prev.onLongPress !== next.onLongPress) return false;
+    // Skip expensive re-renders on unrelated entity updates for standard non-linked tiles
+    if (prev.hass.states[prev.entity.entity_id] !== next.hass.states[next.entity.entity_id]) return false;
+    // Camera/media cards or linked wide tiles may inspect extra entities; let them update normally if hass changes
+    if (prev.entity.domain === "camera" || prev.entity.domain === "media_player") return false;
+    return true;
+  },
+);
+
+function DeviceCardWrapper(props: EntityCardProps) {
+  const wide = useWideTile();
+  const customize = useCustomize();
+  const links = wide ? (customize?.linksFor(`entity:${props.entity.entity_id}`) ?? []) : [];
+  const linkKey = links.map((id) => props.hass.states[id]?.state ?? "").join("|");
+  return <MemoDeviceCard {...props} linkKey={linkKey} state={props.hass.states[props.entity.entity_id]} wide={wide} />;
 }
 
-function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps) {
+const MemoDeviceCard = memo(
+  DeviceCard,
+  (prev, next) =>
+    prev.entity === next.entity &&
+    prev.state === next.state &&
+    prev.wide === next.wide &&
+    prev.linkKey === next.linkKey &&
+    prev.language === next.language &&
+    prev.t === next.t,
+);
+
+function DeviceCard({ entity, hass, language, onLongPress, state: passedState, t, wide: passedWide }: EntityCardProps & { linkKey?: string; state?: HassEntity; wide?: boolean }) {
   const childOn = useDevicePref(childLocked);
   const currentPin = useDevicePref(devicePin);
   const [pinPrompt, setPinPrompt] = useState<(() => void) | null>(null);
@@ -147,14 +177,24 @@ function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps)
   const holdTimer = useRef<number | null>(null);
   const holdOrigin = useRef<{ x: number; y: number } | null>(null);
   const held = useRef(false);
-  const wide = useWideTile();
-  const state = hass.states[entity.entity_id];
+  const wide = passedWide ?? useWideTile();
+  const state = passedState ?? hass.states[entity.entity_id];
   const active = entity.domain === "cover" ? !entity.cover_no_highlight && coverOn(entity, state?.state) : ACTIVE_STATES.has(state?.state ?? "");
   const unavailable = !state || ["unavailable", "unknown"].includes(state.state);
   const customize = useCustomize();
-  // Optional, per card: the highlight takes the color the light is showing.
+  // Optional, per card: the highlight takes the color the light is showing, or climate takes HVAC mode color.
   const rgb = entity.light_accent && state?.state === "on" && Array.isArray(state.attributes.rgb_color) ? state.attributes.rgb_color.map(Number) : null;
-  const lightAccent = rgb ? { "--lc": `rgb(${rgb.join(",")})`, "--on-ink": (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? "#2a2110" : "#ffffff" } as CSSProperties : undefined;
+  const climateStyle = entity.domain === "climate" && entity.climate_color_mode !== false && !unavailable && state ? climateModeStyle(state.state) : undefined;
+  const lightAccent = rgb
+    ? ({ "--lc": `rgb(${rgb.join(",")})`, "--on-ink": (rgb[0] * 299 + rgb[1] * 587 + rgb[2] * 114) / 1000 > 150 ? "#2a2110" : "#ffffff" } as CSSProperties)
+    : climateStyle
+    ? ({
+        "--cm-accent": climateStyle.accent,
+        "--cm-bg": climateStyle.bg,
+        "--cm-border": climateStyle.border,
+        "--cm-ink": climateStyle.inkOnAccent,
+      } as CSSProperties)
+    : undefined;
   const status = useMemo(() => displayState(state, entity, t, language), [state, entity, t, language]);
   // Settings → Cards: sensors at 1x and ½x also say how long ago they changed (2x always does).
   const showSince = useSensorSince() && !wide && (entity.domain === "sensor" || entity.domain === "binary_sensor") && Boolean(state) && !["unavailable", "unknown"].includes(state?.state ?? "");
@@ -245,11 +285,15 @@ function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps)
     void run(() => hass.callService("climate", "set_temperature", { entity_id: entity.entity_id, temperature: next }));
   };
 
+  const customSensorStyle = entity.domain === "sensor" && entity.sensor_style && entity.sensor_style !== "default" ? entity.sensor_style : null;
+  const sensorNum = customSensorStyle && state ? Number.parseFloat(String(state.state).replace(",", ".")) : Number.NaN;
+  const sensorUnit = typeof state?.attributes.unit_of_measurement === "string" ? state.attributes.unit_of_measurement : "";
+
   return (
     <article
       aria-label={`${entity.name}: ${status}`}
       aria-pressed={TOGGLES.has(entity.domain) ? active : undefined}
-      className={`device-tile device-tile--tap ${wide ? `device-tile--wide device-tile--wide-${entity.domain}` : ""} ${active ? "device-tile--active" : ""} ${state?.state === "cleaning" ? "device-tile--cleaning" : ""} ${state?.state === "triggered" || (entity.domain === "plant" && state?.state === "problem") ? "device-tile--alert" : ""} ${unavailable ? "device-tile--unavailable" : ""}`}
+      className={`device-tile device-tile--tap ${wide ? `device-tile--wide device-tile--wide-${entity.domain}` : ""} ${active ? "device-tile--active" : ""} ${climateStyle ? "device-tile--climate-colored" : ""} ${customSensorStyle ? "device-tile--styled-sensor" : ""} ${state?.state === "cleaning" ? "device-tile--cleaning" : ""} ${state?.state === "triggered" || (entity.domain === "plant" && state?.state === "problem") ? "device-tile--alert" : ""} ${unavailable ? "device-tile--unavailable" : ""}`}
       data-domain={entity.domain}
       style={lightAccent}
       data-running={isAppliance(entity) && applianceRunning(state) ? "appliance" : undefined}
@@ -265,103 +309,132 @@ function DeviceCard({ entity, hass, language, onLongPress, t }: EntityCardProps)
       tabIndex={0}
     >
       {/* A big faded drawing of the device's icon, only shown by the Kids layout. */}
-      {entity.domain !== "camera" && <span aria-hidden="true" className="device-tile__art"><EntityIcon entity={entity} size={96} /></span>}
+      {entity.domain !== "camera" && !customSensorStyle && <span aria-hidden="true" className="device-tile__art"><EntityIcon entity={entity} size={96} /></span>}
       {busy && <span className="device-tile__busy" />}
       {childOn && entity.child_lock && <span aria-label={t("childLockLocked")} className="device-tile__lock" role="img"><HDIcon name="lock" size={14} /></span>}
       {confirming && <span aria-live="polite" className="device-tile__confirm">{confirmLabel}</span>}
-      <div className="device-tile__top">
-        {entity.domain === "media_player" && mediaArt(state)
-          ? <span className="device-tile__icon device-tile__icon--art" style={{ backgroundImage: mediaArt(state)! }} />
-          : <span className="device-tile__icon"><EntityIcon entity={entity} /></span>}
-        {entity.confirm && <span aria-hidden="true" className="device-tile__guard"><HDIcon name="lock" size={13} /></span>}
-        <div className="device-tile__sub-buttons">
-          {entity.domain === "light" && colorModes.some((m) => ["hs", "rgb", "xy", "color_temp"].includes(m)) && state?.state === "on" && (
-            <button
-              aria-label={t("changeIcon") || "Color"}
-              className="device-sub-btn"
-              onClick={(e) => { e.stopPropagation(); openDetails(entity); }}
-              type="button"
-            >
-              <HDIcon name="palette" size={13} />
-            </button>
-          )}
-          <button
-            aria-label={`${t("noticeTapDetails")}: ${entity.name}`}
-            className="device-sub-btn device-sub-btn--more"
-            onClick={(e) => { e.stopPropagation(); openDetails(entity); }}
-            title={t("noticeTapDetails")}
-            type="button"
-          >
-            <HDIcon name="dots" size={14} />
-          </button>
-        </div>
-      </div>
-      {!wide && entity.domain === "light" && !unavailable && dimmable && (
-        <label className={state?.state === "on" ? "device-dimmer" : "device-dimmer device-dimmer--off"} style={{ "--value": `${brightnessDraft ?? brightness}%` } as CSSProperties}>
-          <span className="sr-only">{t("brightness")}</span>
-          <b aria-hidden="true" />
-          <span className="device-dimmer__value" aria-hidden="true">{(brightnessDraft ?? (state?.state === "on" ? brightness : 0)) > 0 ? `${brightnessDraft ?? (state?.state === "on" ? brightness : 0)}%` : ""}</span>
-          <input aria-label={`${t("brightness")}: ${entity.name}`} max="100" min="1" onChange={(event) => setBrightnessDraft(Number(event.currentTarget.value))} onKeyUp={commitKey} onPointerUp={(event) => setBrightness(Number(event.currentTarget.value))} type="range" value={brightnessDraft ?? Math.max(1, brightness)} />
-        </label>
-      )}
-      <div className="device-tile__copy"><strong>{entity.name}</strong>{entity.domain !== "scene" && !(SELECTS.has(entity.domain) && !wide) && <span>{status}</span>}{showSince && sinceText && <small className="device-tile__since">{sinceText}</small>}</div>
-
-      {wide && entity.domain === "sensor" && isNumericState(state) && <SensorSpark entityId={entity.entity_id} language={language} hass={hass} unit={typeof state?.attributes.unit_of_measurement === "string" ? state.attributes.unit_of_measurement : undefined} />}
-      {wide && !unavailable && state && <div className="tile-wide">{SELECTS.has(entity.domain) && (customize?.linksFor(`entity:${entity.entity_id}`).length ?? 0) > 0
-        ? <HDSelect ariaLabel={`${t("chooseOption")}: ${entity.name}`} className="device-select" onChange={(option) => void run(() => selectOption(hass, entity.entity_id, option))} options={selectOptions(state).map((option) => ({ label: option, value: option }))} value={state.state} />
-        : entity.domain === "alarm_control_panel" && entity.alarm_buttons ? <AlarmButtons entity={entity} hass={hass} onOpen={openDetails} t={t} />
-        : <WideControls entity={entity} hass={hass} language={language} state={state} t={t} />}<CardLinks hass={hass} itemKey={`entity:${entity.entity_id}`} language={language} t={t} /></div>}
-
-
-      {!wide && entity.domain === "cover" && !unavailable && coverSlider != null && (
-        <label className="device-dimmer device-dimmer--cover" style={{ "--value": `${coverDraft ?? coverSlider}%` } as CSSProperties}>
-          <span className="sr-only">{t("setPosition")}</span>
-          <b aria-hidden="true" />
-          <span className="device-dimmer__value" aria-hidden="true">{(coverDraft ?? coverSlider) != null ? `${coverDraft ?? coverSlider}%` : ""}</span>
-          <input aria-label={`${t("setPosition")}: ${entity.name}`} max="100" min="0" onChange={(event) => setCoverDraft(Number(event.currentTarget.value))} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) setCoverPosition(Number(event.currentTarget.value)); }} onPointerUp={(event) => setCoverPosition(Number(event.currentTarget.value))} type="range" value={coverDraft ?? coverSlider} />
-        </label>
-      )}
-      {!wide && entity.domain === "cover" && !unavailable && coverSlider == null && (
-        <div className={`device-controls device-controls--cover${entity.cover_side_buttons ? " device-controls--side" : ""}`}>
-          <button aria-label={t("openCover")} onClick={() => void run(() => hass.callService("cover", coverMove(entity, "up"), { entity_id: entity.entity_id }))} type="button"><span className="rotate-up"><HDIcon name="chevron" size={20} /></span></button>
-          <button aria-label={t("stopCover")} onClick={() => void run(() => hass.callService("cover", "stop_cover", { entity_id: entity.entity_id }))} type="button"><HDIcon name="stop" size={16} /></button>
-          <button aria-label={t("closeCover")} onClick={() => void run(() => hass.callService("cover", coverMove(entity, "down"), { entity_id: entity.entity_id }))} type="button"><span className="rotate-down"><HDIcon name="chevron" size={20} /></span></button>
-        </div>
-      )}
-
-      {!wide && entity.domain === "vacuum" && !unavailable && state && (() => {
-        const actions = vacuumActions(hass, state, t);
-        return <div className="device-controls device-controls--vacuum">
-          {[actions.main, actions.dock].map((action) => <button aria-label={action.label} key={action.label} onClick={() => void run(action.run)} type="button"><HDIcon name={action.icon} size={17} /></button>)}
-        </div>;
-      })()}
-
-      {!wide && SELECTS.has(entity.domain) && !unavailable && state && (
-        <HDSelect ariaLabel={`${t("chooseOption")}: ${entity.name}`} className="device-select" onChange={(option) => void run(() => selectOption(hass, entity.entity_id, option))} options={selectOptions(state).map((option) => ({ label: option, value: option }))} value={state.state} />
-      )}
-
-      {!wide && entity.domain === "climate" && !unavailable && target != null && (
-        <div className="climate-quick-control">
-          <div className="climate-quick-control__stepper">
-            <button
-              aria-label={t("decreaseTemperature")}
-              disabled={target <= minimum}
-              onClick={(e) => { e.stopPropagation(); setTemperature(target - step); }}
-              type="button"
-            >
-              <HDIcon name="minus" size={18} />
-            </button>
-            <span className="climate-quick-control__target">{target}°</span>
-            <button
-              aria-label={t("increaseTemperature")}
-              disabled={target >= maximum}
-              onClick={(e) => { e.stopPropagation(); setTemperature(target + step); }}
-              type="button"
-            >
-              <HDIcon name="plus" size={18} />
-            </button>
+      {customSensorStyle ? (
+        <SensorStyledCard
+          color={entity.sensor_color}
+          entityId={entity.entity_id}
+          formattedValue={status}
+          hass={hass}
+          icon={<EntityIcon entity={entity} size={16} />}
+          label={entity.name}
+          language={language}
+          max={entity.sensor_max}
+          min={entity.sensor_min}
+          styleMode={customSensorStyle}
+          subtitle={showSince && sinceText ? sinceText : undefined}
+          t={t}
+          unit={sensorUnit}
+          value={Number.isFinite(sensorNum) ? sensorNum : null}
+        />
+      ) : (
+        <>
+          <div className="device-tile__top">
+            {entity.domain === "media_player" && mediaArt(state)
+              ? <span className="device-tile__icon device-tile__icon--art" style={{ backgroundImage: mediaArt(state)! }} />
+              : <span className="device-tile__icon"><EntityIcon entity={entity} /></span>}
+            {entity.confirm && <span aria-hidden="true" className="device-tile__guard"><HDIcon name="lock" size={13} /></span>}
+            <div className="device-tile__sub-buttons">
+              {entity.domain === "light" && colorModes.some((m) => ["hs", "rgb", "xy", "color_temp"].includes(m)) && state?.state === "on" && (
+                <button
+                  aria-label={t("changeIcon") || "Color"}
+                  className="device-sub-btn"
+                  onClick={(e) => { e.stopPropagation(); openDetails(entity); }}
+                  type="button"
+                >
+                  <HDIcon name="palette" size={13} />
+                </button>
+              )}
+              <button
+                aria-label={`${t("noticeTapDetails")}: ${entity.name}`}
+                className="device-sub-btn device-sub-btn--more"
+                onClick={(e) => { e.stopPropagation(); openDetails(entity); }}
+                title={t("noticeTapDetails")}
+                type="button"
+              >
+                <HDIcon name="dots" size={14} />
+              </button>
+            </div>
           </div>
-        </div>
+          {!wide && entity.domain === "light" && !unavailable && dimmable && (
+            <label className={state?.state === "on" ? "device-dimmer" : "device-dimmer device-dimmer--off"} style={{ "--value": `${brightnessDraft ?? brightness}%` } as CSSProperties}>
+              <span className="sr-only">{t("brightness")}</span>
+              <b aria-hidden="true" />
+              <span className="device-dimmer__value" aria-hidden="true">{(brightnessDraft ?? (state?.state === "on" ? brightness : 0)) > 0 ? `${brightnessDraft ?? (state?.state === "on" ? brightness : 0)}%` : ""}</span>
+              <input aria-label={`${t("brightness")}: ${entity.name}`} max="100" min="1" onChange={(event) => setBrightnessDraft(Number(event.currentTarget.value))} onKeyUp={commitKey} onPointerUp={(event) => setBrightness(Number(event.currentTarget.value))} type="range" value={brightnessDraft ?? Math.max(1, brightness)} />
+            </label>
+          )}
+          <div className="device-tile__copy">
+            <strong>{entity.name}</strong>
+            {entity.domain !== "scene" && !(SELECTS.has(entity.domain) && !wide) && (
+              <span>
+                {climateStyle && <i aria-hidden="true" className="climate-mode-dot" style={{ background: climateStyle.accent }} />}
+                {status}
+              </span>
+            )}
+            {showSince && sinceText && <small className="device-tile__since">{sinceText}</small>}
+          </div>
+
+          {wide && entity.domain === "sensor" && isNumericState(state) && <SensorSpark entityId={entity.entity_id} language={language} hass={hass} unit={typeof state?.attributes.unit_of_measurement === "string" ? state.attributes.unit_of_measurement : undefined} />}
+          {wide && !unavailable && state && <div className="tile-wide">{SELECTS.has(entity.domain) && (customize?.linksFor(`entity:${entity.entity_id}`).length ?? 0) > 0
+            ? <HDSelect ariaLabel={`${t("chooseOption")}: ${entity.name}`} className="device-select" onChange={(option) => void run(() => selectOption(hass, entity.entity_id, option))} options={selectOptions(state).map((option) => ({ label: option, value: option }))} value={state.state} />
+            : entity.domain === "alarm_control_panel" && entity.alarm_buttons ? <AlarmButtons entity={entity} hass={hass} onOpen={openDetails} t={t} />
+            : <WideControls entity={entity} hass={hass} language={language} state={state} t={t} />}<CardLinks hass={hass} itemKey={`entity:${entity.entity_id}`} language={language} t={t} /></div>}
+
+          {!wide && entity.domain === "cover" && !unavailable && coverSlider != null && (
+            <label className="device-dimmer device-dimmer--cover" style={{ "--value": `${coverDraft ?? coverSlider}%` } as CSSProperties}>
+              <span className="sr-only">{t("setPosition")}</span>
+              <b aria-hidden="true" />
+              <span className="device-dimmer__value" aria-hidden="true">{(coverDraft ?? coverSlider) != null ? `${coverDraft ?? coverSlider}%` : ""}</span>
+              <input aria-label={`${t("setPosition")}: ${entity.name}`} max="100" min="0" onChange={(event) => setCoverDraft(Number(event.currentTarget.value))} onKeyUp={(event) => { if (["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End", "PageUp", "PageDown"].includes(event.key)) setCoverPosition(Number(event.currentTarget.value)); }} onPointerUp={(event) => setCoverPosition(Number(event.currentTarget.value))} type="range" value={coverDraft ?? coverSlider} />
+            </label>
+          )}
+          {!wide && entity.domain === "cover" && !unavailable && coverSlider == null && (
+            <div className={`device-controls device-controls--cover${entity.cover_side_buttons ? " device-controls--side" : ""}`}>
+              <button aria-label={t("openCover")} onClick={() => void run(() => hass.callService("cover", coverMove(entity, "up"), { entity_id: entity.entity_id }))} type="button"><span className="rotate-up"><HDIcon name="chevron" size={20} /></span></button>
+              <button aria-label={t("stopCover")} onClick={() => void run(() => hass.callService("cover", "stop_cover", { entity_id: entity.entity_id }))} type="button"><HDIcon name="stop" size={16} /></button>
+              <button aria-label={t("closeCover")} onClick={() => void run(() => hass.callService("cover", coverMove(entity, "down"), { entity_id: entity.entity_id }))} type="button"><span className="rotate-down"><HDIcon name="chevron" size={20} /></span></button>
+            </div>
+          )}
+
+          {!wide && entity.domain === "vacuum" && !unavailable && state && (() => {
+            const actions = vacuumActions(hass, state, t);
+            return <div className="device-controls device-controls--vacuum">
+              {[actions.main, actions.dock].map((action) => <button aria-label={action.label} key={action.label} onClick={() => void run(action.run)} type="button"><HDIcon name={action.icon} size={17} /></button>)}
+            </div>;
+          })()}
+
+          {!wide && SELECTS.has(entity.domain) && !unavailable && state && (
+            <HDSelect ariaLabel={`${t("chooseOption")}: ${entity.name}`} className="device-select" onChange={(option) => void run(() => selectOption(hass, entity.entity_id, option))} options={selectOptions(state).map((option) => ({ label: option, value: option }))} value={state.state} />
+          )}
+
+          {!wide && entity.domain === "climate" && !unavailable && target != null && (
+            <div className="climate-quick-control">
+              <div className="climate-quick-control__stepper">
+                <button
+                  aria-label={t("decreaseTemperature")}
+                  disabled={target <= minimum}
+                  onClick={(e) => { e.stopPropagation(); setTemperature(target - step); }}
+                  type="button"
+                >
+                  <HDIcon name="minus" size={18} />
+                </button>
+                <span className="climate-quick-control__target">{target}°</span>
+                <button
+                  aria-label={t("increaseTemperature")}
+                  disabled={target >= maximum}
+                  onClick={(e) => { e.stopPropagation(); setTemperature(target + step); }}
+                  type="button"
+                >
+                  <HDIcon name="plus" size={18} />
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
       {pinPrompt && <PinPadModal expectedPin={currentPin} onCancel={() => setPinPrompt(null)} onSuccess={() => { const act = pinPrompt; setPinPrompt(null); act(); }} t={t} title={entity.name} />}
     </article>

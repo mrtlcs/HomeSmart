@@ -1,17 +1,17 @@
 import { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ContextHeader } from "../components/ContextHeader";
-import { EditableGrid, type GridItem, useTallTile, useWideTile } from "../components/EditableGrid";
+import { EditableGrid, type GridItem, useWideTile } from "../components/EditableGrid";
 import { EntityCard } from "../components/EntityCard";
 import { EntityModal } from "../components/EntityModal";
 import { EntityPicker } from "../components/EntityPicker";
 import { HDIcon, type IconName } from "../components/HDIcon";
-import { Sparkline } from "../components/HistoryChart";
+import { SensorStyledCard, SensorStylePicker } from "../components/SensorVisuals";
 import { useHistory } from "../history";
 import type { TranslationKey } from "../i18n";
 import { arrange, entityKey, getLayout, keyId } from "../layout";
 import { usePlan } from "../plan";
-import type { HomeSmartConfig, ScreenLayout } from "../types/config";
+import type { HomeSmartConfig, ScreenLayout, SensorDisplayOptions } from "../types/config";
 import type { DiscoveredEntity } from "../types/discovery";
 import type { HassEntity, HomeAssistant } from "../types/home-assistant";
 import { useSwipeGesture } from "../useSwipeGesture";
@@ -27,6 +27,8 @@ interface SystemMetric {
   stateObj: HassEntity;
 }
 
+type SystemSensorField = Exclude<keyof NonNullable<HomeSmartConfig["system_monitor"]>, "styles">;
+
 function asEntity(state: HassEntity): DiscoveredEntity {
   return {
     area_id: "",
@@ -39,10 +41,19 @@ function asEntity(state: HassEntity): DiscoveredEntity {
   };
 }
 
+function formatDuration(diffMs: number, language?: string): string {
+  const days = Math.floor(diffMs / (24 * 3600 * 1000));
+  const hours = Math.floor((diffMs % (24 * 3600 * 1000)) / (3600 * 1000));
+  const mins = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
+  const isVi = (language ?? "").toLowerCase().startsWith("vi");
+  if (isVi) return days > 0 ? `${days} ngày ${hours} giờ` : `${hours} giờ ${mins} phút`;
+  return days > 0 ? `${days}d ${hours}h` : `${hours}h ${mins}m`;
+}
+
 export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean }) {
   const { catalogRooms, config, editing, hass, language, onConfig, onLayout, onSettings, t } = props;
   const [modalEntity, setModalEntity] = useState<DiscoveredEntity | null>(null);
-  const [configuringMetric, setConfiguringMetric] = useState<keyof NonNullable<HomeSmartConfig["system_monitor"]> | null>(null);
+  const [configuringMetric, setConfiguringMetric] = useState<{ field: SystemSensorField; sysKey: string } | null>(null);
   const [picking, setPicking] = useState(false);
   const screen = useRef<HTMLElement>(null);
   const plan = usePlan();
@@ -54,21 +65,23 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
     },
   });
 
-  // Extract vitals and detect all system-related sensors
-  const { cpu, memory, disk, temp, netIn, netOut, uptime, load1m, load5m, load15m, allSystemEntities } = useMemo(() => {
-    return parseSystemVitals(hass, config.system_monitor);
-  }, [hass.states, config.system_monitor]);
+  // Cache candidate system entity ids by total sensor count so frequent state ticks do not scan every HA entity.
+  const entityCountKey = useMemo(() => Object.keys(hass.states).length, [hass.states]);
+  const systemIdSet = useMemo(() => collectSystemEntityIds(hass), [entityCountKey]);
+
+  const { cpu, memory, disk, temp, netIn, netOut, uptime, load1m, load5m, load15m, allSystemEntities } = useMemo(
+    () => parseSystemVitals(hass, config.system_monitor, systemIdSet, t, language),
+    [hass.states, config.system_monitor, systemIdSet, t, language],
+  );
 
   // Sparkline history for the 3 main vitals
   const cpuHistory = useHistory(hass, cpu?.entityId, 24);
   const memHistory = useHistory(hass, memory?.entityId, 24);
   const tempHistory = useHistory(hass, temp?.entityId, 24);
 
-  // Layout arrangement for system sensor cards
   const rawLayout = getLayout(config, "system");
   const everywhere = useMemo(() => entityIndex(catalogRooms), [catalogRooms]);
 
-  // Candidates for the grid
   const primaryKeys = [
     "sys:cpu",
     "sys:ram",
@@ -84,9 +97,13 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
   const addedEntityIds = rawLayout.added ?? [];
   const candidateKeys = [...primaryKeys, ...addedEntityIds.map(entityKey)];
 
-  // Default layout setup if first time:
   const layout: ScreenLayout = useMemo(() => {
-    const isFirstTime = rawLayout.order.length === 0 && rawLayout.wide.length === 0;
+    const isFirstTime =
+      rawLayout.order.length === 0 &&
+      rawLayout.wide.length === 0 &&
+      Object.keys(rawLayout.sections ?? {}).length === 0 &&
+      Object.keys(rawLayout.folders ?? {}).length === 0 &&
+      Object.keys(rawLayout.lists ?? {}).length === 0;
     if (isFirstTime) {
       return {
         ...rawLayout,
@@ -99,7 +116,6 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
 
   const { visible, hidden } = arrange(candidateKeys, layout);
 
-  // Overall system health indicator
   const isHighLoad = (cpu && cpu.value > 85) || (memory && memory.value > 90) || (temp && temp.value > 80);
   const isWarm = (cpu && cpu.value > 65) || (memory && memory.value > 80) || (temp && temp.value > 70);
   const healthBadge = isHighLoad
@@ -152,7 +168,7 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
     });
   };
 
-  const handleSetSensor = (metricKey: keyof NonNullable<HomeSmartConfig["system_monitor"]>, entityId: string) => {
+  const handleSetSensor = (metricKey: SystemSensorField, entityId: string) => {
     onConfig((cur) => ({
       ...cur,
       system_monitor: {
@@ -162,93 +178,150 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
     }));
   };
 
+  const handleSetStyle = (sysKey: string, nextStyle: SensorDisplayOptions) => {
+    onConfig((cur) => {
+      const prevStyles = cur.system_monitor?.styles ?? {};
+      const clean: SensorDisplayOptions = {
+        ...(nextStyle.style && nextStyle.style !== "default" ? { style: nextStyle.style } : {}),
+        ...(nextStyle.color ? { color: nextStyle.color } : {}),
+        ...(typeof nextStyle.min === "number" ? { min: nextStyle.min } : {}),
+        ...(typeof nextStyle.max === "number" ? { max: nextStyle.max } : {}),
+      };
+      const updated = { ...prevStyles, [sysKey]: clean };
+      if (Object.keys(clean).length === 0) delete updated[sysKey];
+      return {
+        ...cur,
+        system_monitor: {
+          ...(cur.system_monitor ?? {}),
+          styles: updated,
+        },
+      };
+    });
+  };
+
+  const metricStyles = config.system_monitor?.styles ?? {};
+
   const items: GridItem[] = visible.map((key) => {
     if (key === "sys:cpu") {
+      const cfg = metricStyles["sys:cpu"];
+      const mode = cfg?.style && cfg.style !== "default" ? cfg.style : "gauge";
       return {
         key,
         label: t("cpuUsage"),
         node: (
-          <CyberGlowGauge
-            gradId="sys-grad-cpu"
-            gradientStops={[{ offset: "0%", color: "#00f2fe" }, { offset: "100%", color: "#4facfe" }]}
-            icon="monitor"
+          <SensorStyledCard
+            color={cfg?.color ?? "#38bdf8"}
+            entityId={cpu?.entityId}
+            externalHistory={mode === "gauge" ? undefined : cpuHistory}
+            formattedValue={cpu?.formatted ?? "—"}
+            hass={hass}
+            icon={<HDIcon name="monitor" size={16} />}
             label={t("cpuUsage")}
-            onClick={() => (cpu?.stateObj ? setModalEntity(asEntity(cpu.stateObj)) : setConfiguringMetric("cpu"))}
-            onConfigure={() => setConfiguringMetric("cpu")}
-            subtext={cpu?.subtitle || (load1m ? `Load: ${load1m.value.toFixed(2)}` : undefined)}
+            language={language}
+            max={cfg?.max ?? 100}
+            min={cfg?.min ?? 0}
+            onClick={() => (cpu?.stateObj ? setModalEntity(asEntity(cpu.stateObj)) : setConfiguringMetric({ field: "cpu", sysKey: "sys:cpu" }))}
+            onConfigure={() => setConfiguringMetric({ field: "cpu", sysKey: "sys:cpu" })}
+            styleMode={mode}
+            subtitle={cpu?.subtitle || (load1m ? `${t("sysLoadLabel")} ${load1m.value.toFixed(2)}` : undefined)}
             t={t}
             unit="%"
-            value={cpu?.value}
+            value={cpu?.value ?? null}
           />
         ),
       };
     }
     if (key === "sys:ram") {
+      const cfg = metricStyles["sys:ram"];
+      const mode = cfg?.style && cfg.style !== "default" ? cfg.style : "gauge";
       return {
         key,
         label: t("ramUsage"),
         node: (
-          <CyberGlowGauge
+          <SensorStyledCard
+            color={cfg?.color ?? "#10b981"}
             detail={memory?.subtitle}
-            gradId="sys-grad-ram"
-            gradientStops={[{ offset: "0%", color: "#10b981" }, { offset: "100%", color: "#06b6d4" }]}
-            icon="grid"
+            entityId={memory?.entityId}
+            externalHistory={mode === "gauge" ? undefined : memHistory}
+            formattedValue={memory?.formatted ?? "—"}
+            hass={hass}
+            icon={<HDIcon name="grid" size={16} />}
             label={t("ramUsage")}
-            onClick={() => (memory?.stateObj ? setModalEntity(asEntity(memory.stateObj)) : setConfiguringMetric("memory"))}
-            onConfigure={() => setConfiguringMetric("memory")}
+            language={language}
+            max={cfg?.max ?? 100}
+            min={cfg?.min ?? 0}
+            onClick={() => (memory?.stateObj ? setModalEntity(asEntity(memory.stateObj)) : setConfiguringMetric({ field: "memory", sysKey: "sys:ram" }))}
+            onConfigure={() => setConfiguringMetric({ field: "memory", sysKey: "sys:ram" })}
+            styleMode={mode}
             t={t}
             unit="%"
-            value={memory?.value}
+            value={memory?.value ?? null}
           />
         ),
       };
     }
     if (key === "sys:disk") {
+      const cfg = metricStyles["sys:disk"];
+      const mode = cfg?.style && cfg.style !== "default" ? cfg.style : "gauge";
       return {
         key,
         label: t("diskUsage"),
         node: (
-          <CyberGlowGauge
+          <SensorStyledCard
+            color={cfg?.color ?? "#f59e0b"}
             detail={disk?.subtitle}
-            gradId="sys-grad-disk"
-            gradientStops={[{ offset: "0%", color: "#f59e0b" }, { offset: "100%", color: "#f97316" }]}
-            icon="server"
+            entityId={disk?.entityId}
+            formattedValue={disk?.formatted ?? "—"}
+            hass={hass}
+            icon={<HDIcon name="server" size={16} />}
             label={t("diskUsage")}
-            onClick={() => (disk?.stateObj ? setModalEntity(asEntity(disk.stateObj)) : setConfiguringMetric("disk"))}
-            onConfigure={() => setConfiguringMetric("disk")}
+            language={language}
+            max={cfg?.max ?? 100}
+            min={cfg?.min ?? 0}
+            onClick={() => (disk?.stateObj ? setModalEntity(asEntity(disk.stateObj)) : setConfiguringMetric({ field: "disk", sysKey: "sys:disk" }))}
+            onConfigure={() => setConfiguringMetric({ field: "disk", sysKey: "sys:disk" })}
+            styleMode={mode}
             t={t}
             unit="%"
-            value={disk?.value}
+            value={disk?.value ?? null}
           />
         ),
       };
     }
     if (key === "sys:temp") {
-      const tempStops = getTempGlowGradient(temp?.value);
-      const tempStatus = temp?.value
+      const cfg = metricStyles["sys:temp"];
+      const mode = cfg?.style && cfg.style !== "default" ? cfg.style : "gauge";
+      const tempStatus = temp?.value != null
         ? temp.value < 55
-          ? "Mát mẻ"
+          ? t("sysTempCool")
           : temp.value < 72
-          ? "Bình thường"
+          ? t("sysTempNormal")
           : temp.value < 82
-          ? "Ấm"
-          : "Nóng"
+          ? t("sysTempWarm")
+          : t("sysTempHot")
         : undefined;
       return {
         key,
         label: t("cpuTemp"),
         node: (
-          <CyberGlowGauge
-            gradId="sys-grad-temp"
-            gradientStops={tempStops}
-            icon="flame"
+          <SensorStyledCard
+            color={cfg?.color ?? getTempColor(temp?.value)}
+            entityId={temp?.entityId}
+            externalHistory={mode === "gauge" ? undefined : tempHistory}
+            formattedValue={temp?.formatted ?? "—"}
+            hass={hass}
+            icon={<HDIcon name="flame" size={16} />}
             label={t("cpuTemp")}
-            onClick={() => (temp?.stateObj ? setModalEntity(asEntity(temp.stateObj)) : setConfiguringMetric("temperature"))}
-            onConfigure={() => setConfiguringMetric("temperature")}
-            subtext={temp?.subtitle || tempStatus}
+            language={language}
+            max={cfg?.max ?? 100}
+            min={cfg?.min ?? 0}
+            onClick={() => (temp?.stateObj ? setModalEntity(asEntity(temp.stateObj)) : setConfiguringMetric({ field: "temperature", sysKey: "sys:temp" }))}
+            onConfigure={() => setConfiguringMetric({ field: "temperature", sysKey: "sys:temp" })}
+            styleMode={mode}
+            subtitle={temp?.subtitle || tempStatus}
             t={t}
             unit="°C"
-            value={temp?.value}
+            value={temp?.value ?? null}
           />
         ),
       };
@@ -264,9 +337,9 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
             onClick={() => {
               const ent = netIn?.stateObj || netOut?.stateObj;
               if (ent) setModalEntity(asEntity(ent));
-              else setConfiguringMetric("network_in");
+              else setConfiguringMetric({ field: "network_in", sysKey: "sys:network" });
             }}
-            onConfigure={() => setConfiguringMetric("network_in")}
+            onConfigure={() => setConfiguringMetric({ field: "network_in", sysKey: "sys:network" })}
             t={t}
           />
         ),
@@ -281,8 +354,8 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
             load1m={load1m}
             load5m={load5m}
             load15m={load15m}
-            onClick={() => (uptime?.stateObj ? setModalEntity(asEntity(uptime.stateObj)) : setConfiguringMetric("uptime"))}
-            onConfigure={() => setConfiguringMetric("uptime")}
+            onClick={() => (uptime?.stateObj ? setModalEntity(asEntity(uptime.stateObj)) : setConfiguringMetric({ field: "uptime", sysKey: "sys:uptime" }))}
+            onConfigure={() => setConfiguringMetric({ field: "uptime", sysKey: "sys:uptime" })}
             t={t}
             uptime={uptime}
           />
@@ -290,60 +363,99 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
       };
     }
     if (key === "sys:chart_cpu") {
+      const cfg = metricStyles["sys:chart_cpu"];
+      const mode = cfg?.style && cfg.style !== "default" ? cfg.style : "gradient";
       return {
         key,
         label: `${t("cpuUsage")} (24h)`,
         node: (
-          <CyberTrendCard
-            color="#38bdf8"
-            history={cpuHistory}
+          <SensorStyledCard
+            color={cfg?.color ?? "#38bdf8"}
+            entityId={cpu?.entityId}
+            externalHistory={cpuHistory}
+            formattedValue={cpu?.formatted ?? "—"}
+            hass={hass}
+            icon={<HDIcon name="monitor" size={16} />}
             label={`${t("cpuUsage")} (%)`}
+            language={language}
             onClick={() => cpu?.stateObj && setModalEntity(asEntity(cpu.stateObj))}
+            onConfigure={() => setConfiguringMetric({ field: "cpu", sysKey: "sys:chart_cpu" })}
+            styleMode={mode}
+            t={t}
             unit="%"
-            value={cpu?.formatted}
+            value={cpu?.value ?? null}
           />
         ),
       };
     }
     if (key === "sys:chart_temp") {
+      const cfg = metricStyles["sys:chart_temp"];
+      const mode = cfg?.style && cfg.style !== "default" ? cfg.style : "gradient";
       return {
         key,
         label: `${t("cpuTemp")} (24h)`,
         node: (
-          <CyberTrendCard
-            color="#ef4444"
-            history={tempHistory}
+          <SensorStyledCard
+            color={cfg?.color ?? "#ef4444"}
+            entityId={temp?.entityId}
+            externalHistory={tempHistory}
+            formattedValue={temp?.formatted ?? "—"}
+            hass={hass}
+            icon={<HDIcon name="flame" size={16} />}
             label={`${t("cpuTemp")} (°C)`}
+            language={language}
             onClick={() => temp?.stateObj && setModalEntity(asEntity(temp.stateObj))}
+            onConfigure={() => setConfiguringMetric({ field: "temperature", sysKey: "sys:chart_temp" })}
+            styleMode={mode}
+            t={t}
             unit="°C"
-            value={temp?.formatted}
+            value={temp?.value ?? null}
           />
         ),
       };
     }
     if (key === "sys:chart_ram") {
+      const cfg = metricStyles["sys:chart_ram"];
+      const mode = cfg?.style && cfg.style !== "default" ? cfg.style : "gradient";
       return {
         key,
         label: `${t("ramUsage")} (24h)`,
         node: (
-          <CyberTrendCard
-            color="#10b981"
-            history={memHistory}
+          <SensorStyledCard
+            color={cfg?.color ?? "#10b981"}
+            entityId={memory?.entityId}
+            externalHistory={memHistory}
+            formattedValue={memory?.formatted ?? "—"}
+            hass={hass}
+            icon={<HDIcon name="grid" size={16} />}
             label={`${t("ramUsage")} (%)`}
+            language={language}
             onClick={() => memory?.stateObj && setModalEntity(asEntity(memory.stateObj))}
+            onConfigure={() => setConfiguringMetric({ field: "memory", sysKey: "sys:chart_ram" })}
+            styleMode={mode}
+            t={t}
             unit="%"
-            value={memory?.formatted}
+            value={memory?.value ?? null}
           />
         ),
       };
     }
 
-    // Custom or added sensor entity
+    // Custom or added sensor entity (uses personalized entity options, e.g. gauge/line/bar/gradient)
     const entityId = keyId(key);
-    const entity = everywhere.byId.get(entityId) || asEntity(hass.states[entityId]);
+    const rawState = hass.states[entityId];
+    const entity = everywhere.byId.get(entityId) || (rawState ? asEntity(rawState) : null);
+    if (!entity) {
+      return {
+        key,
+        label: entityId,
+        removal: "remove",
+        node: <div className="device-tile device-tile--unavailable"><div className="device-tile__copy"><strong>{entityId}</strong><span>{t("unavailable")}</span></div></div>,
+      };
+    }
     return {
       key,
-      label: entity?.name || entityId,
+      label: entity.name,
       removal: "remove",
       node: (
         <EntityCard
@@ -358,25 +470,21 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
   });
 
   const configuringTitle = useMemo(() => {
-    switch (configuringMetric) {
-      case "cpu":
-        return t("cpuUsage");
-      case "memory":
-        return t("ramUsage");
-      case "disk":
-        return t("diskUsage");
-      case "temperature":
-        return t("cpuTemp");
-      case "network_in":
-        return t("networkIn");
-      case "network_out":
-        return t("networkOut");
-      case "uptime":
-        return t("systemUptime");
-      default:
-        return "";
+    switch (configuringMetric?.field) {
+      case "cpu": return t("cpuUsage");
+      case "memory": return t("ramUsage");
+      case "disk": return t("diskUsage");
+      case "temperature": return t("cpuTemp");
+      case "network_in": return t("networkIn");
+      case "network_out": return t("networkOut");
+      case "uptime": return t("systemUptime");
+      default: return "";
     }
   }, [configuringMetric, t]);
+
+  const supportsStyleConfig = configuringMetric
+    ? ["sys:cpu", "sys:ram", "sys:disk", "sys:temp", "sys:chart_cpu", "sys:chart_temp", "sys:chart_ram"].includes(configuringMetric.sysKey)
+    : false;
 
   return (
     <main className={`screen collection-screen sys-screen ${editing ? "screen--editing" : ""}`} ref={screen}>
@@ -420,9 +528,10 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
                 handleEntityToggle(keyId(removeKey));
               }
             }}
-            sections={false}
-            sizable={true}
+            sections
+            sizable
             t={t}
+            vehicles={false}
           />
         </div>
       )}
@@ -440,12 +549,14 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
 
       {configuringMetric && (
         <SystemSensorModal
-          currentId={config.system_monitor?.[configuringMetric]}
+          currentId={config.system_monitor?.[configuringMetric.field]}
+          currentStyle={metricStyles[configuringMetric.sysKey]}
           hass={hass}
-          metricKey={configuringMetric}
+          metricKey={configuringMetric.field}
           metricTitle={configuringTitle}
+          onChangeStyle={supportsStyleConfig ? (style) => handleSetStyle(configuringMetric.sysKey, style) : undefined}
           onClose={() => setConfiguringMetric(null)}
-          onSelect={(id) => handleSetSensor(configuringMetric, id)}
+          onSelect={(id) => handleSetSensor(configuringMetric.field, id)}
           t={t}
         />
       )}
@@ -470,35 +581,38 @@ export function SystemMonitorScreen(props: ScreenProps & { embedded?: boolean })
   );
 }
 
-/** Direct Sensor Selector Modal */
+/** Direct Sensor & Card Style Selector Modal */
 function SystemSensorModal({
   currentId,
+  currentStyle,
   hass,
   metricKey,
   metricTitle,
+  onChangeStyle,
   onClose,
   onSelect,
   t,
 }: {
   currentId?: string;
+  currentStyle?: SensorDisplayOptions;
   hass: HomeAssistant;
-  metricKey: keyof NonNullable<HomeSmartConfig["system_monitor"]>;
+  metricKey: SystemSensorField;
   metricTitle: string;
+  onChangeStyle?: (style: SensorDisplayOptions) => void;
   onClose: () => void;
   onSelect: (entityId: string) => void;
   t: (key: TranslationKey) => string;
 }) {
   const [search, setSearch] = useState("");
   const candidates = useMemo(() => systemCandidates(hass)[metricKey] ?? [], [hass.states, metricKey]);
-  const allSensors = useMemo(() => {
-    return Object.values(hass.states).filter((s) => s.entity_id.startsWith("sensor."));
-  }, [hass.states]);
+  const allSensors = useMemo(
+    () => Object.values(hass.states).filter((s) => s.entity_id.startsWith("sensor.")),
+    [hass.states],
+  );
 
   const filteredSensors = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) {
-      return candidates.slice(0, 35);
-    }
+    if (!query) return candidates.slice(0, 35);
     return allSensors
       .filter((s) => {
         const id = s.entity_id.toLowerCase();
@@ -531,7 +645,7 @@ function SystemSensorModal({
         onClick={(e) => e.stopPropagation()}
         style={{
           width: "min(100%, 540px)",
-          maxHeight: "85vh",
+          maxHeight: "86vh",
           background: "var(--paper, #181d24)",
           borderRadius: "calc(var(--u) * 2.2)",
           border: "1px solid rgba(255, 255, 255, 0.15)",
@@ -559,7 +673,7 @@ function SystemSensorModal({
             </p>
           </div>
           <button
-            aria-label="Close"
+            aria-label={t("close")}
             className="hd-close"
             onClick={onClose}
             style={{
@@ -579,11 +693,25 @@ function SystemSensorModal({
           </button>
         </header>
 
+        {onChangeStyle && (
+          <div style={{ padding: "calc(var(--u) * 1.4) calc(var(--u) * 2.2)", borderBottom: "1px solid rgba(255, 255, 255, 0.08)" }}>
+            <SensorStylePicker
+              onChange={onChangeStyle}
+              showDefault={false}
+              t={t}
+              value={{
+                ...currentStyle,
+                style: currentStyle?.style ?? "gauge",
+              }}
+            />
+          </div>
+        )}
+
         <div style={{ padding: "calc(var(--u) * 1.4) calc(var(--u) * 2.2)" }}>
           <input
             className="st-input st-input--framed"
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Tìm kiếm cảm biến (VD: memory, ram, disk...)..."
+            placeholder={t("sysSearchSensorPlaceholder")}
             style={{ width: "100%", padding: "10px 14px", borderRadius: 10, fontSize: "14px" }}
             type="text"
             value={search}
@@ -591,7 +719,6 @@ function SystemSensorModal({
         </div>
 
         <div style={{ flex: 1, overflowY: "auto", padding: "0 calc(var(--u) * 2.2) calc(var(--u) * 2)" }}>
-          {/* Default Auto-detect item */}
           <button
             className={`sys-sensor-opt ${!currentId ? "sys-sensor-opt--selected" : ""}`}
             onClick={() => {
@@ -616,12 +743,11 @@ function SystemSensorModal({
           >
             <div>
               <div style={{ fontWeight: 600 }}>{t("autoDetect")}</div>
-              <small style={{ opacity: 0.6 }}>Tự động tìm kiếm cảm biến tốt nhất trong Home Assistant</small>
+              <small style={{ opacity: 0.6 }}>{t("sysAutoDetectDesc")}</small>
             </div>
             {!currentId && <HDIcon name="check" size={18} />}
           </button>
 
-          {/* Filtered list of candidate sensors */}
           {filteredSensors.map((s) => {
             const isSelected = currentId === s.entity_id;
             return (
@@ -668,201 +794,16 @@ function SystemSensorModal({
         </div>
       </div>
     </div>,
-    document.querySelector(".app-shell") || document.body
+    document.querySelector(".app-shell") || document.body,
   );
 }
 
-/** Cyber Bento Glow Gauge */
-function CyberGlowGauge({
-  detail,
-  gradId,
-  gradientStops,
-  icon,
-  label,
-  max = 100,
-  onClick,
-  onConfigure,
-  subtext,
-  t,
-  unit = "%",
-  value,
-}: {
-  detail?: string;
-  gradId: string;
-  gradientStops: Array<{ offset: string; color: string }>;
-  icon: IconName;
-  label: string;
-  max?: number;
-  onClick?: () => void;
-  onConfigure?: () => void;
-  subtext?: string;
-  t: (key: TranslationKey) => string;
-  unit?: string;
-  value?: number;
-}) {
-  const wide = useWideTile();
-  const radius = 38;
-  const strokeWidth = 7;
-  const normalized = value != null ? Math.min(Math.max(value, 0), max) : 0;
-  // 260 degree arc gauge
-  const totalAngle = 260;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDash = (circumference * totalAngle) / 360;
-  const strokeDashoffset = strokeDash - (strokeDash * (normalized / max));
-  const rotation = 140; // start angle
-
-  const mainColor = gradientStops[0]?.color ?? "#38bdf8";
-
-  return (
-    <div
-      className={`sys-gauge-card ${wide ? "sys-gauge-card--wide" : ""}`}
-      onClick={onClick}
-      role="button"
-      style={{
-        boxSizing: "border-box",
-        cursor: onClick ? "pointer" : "default",
-        display: "flex",
-        flexDirection: wide ? "row" : "column",
-        alignItems: "center",
-        justifyContent: wide ? "flex-start" : "center",
-        padding: wide ? "calc(var(--u) * 1.8) calc(var(--u) * 2.2)" : "calc(var(--u) * 2) calc(var(--u) * 1.6)",
-        gap: wide ? "calc(var(--u) * 2)" : "calc(var(--u) * 1.2)",
-        width: "100%",
-        height: "100%",
-        minHeight: "calc(var(--u) * 16)",
-        position: "relative",
-      }}
-      tabIndex={0}
-    >
-      {/* Settings gear button */}
-      {onConfigure && (
-        <button
-          aria-label={t("selectSensor")}
-          className="sys-gauge-cfg-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            onConfigure();
-          }}
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 10,
-            width: 26,
-            height: 26,
-            borderRadius: "50%",
-            border: "1px solid rgba(255,255,255,0.15)",
-            background: "rgba(0,0,0,0.25)",
-            color: "var(--ink)",
-            display: "grid",
-            placeItems: "center",
-            cursor: "pointer",
-            opacity: 0.7,
-            zIndex: 4,
-          }}
-          title={t("selectSensor")}
-          type="button"
-        >
-          <HDIcon name="settings" size={13} />
-        </button>
-      )}
-
-      <div className="sys-gauge-card__ring" style={{ width: 96, height: 96, flexShrink: 0, position: "relative", display: "grid", placeItems: "center" }}>
-        <svg className="sys-gauge-svg" height="96" style={{ overflow: "visible" }} viewBox="0 0 100 100" width="96">
-          <defs>
-            <linearGradient id={gradId} x1="0%" x2="100%" y1="100%" y2="0%">
-              {gradientStops.map((s, idx) => (
-                <stop key={idx} offset={s.offset} stopColor={s.color} />
-              ))}
-            </linearGradient>
-            <filter id={`${gradId}-glow`} x="-20%" y="-20%" width="140%" height="140%">
-              <feDropShadow dx="0" dy="0" stdDeviation="3.5" floodColor={mainColor} floodOpacity="0.45" />
-            </filter>
-          </defs>
-          {/* Background Track */}
-          <circle
-            cx="50"
-            cy="50"
-            fill="none"
-            r={radius}
-            stroke="rgba(255, 255, 255, 0.08)"
-            strokeDasharray={`${strokeDash} ${circumference}`}
-            strokeLinecap="round"
-            strokeWidth={strokeWidth}
-            transform={`rotate(${rotation} 50 50)`}
-          />
-          {/* Active Gradient Stroke */}
-          {value != null && (
-            <circle
-              cx="50"
-              cy="50"
-              fill="none"
-              filter={`url(#${gradId}-glow)`}
-              r={radius}
-              stroke={`url(#${gradId})`}
-              strokeDasharray={`${strokeDash} ${circumference}`}
-              strokeDashoffset={strokeDashoffset}
-              strokeLinecap="round"
-              strokeWidth={strokeWidth}
-              style={{ transition: "stroke-dashoffset 0.6s cubic-bezier(0.16, 1, 0.3, 1)" }}
-              transform={`rotate(${rotation} 50 50)`}
-            />
-          )}
-        </svg>
-        <div className="sys-gauge-center" style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}>
-          {value != null ? (
-            <span className="sys-gauge-value" style={{ font: "700 calc(var(--u) * 2.5)/1 var(--f-body)", display: "flex", alignItems: "baseline" }}>
-              {Math.round(value)}
-              <small className="sys-gauge-unit" style={{ fontSize: "0.55em", opacity: 0.8, marginLeft: 2 }}>{unit}</small>
-            </span>
-          ) : (
-            <button
-              className="hd-pill hd-pill--primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onConfigure?.();
-              }}
-              style={{ fontSize: "0.75em", padding: "4px 8px" }}
-              type="button"
-            >
-              <HDIcon name="settings" size={12} />
-              <span>{t("selectSensor")}</span>
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="sys-gauge-info" style={{ display: "flex", flexDirection: "column", alignItems: wide ? "flex-start" : "center", textAlign: wide ? "left" : "center", flex: 1, minWidth: 0, width: wide ? "auto" : "100%" }}>
-        <div className="sys-gauge-head" style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span className="sys-gauge-icon" style={{ color: mainColor, display: "flex" }}>
-            <HDIcon name={icon} size={16} />
-          </span>
-          <strong className="sys-gauge-label" style={{ fontSize: "calc(var(--u) * 1.6)", fontWeight: 600 }}>{label}</strong>
-        </div>
-        {detail && (
-          <div style={{ marginTop: 6, width: "100%" }}>
-            <div style={{ fontSize: "0.85em", opacity: 0.85, fontWeight: 500 }}>{detail}</div>
-            <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.1)", borderRadius: 2, marginTop: 4, overflow: "hidden" }}>
-              <div style={{ width: `${Math.min(100, Math.max(0, value ?? 0))}%`, height: "100%", background: `linear-gradient(90deg, ${mainColor}, ${gradientStops[1]?.color ?? mainColor})`, borderRadius: 2 }} />
-            </div>
-          </div>
-        )}
-        {subtext && <span className="sys-gauge-sub" style={{ fontSize: "0.8em", opacity: 0.7, marginTop: 4 }}>{subtext}</span>}
-      </div>
-    </div>
-  );
-}
-
-function getTempGlowGradient(temp?: number): Array<{ offset: string; color: string }> {
-  if (temp == null) return [{ offset: "0%", color: "#38bdf8" }, { offset: "100%", color: "#0ea5e9" }];
-  if (temp < 55) {
-    return [{ offset: "0%", color: "#38bdf8" }, { offset: "100%", color: "#0ea5e9" }]; // Ice Blue
-  } else if (temp < 72) {
-    return [{ offset: "0%", color: "#10b981" }, { offset: "100%", color: "#34d399" }]; // Emerald Green
-  } else if (temp < 82) {
-    return [{ offset: "0%", color: "#f59e0b" }, { offset: "100%", color: "#fbbf24" }]; // Amber Gold
-  } else {
-    return [{ offset: "0%", color: "#ef4444" }, { offset: "100%", color: "#f43f5e" }]; // Crimson Red
-  }
+function getTempColor(temp?: number): string {
+  if (temp == null) return "#38bdf8";
+  if (temp < 55) return "#38bdf8";
+  if (temp < 72) return "#10b981";
+  if (temp < 82) return "#f59e0b";
+  return "#ef4444";
 }
 
 /** Dual-Stream Cyber Network Card */
@@ -894,26 +835,14 @@ function CyberNetworkCard({ netIn, netOut, onClick, onConfigure, t }: { netIn?: 
           <span className="sys-card__title" style={{ fontWeight: 600 }}>{t("networkIo")}</span>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: "0.75em", opacity: 0.8, background: "rgba(56,189,248,0.15)", color: "#38bdf8", padding: "2px 8px", borderRadius: 999 }}>Realtime</span>
+          <span style={{ fontSize: "0.75em", opacity: 0.8, background: "rgba(56,189,248,0.15)", color: "#38bdf8", padding: "2px 8px", borderRadius: 999 }}>{t("sysRealtime")}</span>
           {onConfigure && (
             <button
               aria-label={t("selectSensor")}
-              className="sys-gauge-cfg-btn"
+              className="sys-gauge-cfg-btn sys-gauge-cfg-btn--inline"
               onClick={(e) => {
                 e.stopPropagation();
                 onConfigure();
-              }}
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: "50%",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(0,0,0,0.25)",
-                color: "var(--ink)",
-                display: "grid",
-                placeItems: "center",
-                cursor: "pointer",
-                opacity: 0.7,
               }}
               title={t("selectSensor")}
               type="button"
@@ -925,7 +854,6 @@ function CyberNetworkCard({ netIn, netOut, onClick, onConfigure, t }: { netIn?: 
       </div>
 
       <div className="sys-network-metrics" style={{ display: "flex", gap: "calc(var(--u) * 1.4)", flex: 1, alignItems: "center" }}>
-        {/* Download Capsule */}
         <div
           className="sys-net-stat"
           style={{
@@ -949,7 +877,6 @@ function CyberNetworkCard({ netIn, netOut, onClick, onConfigure, t }: { netIn?: 
           </strong>
         </div>
 
-        {/* Upload Capsule */}
         <div
           className="sys-net-stat"
           style={{
@@ -1008,27 +935,15 @@ function CyberUptimeCard({ load1m, load5m, load15m, onClick, onConfigure, t, upt
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <div className="sys-live-dot" style={{ display: "flex", alignItems: "center", gap: 6, fontSize: "0.75em", color: "#10b981", background: "rgba(16,185,129,0.15)", padding: "2px 8px", borderRadius: 999, fontWeight: 600 }}>
             <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", animation: "sys-pulse 2s infinite ease-in-out" }} />
-            <span>Active</span>
+            <span>{t("sysActive")}</span>
           </div>
           {onConfigure && (
             <button
               aria-label={t("selectSensor")}
-              className="sys-gauge-cfg-btn"
+              className="sys-gauge-cfg-btn sys-gauge-cfg-btn--inline"
               onClick={(e) => {
                 e.stopPropagation();
                 onConfigure();
-              }}
-              style={{
-                width: 26,
-                height: 26,
-                borderRadius: "50%",
-                border: "1px solid rgba(255,255,255,0.15)",
-                background: "rgba(0,0,0,0.25)",
-                color: "var(--ink)",
-                display: "grid",
-                placeItems: "center",
-                cursor: "pointer",
-                opacity: 0.7,
               }}
               title={t("selectSensor")}
               type="button"
@@ -1042,13 +957,13 @@ function CyberUptimeCard({ load1m, load5m, load15m, onClick, onConfigure, t, upt
       <div style={{ display: "flex", flexDirection: wide ? "row" : "column", justifyContent: "space-between", alignItems: wide ? "center" : "stretch", gap: 12 }}>
         <div className="sys-host-uptime">
           <strong className="sys-host-uptime__value" style={{ font: "700 calc(var(--u) * 2.2)/1.1 var(--f-body)", color: "var(--ink)" }}>
-            {uptime?.formatted || "Đang hoạt động"}
+            {uptime?.formatted || t("sysOperating")}
           </strong>
         </div>
 
         {(load1m || load5m || load15m) && (
           <div className="sys-load-pills" style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
-            <span style={{ fontSize: "0.75em", opacity: 0.7 }}>Load:</span>
+            <span style={{ fontSize: "0.75em", opacity: 0.7 }}>{t("sysLoadLabel")}</span>
             <div style={{ display: "flex", gap: 6 }}>
               {load1m && (
                 <span style={{ background: "rgba(255,255,255,0.08)", padding: "2px 6px", borderRadius: 6, fontSize: "0.8em", fontWeight: 600 }}>
@@ -1067,43 +982,6 @@ function CyberUptimeCard({ load1m, load5m, load15m, onClick, onConfigure, t, upt
               )}
             </div>
           </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/** 24h Area Trend Chart Card */
-function CyberTrendCard({ color = "#3b82f6", history, label, onClick, unit = "%", value }: { color?: string; history?: any[] | null; label: string; onClick?: () => void; unit?: string; value?: string | number }) {
-  return (
-    <div
-      className="sys-trend-card"
-      onClick={onClick}
-      role="button"
-      style={{
-        boxSizing: "border-box",
-        cursor: onClick ? "pointer" : "default",
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
-        width: "100%",
-        height: "100%",
-        minHeight: "calc(var(--u) * 16)",
-      }}
-      tabIndex={0}
-    >
-      <div className="sys-trend-card__header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: color, filter: `drop-shadow(0 0 4px ${color})` }} />
-          <span style={{ fontWeight: 600 }}>{label}</span>
-        </div>
-        <strong style={{ color, font: "700 calc(var(--u) * 1.8)/1 var(--f-body)" }}>{value != null ? `${value}` : ""}</strong>
-      </div>
-      <div className="sys-trend-chart" style={{ flex: 1, minHeight: 48, display: "flex", alignItems: "flex-end" }}>
-        {history && history.length > 1 ? (
-          <Sparkline compact hours={24} points={history} unit={unit} />
-        ) : (
-          <div style={{ width: "100%", textAlign: "center", opacity: 0.5, fontSize: "0.85em" }}>Đang tải lịch sử...</div>
         )}
       </div>
     </div>
@@ -1133,9 +1011,67 @@ export function systemCandidates(hass: HomeAssistant) {
   };
 }
 
-/** Parses sensors from Home Assistant into vitals, prioritizing custom selections */
-function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig["system_monitor"]) {
-  const states = Object.values(hass.states);
+/** Collects candidate system entity ids once when entity count changes to avoid full scans on every tick. */
+function collectSystemEntityIds(hass: HomeAssistant): string[] {
+  const ids: string[] = [];
+  for (const s of Object.values(hass.states)) {
+    if (!s.entity_id.startsWith("sensor.")) continue;
+    const id = s.entity_id.toLowerCase();
+    const friendly = String(s.attributes.friendly_name ?? "").toLowerCase();
+    const unit = String(s.attributes.unit_of_measurement ?? "");
+    const devClass = String(s.attributes.device_class ?? "");
+    if (
+      id.includes("processor") ||
+      id.includes("cpu") ||
+      id.includes("memory") ||
+      id.includes("ram") ||
+      id.includes("disk") ||
+      id.includes("storage") ||
+      id.includes("network_in") ||
+      id.includes("network_out") ||
+      id.includes("throughput") ||
+      id.includes("rx_") ||
+      id.includes("tx_") ||
+      id.includes("download") ||
+      id.includes("upload") ||
+      id.includes("last_boot") ||
+      id.includes("uptime") ||
+      id.includes("load_") ||
+      id.includes("glances") ||
+      id.includes("systemmonitor") ||
+      id.includes("proxmox") ||
+      id.includes("swap") ||
+      id.includes("soc") ||
+      id.includes("core_temp") ||
+      friendly.includes("processor") ||
+      friendly.includes("cpu") ||
+      friendly.includes("memory") ||
+      friendly.includes("ram") ||
+      friendly.includes("disk") ||
+      friendly.includes("storage") ||
+      friendly.includes("ổ đĩa") ||
+      friendly.includes("uptime") ||
+      friendly.includes("last boot") ||
+      devClass === "temperature" ||
+      devClass === "timestamp" ||
+      unit === "°C" ||
+      unit === "°F"
+    ) {
+      ids.push(s.entity_id);
+    }
+  }
+  return ids;
+}
+
+/** Parses cached system entities into vitals, prioritizing custom selections */
+function parseSystemVitals(
+  hass: HomeAssistant,
+  customSensors: HomeSmartConfig["system_monitor"] | undefined,
+  candidateIds: string[],
+  t: (key: TranslationKey) => string,
+  language?: string,
+) {
+  const states = candidateIds.map((id) => hass.states[id]).filter((s): s is HassEntity => Boolean(s));
 
   let cpu: SystemMetric | undefined;
   let memory: SystemMetric | undefined;
@@ -1148,19 +1084,11 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
   let load5m: SystemMetric | undefined;
   let load15m: SystemMetric | undefined;
 
-  // 1. If custom sensors are configured in config.system_monitor, load them first!
   if (customSensors?.cpu && hass.states[customSensors.cpu]) {
     const s = hass.states[customSensors.cpu];
     const val = Number.parseFloat(String(s.state ?? "").replace(",", "."));
     if (Number.isFinite(val)) {
-      cpu = {
-        entityId: s.entity_id,
-        formatted: `${val.toFixed(1)}%`,
-        name: s.attributes.friendly_name ?? "CPU",
-        stateObj: s,
-        unit: "%",
-        value: val,
-      };
+      cpu = { entityId: s.entity_id, formatted: `${val.toFixed(1)}%`, name: s.attributes.friendly_name ?? "CPU", stateObj: s, unit: "%", value: val };
     }
   }
 
@@ -1171,7 +1099,7 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
     if (Number.isFinite(rawVal)) {
       let gaugeVal = rawVal;
       if (rawVal > 100 || u.includes("B")) {
-        const pctSensor = Object.values(hass.states).find(
+        const pctSensor = states.find(
           (st) =>
             st.attributes.unit_of_measurement === "%" &&
             (st.entity_id.includes("memory") || st.entity_id.includes("ram") || String(st.attributes.friendly_name ?? "").toLowerCase().includes("memory")) &&
@@ -1180,10 +1108,8 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
         if (pctSensor) {
           gaugeVal = Number.parseFloat(String(pctSensor.state).replace(",", "."));
         } else {
-          const freeSensor = Object.values(hass.states).find(
-            (st) =>
-              (st.entity_id.includes("memory_free") || st.entity_id.includes("ram_free")) &&
-              Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
+          const freeSensor = states.find(
+            (st) => (st.entity_id.includes("memory_free") || st.entity_id.includes("ram_free")) && Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
           );
           if (freeSensor) {
             const freeVal = Number.parseFloat(String(freeSensor.state).replace(",", "."));
@@ -1196,7 +1122,7 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
         formatted: `${gaugeVal.toFixed(1)}%`,
         name: s.attributes.friendly_name ?? "RAM",
         stateObj: s,
-        subtitle: rawVal > 100 ? `Đang dùng: ${(rawVal / 1024).toFixed(1)} GB` : undefined,
+        subtitle: rawVal > 100 ? `${t("sysUsedLabel")} ${(rawVal / 1024).toFixed(1)} GB` : undefined,
         unit: "%",
         value: gaugeVal,
       };
@@ -1210,24 +1136,12 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
     if (Number.isFinite(rawVal)) {
       let gaugeVal = rawVal;
       if (rawVal > 100 || u.includes("B")) {
-        const pctSensor = Object.values(hass.states).find(
-          (st) =>
-            st.attributes.unit_of_measurement === "%" &&
-            (st.entity_id.includes("disk") || st.entity_id.includes("storage")) &&
-            Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
+        const pctSensor = states.find(
+          (st) => st.attributes.unit_of_measurement === "%" && (st.entity_id.includes("disk") || st.entity_id.includes("storage")) && Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
         );
-        if (pctSensor) {
-          gaugeVal = Number.parseFloat(String(pctSensor.state).replace(",", "."));
-        }
+        if (pctSensor) gaugeVal = Number.parseFloat(String(pctSensor.state).replace(",", "."));
       }
-      disk = {
-        entityId: s.entity_id,
-        formatted: `${gaugeVal.toFixed(1)}%`,
-        name: s.attributes.friendly_name ?? "Disk",
-        stateObj: s,
-        unit: "%",
-        value: gaugeVal,
-      };
+      disk = { entityId: s.entity_id, formatted: `${gaugeVal.toFixed(1)}%`, name: s.attributes.friendly_name ?? "Disk", stateObj: s, unit: "%", value: gaugeVal };
     }
   }
 
@@ -1235,14 +1149,7 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
     const s = hass.states[customSensors.temperature];
     const val = Number.parseFloat(String(s.state ?? "").replace(",", "."));
     if (Number.isFinite(val)) {
-      temp = {
-        entityId: s.entity_id,
-        formatted: `${val.toFixed(1)}°C`,
-        name: s.attributes.friendly_name ?? "CPU Temp",
-        stateObj: s,
-        unit: "°C",
-        value: val,
-      };
+      temp = { entityId: s.entity_id, formatted: `${val.toFixed(1)}°C`, name: s.attributes.friendly_name ?? "CPU Temp", stateObj: s, unit: "°C", value: val };
     }
   }
 
@@ -1250,58 +1157,29 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
     const s = hass.states[customSensors.network_in];
     const val = Number.parseFloat(String(s.state ?? "").replace(",", "."));
     const unit = String(s.attributes.unit_of_measurement ?? "");
-    netIn = {
-      entityId: s.entity_id,
-      formatted: Number.isFinite(val) ? `${val.toFixed(1)} ${unit}` : s.state,
-      name: s.attributes.friendly_name ?? "Network In",
-      stateObj: s,
-      unit,
-      value: Number.isFinite(val) ? val : 0,
-    };
+    netIn = { entityId: s.entity_id, formatted: Number.isFinite(val) ? `${val.toFixed(1)} ${unit}` : s.state, name: s.attributes.friendly_name ?? "Network In", stateObj: s, unit, value: Number.isFinite(val) ? val : 0 };
   }
 
   if (customSensors?.network_out && hass.states[customSensors.network_out]) {
     const s = hass.states[customSensors.network_out];
     const val = Number.parseFloat(String(s.state ?? "").replace(",", "."));
     const unit = String(s.attributes.unit_of_measurement ?? "");
-    netOut = {
-      entityId: s.entity_id,
-      formatted: Number.isFinite(val) ? `${val.toFixed(1)} ${unit}` : s.state,
-      name: s.attributes.friendly_name ?? "Network Out",
-      stateObj: s,
-      unit,
-      value: Number.isFinite(val) ? val : 0,
-    };
+    netOut = { entityId: s.entity_id, formatted: Number.isFinite(val) ? `${val.toFixed(1)} ${unit}` : s.state, name: s.attributes.friendly_name ?? "Network Out", stateObj: s, unit, value: Number.isFinite(val) ? val : 0 };
   }
 
   if (customSensors?.uptime && hass.states[customSensors.uptime]) {
     const s = hass.states[customSensors.uptime];
     let uptimeText = s.state;
     if (s.attributes.device_class === "timestamp" || !Number.isNaN(Date.parse(s.state))) {
-      const bootTime = Date.parse(s.state);
-      const diffMs = Date.now() - bootTime;
-      if (diffMs > 0) {
-        const days = Math.floor(diffMs / (24 * 3600 * 1000));
-        const hours = Math.floor((diffMs % (24 * 3600 * 1000)) / (3600 * 1000));
-        const mins = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
-        uptimeText = days > 0 ? `${days} ngày ${hours} giờ` : `${hours} giờ ${mins} phút`;
-      }
+      const diffMs = Date.now() - Date.parse(s.state);
+      if (diffMs > 0) uptimeText = formatDuration(diffMs, language);
     }
-    uptime = {
-      entityId: s.entity_id,
-      formatted: uptimeText,
-      name: s.attributes.friendly_name ?? "Uptime",
-      stateObj: s,
-      unit: "",
-      value: 0,
-    };
+    uptime = { entityId: s.entity_id, formatted: uptimeText, name: s.attributes.friendly_name ?? "Uptime", stateObj: s, unit: "", value: 0 };
   }
 
   const allSystemEntities: DiscoveredEntity[] = [];
 
   for (const s of states) {
-    if (!s.entity_id.startsWith("sensor.")) continue;
-
     const id = s.entity_id.toLowerCase();
     const friendly = String(s.attributes.friendly_name ?? "").toLowerCase();
     const val = Number.parseFloat(String(s.state ?? "").replace(",", "."));
@@ -1332,18 +1210,9 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
       friendly.includes("disk");
 
     if (isSystemRelated) {
-      allSystemEntities.push({
-        area_id: "",
-        device_class: (s.attributes.device_class as string | undefined) ?? null,
-        device_id: null,
-        domain: "sensor",
-        entity_id: s.entity_id,
-        icon: typeof s.attributes.icon === "string" ? s.attributes.icon : null,
-        name: s.attributes.friendly_name ?? s.entity_id,
-      });
+      allSystemEntities.push(asEntity(s));
     }
 
-    // CPU Usage
     if (
       !cpu &&
       hasNum &&
@@ -1353,17 +1222,9 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
         id.includes("processor_percent") ||
         ((friendly.includes("processor") || friendly.includes("cpu")) && (unit === "%" || friendly.includes("use") || friendly.includes("usage"))))
     ) {
-      cpu = {
-        entityId: s.entity_id,
-        formatted: `${val.toFixed(1)}%`,
-        name: s.attributes.friendly_name ?? "CPU",
-        stateObj: s,
-        unit: "%",
-        value: val,
-      };
+      cpu = { entityId: s.entity_id, formatted: `${val.toFixed(1)}%`, name: s.attributes.friendly_name ?? "CPU", stateObj: s, unit: "%", value: val };
     }
 
-    // Memory / RAM Usage %
     const isMemCandidate =
       hasNum &&
       (id.includes("memory_use_percent") ||
@@ -1380,9 +1241,7 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
         let gaugeVal = val;
         if (gaugeVal > 100) {
           const freeSensor = states.find(
-            (st) =>
-              (st.entity_id.includes("memory_free") || st.entity_id.includes("ram_free")) &&
-              Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
+            (st) => (st.entity_id.includes("memory_free") || st.entity_id.includes("ram_free")) && Number.isFinite(Number.parseFloat(String(st.state).replace(",", "."))),
           );
           if (freeSensor) {
             const freeVal = Number.parseFloat(String(freeSensor.state).replace(",", "."));
@@ -1390,19 +1249,11 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
           }
         }
         if (isPercent || gaugeVal <= 100 || !memory) {
-          memory = {
-            entityId: s.entity_id,
-            formatted: `${gaugeVal.toFixed(1)}%`,
-            name: s.attributes.friendly_name ?? "RAM",
-            stateObj: s,
-            unit: "%",
-            value: gaugeVal,
-          };
+          memory = { entityId: s.entity_id, formatted: `${gaugeVal.toFixed(1)}%`, name: s.attributes.friendly_name ?? "RAM", stateObj: s, unit: "%", value: gaugeVal };
         }
       }
     }
 
-    // Disk Usage %
     const isDiskCandidate =
       hasNum &&
       (id.includes("disk_use_percent") ||
@@ -1415,103 +1266,36 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
     if (isDiskCandidate) {
       const isPercent = unit === "%" || (val <= 100 && !unit.includes("B"));
       if (!disk || (isPercent && disk.value > 100)) {
-        disk = {
-          entityId: s.entity_id,
-          formatted: `${val.toFixed(1)}%`,
-          name: s.attributes.friendly_name ?? "Disk",
-          stateObj: s,
-          unit: "%",
-          value: val,
-        };
+        disk = { entityId: s.entity_id, formatted: `${val.toFixed(1)}%`, name: s.attributes.friendly_name ?? "Disk", stateObj: s, unit: "%", value: val };
       }
     }
 
-    // CPU Temperature
     if (
       !temp &&
       hasNum &&
       (s.attributes.device_class === "temperature" || unit === "°C" || unit === "°F") &&
-      (id.includes("cpu") ||
-        id.includes("processor") ||
-        id.includes("soc") ||
-        id.includes("core_temp") ||
-        friendly.includes("processor temp") ||
-        friendly.includes("cpu temp"))
+      (id.includes("cpu") || id.includes("processor") || id.includes("soc") || id.includes("core_temp") || friendly.includes("processor temp") || friendly.includes("cpu temp"))
     ) {
-      temp = {
-        entityId: s.entity_id,
-        formatted: `${val.toFixed(1)}°C`,
-        name: s.attributes.friendly_name ?? "CPU Temp",
-        stateObj: s,
-        unit: "°C",
-        value: val,
-      };
+      temp = { entityId: s.entity_id, formatted: `${val.toFixed(1)}°C`, name: s.attributes.friendly_name ?? "CPU Temp", stateObj: s, unit: "°C", value: val };
     }
 
-    // Network In
-    if (
-      !netIn &&
-      (id.includes("network_in") ||
-        id.includes("throughput_in") ||
-        id.includes("rx_") ||
-        id.includes("download") ||
-        friendly.includes("network in") ||
-        friendly.includes("download"))
-    ) {
-      netIn = {
-        entityId: s.entity_id,
-        formatted: hasNum ? `${val.toFixed(1)} ${unit}` : s.state,
-        name: s.attributes.friendly_name ?? "Network In",
-        stateObj: s,
-        unit,
-        value: hasNum ? val : 0,
-      };
+    if (!netIn && (id.includes("network_in") || id.includes("throughput_in") || id.includes("rx_") || id.includes("download") || friendly.includes("network in") || friendly.includes("download"))) {
+      netIn = { entityId: s.entity_id, formatted: hasNum ? `${val.toFixed(1)} ${unit}` : s.state, name: s.attributes.friendly_name ?? "Network In", stateObj: s, unit, value: hasNum ? val : 0 };
     }
 
-    // Network Out
-    if (
-      !netOut &&
-      (id.includes("network_out") ||
-        id.includes("throughput_out") ||
-        id.includes("tx_") ||
-        id.includes("upload") ||
-        friendly.includes("network out") ||
-        friendly.includes("upload"))
-    ) {
-      netOut = {
-        entityId: s.entity_id,
-        formatted: hasNum ? `${val.toFixed(1)} ${unit}` : s.state,
-        name: s.attributes.friendly_name ?? "Network Out",
-        stateObj: s,
-        unit,
-        value: hasNum ? val : 0,
-      };
+    if (!netOut && (id.includes("network_out") || id.includes("throughput_out") || id.includes("tx_") || id.includes("upload") || friendly.includes("network out") || friendly.includes("upload"))) {
+      netOut = { entityId: s.entity_id, formatted: hasNum ? `${val.toFixed(1)} ${unit}` : s.state, name: s.attributes.friendly_name ?? "Network Out", stateObj: s, unit, value: hasNum ? val : 0 };
     }
 
-    // Uptime / Last boot
     if (!uptime && (id.endsWith("last_boot") || id.endsWith("uptime") || friendly.includes("last boot") || friendly.includes("uptime"))) {
       let uptimeText = s.state;
       if (s.attributes.device_class === "timestamp" || !Number.isNaN(Date.parse(s.state))) {
-        const bootTime = Date.parse(s.state);
-        const diffMs = Date.now() - bootTime;
-        if (diffMs > 0) {
-          const days = Math.floor(diffMs / (24 * 3600 * 1000));
-          const hours = Math.floor((diffMs % (24 * 3600 * 1000)) / (3600 * 1000));
-          const mins = Math.floor((diffMs % (3600 * 1000)) / (60 * 1000));
-          uptimeText = days > 0 ? `${days} ngày ${hours} giờ` : `${hours} giờ ${mins} phút`;
-        }
+        const diffMs = Date.now() - Date.parse(s.state);
+        if (diffMs > 0) uptimeText = formatDuration(diffMs, language);
       }
-      uptime = {
-        entityId: s.entity_id,
-        formatted: uptimeText,
-        name: s.attributes.friendly_name ?? "Uptime",
-        stateObj: s,
-        unit: "",
-        value: 0,
-      };
+      uptime = { entityId: s.entity_id, formatted: uptimeText, name: s.attributes.friendly_name ?? "Uptime", stateObj: s, unit: "", value: 0 };
     }
 
-    // Load 1m, 5m, 15m
     if (hasNum) {
       if (!load1m && (id.endsWith("load_1m") || id.endsWith("load_15m_1m") || friendly.endsWith("1m"))) {
         load1m = { entityId: s.entity_id, formatted: val.toFixed(2), name: "1m", stateObj: s, unit: "", value: val };
@@ -1525,24 +1309,21 @@ function parseSystemVitals(hass: HomeAssistant, customSensors?: HomeSmartConfig[
     }
   }
 
-  // Look for free / used memory in GB to add nice subtitles
   for (const s of states) {
     const id = s.entity_id.toLowerCase();
     const val = Number.parseFloat(String(s.state ?? "").replace(",", "."));
     if (!Number.isFinite(val)) continue;
     if (memory && !memory.subtitle) {
       if ((id.includes("memory_use") || id.includes("ram_use")) && String(s.attributes.unit_of_measurement ?? "").includes("MiB")) {
-        const gb = (val / 1024).toFixed(1);
-        memory.subtitle = `Đang dùng: ${gb} GB`;
+        memory.subtitle = `${t("sysUsedLabel")} ${(val / 1024).toFixed(1)} GB`;
       } else if ((id.includes("memory_free") || id.includes("ram_free")) && String(s.attributes.unit_of_measurement ?? "").includes("MiB")) {
-        const gb = (val / 1024).toFixed(1);
-        memory.subtitle = `Còn trống: ${gb} GB`;
+        memory.subtitle = `${t("sysFreeLabel")} ${(val / 1024).toFixed(1)} GB`;
       }
     }
     if (disk && !disk.subtitle) {
       if (id.includes("disk_free") || id.includes("storage_free")) {
         const unit = s.attributes.unit_of_measurement ?? "GB";
-        disk.subtitle = `Còn trống: ${val.toFixed(1)} ${unit}`;
+        disk.subtitle = `${t("sysFreeLabel")} ${val.toFixed(1)} ${unit}`;
       }
     }
   }

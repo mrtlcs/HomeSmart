@@ -286,6 +286,7 @@ export function calculateElectricityCost(
   kwh: number,
   tariffConfig?: EnergyTariffConfig,
   language?: string,
+  translate?: (key: TranslationKey) => string,
 ): TariffCalculationResult {
   const cfg: EnergyTariffConfig = tariffConfig ?? DEFAULT_ENERGY_TARIFF;
   const currency = cfg.currency || "đ";
@@ -293,6 +294,8 @@ export function calculateElectricityCost(
   const vatPercent = Number(cfg.vat_percent ?? 0);
   const includeVat = cfg.include_vat !== false;
   const fixedFee = Number(cfg.fixed_monthly_fee ?? 0);
+  const flatLabel = translate ? translate("tariffFlatName") : "Flat Rate";
+  const tierFallback = (n: number) => (translate ? translate("tariffTierFallback").replace("{n}", String(n)) : `Tier ${n}`);
 
   if (kwh <= 0) {
     const subtotal = fixedFee;
@@ -304,7 +307,7 @@ export function calculateElectricityCost(
       vatAmount,
       currentTier: 1,
       currentRate: cfg.mode === "flat" ? (cfg.flat_rate ?? 0) : (cfg.tiers[0]?.rate ?? 0),
-      tierName: cfg.mode === "flat" ? "Giá phẳng" : (cfg.tiers[0]?.name ?? "Bậc 1"),
+      tierName: cfg.mode === "flat" ? flatLabel : (cfg.tiers[0]?.name ?? tierFallback(1)),
       formattedTotal: formatCurrency(totalCost, currency, position, language),
       currency,
       currencyPosition: position,
@@ -326,7 +329,7 @@ export function calculateElectricityCost(
       vatAmount,
       currentTier: 1,
       currentRate: rate,
-      tierName: "Giá cố định",
+      tierName: flatLabel,
       formattedTotal: formatCurrency(totalCost, currency, position, language),
       currency,
       currencyPosition: position,
@@ -334,7 +337,7 @@ export function calculateElectricityCost(
       fixedMonthlyFee: fixedFee,
       breakdown: [
         {
-          name: "Sản lượng điện",
+          name: translate ? translate("tariffKwhUsed") : "Energy usage",
           kwhUsed: Number(kwh.toFixed(1)),
           rate,
           cost: Math.round(kwh * rate),
@@ -349,28 +352,28 @@ export function calculateElectricityCost(
   let subtotal = fixedFee;
   let currentTier = 1;
   let currentRate = tiers[0]?.rate ?? 0;
-  let currentTierName = tiers[0]?.name ?? "Bậc 1";
+  let currentTierName = tiers[0]?.name ?? tierFallback(1);
   let prevMax = 0;
   const breakdown: TariffBreakdownItem[] = [];
 
   for (let i = 0; i < tiers.length; i++) {
-    const t = tiers[i];
-    const max = t.max != null && Number.isFinite(t.max) ? t.max : Infinity;
+    const tierItem = tiers[i];
+    const max = tierItem.max != null && Number.isFinite(tierItem.max) ? tierItem.max : Infinity;
     const span = max - prevMax;
 
     if (remaining > 0) {
       currentTier = i + 1;
-      currentRate = t.rate;
-      currentTierName = t.name ?? `Bậc ${i + 1}`;
+      currentRate = tierItem.rate;
+      currentTierName = tierItem.name ?? tierFallback(i + 1);
       const usedInTier = Math.min(remaining, span);
-      const tierCost = Math.round(usedInTier * t.rate);
+      const tierCost = Math.round(usedInTier * tierItem.rate);
       subtotal += tierCost;
       remaining -= usedInTier;
 
       breakdown.push({
-        name: t.name ?? `Bậc ${i + 1}`,
+        name: tierItem.name ?? tierFallback(i + 1),
         kwhUsed: Number(usedInTier.toFixed(1)),
-        rate: t.rate,
+        rate: tierItem.rate,
         cost: tierCost,
       });
     }
@@ -459,7 +462,7 @@ export function EnergyWidget({ config, hass, language, onOpen, t }: { config: Ho
   const todayKwh = Number.parseFloat(today?.state ?? "0") || 0;
   const estDailyKwh = todayKwh > 0 ? todayKwh : (home != null ? (home * 24) / 1000 : 0);
   const estMonthlyKwh = estDailyKwh * 30;
-  const tariffRes = calculateElectricityCost(estMonthlyKwh, e.tariff, language);
+  const tariffRes = calculateElectricityCost(estMonthlyKwh, e.tariff, language, t);
 
   if (wide) {
     return <div className={`widget-card widget-card--wide widget-card--energy ${surplus ? "widget-card--playing" : ""}`}>

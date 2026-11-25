@@ -790,7 +790,7 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
         <label className="st-sub__row">
           <span>{t("batteryThresholds")} (Max {bg.max}% · Min {bg.min}%)</span>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span style={{ fontSize: "0.85em", opacity: 0.8 }}>Tắt:</span>
+            <span style={{ fontSize: "0.85em", opacity: 0.8 }}>{t("off")}:</span>
             <input
               className="st-input st-input--framed"
               max={100}
@@ -800,7 +800,7 @@ function DevicePrefsRows({ general, generalBackground, generalKids, hass, onUpse
               type="number"
               value={bg.max}
             />
-            <span style={{ fontSize: "0.85em", opacity: 0.8 }}>Bật:</span>
+            <span style={{ fontSize: "0.85em", opacity: 0.8 }}>{t("on")}:</span>
             <input
               className="st-input st-input--framed"
               max={50}
@@ -915,7 +915,7 @@ function SystemMonitorPanel({ draft, hass, t, update }: { draft: HomeSmartConfig
     return `${name} (${s.state}${unit})`;
   };
 
-  const fields: Array<[keyof NonNullable<HomeSmartConfig["system_monitor"]>, TranslationKey]> = [
+  const fields: Array<[Exclude<keyof NonNullable<HomeSmartConfig["system_monitor"]>, "styles">, TranslationKey]> = [
     ["cpu", "cpuUsage"],
     ["memory", "ramUsage"],
     ["disk", "diskUsage"],

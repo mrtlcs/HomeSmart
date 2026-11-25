@@ -98,7 +98,7 @@ export function EnergyTariffModal({
     const newTier: EnergyTier = {
       id: `tier-${Date.now()}`,
       max: newMax,
-      name: `Bậc ${curTiers.length + 1}`,
+      name: t("tariffTierFallback").replace("{n}", String(curTiers.length + 1)),
       rate: (lastTier?.rate ?? 2000) + 200,
     };
     setDraft((cur) => ({
@@ -126,7 +126,7 @@ export function EnergyTariffModal({
   };
 
   // Live simulation result
-  const sim = calculateElectricityCost(testKwh, draft);
+  const sim = calculateElectricityCost(testKwh, draft, undefined, t);
 
   return createPortal(
     <div
@@ -209,11 +209,11 @@ export function EnergyTariffModal({
               ariaLabel={t("tariffPreset")}
               onChange={handleApplyPreset}
               options={[
-                { value: "evn_5_tier", label: "EVN 5 bậc mới (Việt Nam - Mặc định)" },
-                { value: "flat_vnd", label: "Giá phẳng cố định (Việt Nam - 2.000 đ/kWh)" },
-                { value: "us_flat", label: "Hoa Kỳ / US Flat ($0.16/kWh)" },
-                { value: "eu_flat", label: "Châu Âu / EU Flat (€0.30/kWh)" },
-                { value: "custom", label: "Tùy chỉnh tự do (Custom)" },
+                { value: "evn_5_tier", label: t("tariffPresetEvn5") },
+                { value: "flat_vnd", label: t("tariffPresetFlatVnd") },
+                { value: "us_flat", label: t("tariffPresetUsFlat") },
+                { value: "eu_flat", label: t("tariffPresetEuFlat") },
+                { value: "custom", label: t("tariffPresetCustom") },
               ]}
               value={draft.preset ?? "custom"}
             />
@@ -330,7 +330,7 @@ export function EnergyTariffModal({
           {draft.mode === "tiered" && (
             <div style={{ marginBottom: 16 }}>
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <strong style={{ fontSize: "0.9em" }}>Danh sách các bậc giá</strong>
+                <strong style={{ fontSize: "0.9em" }}>{t("tariffTierListTitle")}</strong>
                 <button
                   className="hd-pill hd-pill--primary"
                   onClick={handleAddTier}
@@ -362,7 +362,7 @@ export function EnergyTariffModal({
                       <input
                         className="st-input"
                         onChange={(e) => handleUpdateTier(idx, { name: e.target.value })}
-                        placeholder={`Bậc ${idx + 1}`}
+                        placeholder={t("tariffTierFallback").replace("{n}", String(idx + 1))}
                         style={{ padding: "6px 8px", borderRadius: 6, fontSize: "13px" }}
                         type="text"
                         value={tier.name ?? ""}
@@ -373,10 +373,10 @@ export function EnergyTariffModal({
                           disabled={isLast}
                           min={0}
                           onChange={(e) => handleUpdateTier(idx, { max: Number.parseFloat(e.target.value) || null })}
-                          placeholder={isLast ? "Không hạn" : "kWh tối đa"}
+                          placeholder={isLast ? "∞" : t("tariffTierMax")}
                           style={{ width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: "13px" }}
                           type={isLast ? "text" : "number"}
-                          value={isLast ? "∞ (Trên)" : (tier.max ?? "")}
+                          value={isLast ? "∞" : (tier.max ?? "")}
                         />
                       </div>
                       <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -384,7 +384,7 @@ export function EnergyTariffModal({
                           className="st-input"
                           min={0}
                           onChange={(e) => handleUpdateTier(idx, { rate: Number.parseFloat(e.target.value) || 0 })}
-                          placeholder="Đơn giá"
+                          placeholder={t("tariffTierRate")}
                           style={{ width: "100%", padding: "6px 8px", borderRadius: 6, fontSize: "13px" }}
                           type="number"
                           value={tier.rate}
@@ -442,15 +442,15 @@ export function EnergyTariffModal({
 
             <div style={{ fontSize: "0.85em", lineHeight: 1.6 }}>
               <div>
-                <span>Dự tính: </span>
+                <span>{t("tariffMode")}: </span>
                 <b>{sim.tierName}</b> ({formatCurrency(sim.currentRate, draft.currency, draft.currency_position)}/kWh)
               </div>
               <div>
-                <span>Thành tiền: </span>
+                <span>{t("tariffTotal")}: </span>
                 <strong style={{ color: "#ffc94d", fontSize: "1.1em" }}>{sim.formattedTotal}</strong>
                 {draft.include_vat !== false && (draft.vat_percent ?? 0) > 0 && (
                   <span style={{ opacity: 0.7, marginLeft: 6 }}>
-                    (Gồm {draft.vat_percent}% VAT: {formatCurrency(sim.vatAmount, draft.currency, draft.currency_position)})
+                    ({t("tariffVat")}: {draft.vat_percent}% = {formatCurrency(sim.vatAmount, draft.currency, draft.currency_position)})
                   </span>
                 )}
               </div>
@@ -503,7 +503,7 @@ export function EnergyBreakdownModal({
   t: (key: TranslationKey) => string;
   tariffConfig?: EnergyTariffConfig;
 }) {
-  const res = calculateElectricityCost(estMonthlyKwh, tariffConfig, language);
+  const res = calculateElectricityCost(estMonthlyKwh, tariffConfig, language, t);
   const cfg = tariffConfig ?? DEFAULT_ENERGY_TARIFF;
   const currency = cfg.currency || "đ";
   const pos = cfg.currency_position || "suffix";
@@ -559,7 +559,9 @@ export function EnergyBreakdownModal({
                 {t("tariffReceipt")}
               </h3>
               <p style={{ margin: "2px 0 0", fontSize: "0.85em", opacity: 0.7 }}>
-                Ước tính: {estMonthlyKwh.toFixed(1)} kWh/tháng (~{(estMonthlyKwh / 30).toFixed(1)} kWh/ngày)
+                {t("tariffEstMonthlyLabel")
+                  .replace("{monthly}", estMonthlyKwh.toFixed(1))
+                  .replace("{daily}", (estMonthlyKwh / 30).toFixed(1))}
               </p>
             </div>
           </div>
@@ -678,7 +680,7 @@ export function EnergyBreakdownModal({
               type="button"
             >
               <HDIcon name="settings" size={14} />
-              <span>Chỉnh sửa biểu giá</span>
+              <span>{t("tariffEditBtn")}</span>
             </button>
           ) : <div />}
           <button className="hd-pill hd-pill--primary" onClick={onClose} type="button">

@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
+import { climateModeStyle } from "./SensorVisuals";
 import { hvacLabel, safeIntlLocale, type TranslationKey } from "../i18n";
 import type { DiscoveredEntity } from "../types/discovery";
 import type { HassEntity, HomeAssistant } from "../types/home-assistant";
@@ -191,26 +192,63 @@ function CoverControls({ entity, state, t, call }: WideProps & { call: Call }) {
 }
 
 /** Like the climate card of the main dashboard: target on a ring, modes and − / +. */
-function ClimateControls({ language, state, t, call }: WideProps & { call: Call }) {
+function ClimateControls({ entity, language, state, t, call }: WideProps & { call: Call }) {
+  const ringGradId = useId();
   const target = num(state.attributes.temperature);
+  const current = num(state.attributes.current_temperature);
   const min = num(state.attributes.min_temp) ?? 7;
   const max = num(state.attributes.max_temp) ?? 35;
   const step = num(state.attributes.target_temp_step) ?? 0.5;
   const available = (state.attributes.hvac_modes ?? []).map(String);
-  const modes = [...CLIMATE_MODES.filter((mode) => available.includes(mode)).slice(0, 2), ...(available.includes("off") ? ["off"] : [])];
+  const modes = [...CLIMATE_MODES.filter((mode) => available.includes(mode)).slice(0, 3), ...(available.includes("off") ? ["off"] : [])];
   const off = state.state === "off";
+  const colored = entity.climate_color_mode !== false;
+  const activeColor = colored ? climateModeStyle(state.state) : undefined;
   const fraction = off || target == null ? 0 : Math.min(1, Math.max(0, (target - min) / (max - min || 1)));
   const set = (value: number) => call("climate", "set_temperature", { temperature: Math.min(max, Math.max(min, Math.round(value / step) * step)) });
   return <div className="tile-wide__controls tile-climate">
     <div className={`tile-ring tile-ring--${state.state}`}>
       <svg aria-hidden="true" viewBox="0 0 100 100">
+        {colored && (
+          <defs>
+            <linearGradient id={ringGradId} x1="0%" x2="100%" y1="100%" y2="0%">
+              <stop offset="0%" stopColor="#38bdf8" />
+              <stop offset="55%" stopColor={activeColor?.accent ?? "#facc15"} />
+              <stop offset="100%" stopColor="#fb923c" />
+            </linearGradient>
+          </defs>
+        )}
         <circle className="tile-ring__track" cx="50" cy="50" r="42" strokeDasharray={`${RING_ARC} ${RING_CIRCLE}`} />
-        <circle className="tile-ring__value" cx="50" cy="50" r="42" strokeDasharray={`${RING_ARC * fraction} ${RING_CIRCLE}`} />
+        <circle
+          className="tile-ring__value"
+          cx="50"
+          cy="50"
+          r="42"
+          stroke={colored && activeColor ? `url(#${ringGradId})` : undefined}
+          strokeDasharray={`${RING_ARC * fraction} ${RING_CIRCLE}`}
+        />
       </svg>
-      <strong>{off || target == null ? "—" : <>{target}<small>°</small></>}</strong>
+      <strong>
+        {off || target == null ? "—" : <>{target}<small>°</small></>}
+        {current != null && <em className="tile-ring__room">{current}°</em>}
+      </strong>
     </div>
     {modes.length > 1 && <div aria-label={t("mode")} className="tile-seg" role="group">
-      {modes.map((mode) => <button aria-pressed={state.state === mode} key={mode} onClick={() => call("climate", "set_hvac_mode", { hvac_mode: mode })} type="button">{mode === "off" ? t("climateOff") : hvacLabel(mode, language)}</button>)}
+      {modes.map((mode) => {
+        const mc = colored ? climateModeStyle(mode) : undefined;
+        const pressed = state.state === mode;
+        return (
+          <button
+            aria-pressed={pressed}
+            key={mode}
+            onClick={() => call("climate", "set_hvac_mode", { hvac_mode: mode })}
+            style={pressed && mc ? { background: mc.accent, color: mc.inkOnAccent } : undefined}
+            type="button"
+          >
+            {mode === "off" ? t("climateOff") : hvacLabel(mode, language)}
+          </button>
+        );
+      })}
     </div>}
     {target != null && <div className="tile-step">
       <button aria-label={t("decreaseTemperature")} disabled={off || target <= min} onClick={() => set(target - step)} type="button"><HDIcon name="minus" size={18} /></button>

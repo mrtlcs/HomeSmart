@@ -53,21 +53,21 @@ export function VersionModal({
         if (!cancelled) {
           setReleases([
             {
-              body: "Bản phát hành ổn định v1.5.0",
+              body: `${t("versionReleaseLabel")} v1.5.0`,
               name: "v1.5.0 - System Monitor & Large MDI Icons",
               published_at: "2026-11-23",
               tag_name: "v1.5.0",
               zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v1.5.0/homesmart.zip",
             },
             {
-              body: "Bản phát hành v1.4.0",
+              body: `${t("versionReleaseLabel")} v1.4.0`,
               name: "v1.4.0 - Touch-Swipe Navigation & Bubble Sliders",
               published_at: "2026-11-23",
               tag_name: "v1.4.0",
               zip_url: "https://github.com/mrtlcs/HomeSmart/releases/download/v1.4.0/homesmart.zip",
             },
             {
-              body: "Bản phát hành v1.3.2",
+              body: `${t("versionReleaseLabel")} v1.3.2`,
               name: "v1.3.2 - Stable Release",
               published_at: "2026-11-20",
               tag_name: "v1.3.2",
@@ -101,10 +101,10 @@ export function VersionModal({
       if (res?.success) {
         setSuccess(tag);
       } else {
-        setError("Không thể cài đặt phiên bản này. Vui lòng thử lại hoặc sử dụng HACS.");
+        setError(t("versionInstallError"));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Lỗi tải phiên bản từ GitHub.");
+      setError(err instanceof Error ? err.message : t("versionFetchError"));
     } finally {
       setInstalling(null);
     }

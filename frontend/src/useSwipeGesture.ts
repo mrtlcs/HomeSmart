@@ -37,10 +37,10 @@ export function useSwipeGesture<T extends HTMLElement = HTMLElement>(
       const touch = e.touches[0];
       const target = e.target as HTMLElement | null;
 
-      // Do not trigger swipe when interacting with sliders, buttons, pickers, or horizontally scrollable strips
+      // Do not trigger swipe when interacting with sliders, buttons, pickers, charts, or horizontally scrollable strips
       if (
         target?.closest(
-          'input, button, select, textarea, [role="slider"], [role="button"], .no-swipe, .room-selector__list, .category-chips, .scene-strip, .hd-cal__body, .device-dimmer'
+          'input, button, select, textarea, [role="slider"], [role="button"], .no-swipe, .room-selector__list, .category-chips, .category-filter-bar, .scene-strip, .hd-cal__body, .device-dimmer, .hd-spark, .hs-sensor-graph__chart'
         )
       ) {
         isIgnored.current = true;

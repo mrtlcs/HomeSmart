@@ -1760,4 +1760,153 @@ export const themeExtras = String.raw`
   box-shadow: 0 0 12px rgba(17, 138, 178, 0.2);
 }
 
+/* ---------- Sensor Visuals & Style Picker ---------- */
+.app-shell .sys-gauge-card__ring { width: 96px; height: 96px; flex-shrink: 0; position: relative; display: grid; place-items: center; }
+.app-shell .sys-gauge-svg { width: 100%; height: 100%; }
+.app-shell .sys-gauge-label { font-size: calc(var(--u)*1.6); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell .sys-gauge-sub { font-size: 0.8em; opacity: 0.72; margin-top: 4px; }
+.app-shell .sys-gauge-cfg-btn {
+  position: absolute; top: 10px; right: 10px; z-index: 4;
+  width: 28px; height: 28px; border-radius: 50%; border: 1px solid rgba(255,255,255,.16);
+  background: rgba(0,0,0,.28); color: var(--ink); display: grid; place-items: center; cursor: pointer; opacity: .75;
+  transition: opacity .15s, transform .15s;
+}
+.app-shell .sys-gauge-cfg-btn--inline { position: static; }
+.app-shell .sys-gauge-cfg-btn:hover { opacity: 1; transform: scale(1.06); }
+
+.app-shell .device-tile--styled-sensor { padding: 0; }
+.app-shell .device-tile--styled-sensor > .sys-gauge-card,
+.app-shell .device-tile--styled-sensor > .hs-sensor-graph:not(.hs-sensor-graph--gradient) {
+  background: transparent; border: 0; backdrop-filter: none; -webkit-backdrop-filter: none;
+}
+
+.app-shell .hs-sensor-graph {
+  box-sizing: border-box; width: 100%; height: 100%; min-height: calc(var(--u)*16);
+  background: var(--glass); border: 1px solid var(--hd-frame, var(--line));
+  backdrop-filter: blur(var(--hd-blur, 22px)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--hd-blur, 22px)) saturate(1.3);
+  border-radius: calc(var(--u)*3.4*var(--hd-r, 1));
+  padding: calc(var(--u)*1.8) calc(var(--u)*2) 0;
+  display: flex; flex-direction: column; justify-content: space-between; gap: calc(var(--u)*.6);
+  overflow: hidden; cursor: pointer; position: relative;
+}
+.app-shell .hs-sensor-graph__head { display: flex; align-items: center; justify-content: space-between; gap: calc(var(--u)*.8); }
+.app-shell .hs-sensor-graph__title { display: flex; align-items: center; gap: calc(var(--u)*.7); min-width: 0; font: 600 calc(var(--u)*1.55)/1.2 var(--f-body); color: var(--ink-2); }
+.app-shell .hs-sensor-graph__title > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-shell .hs-sensor-graph__dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.app-shell .hs-sensor-graph__actions { display: flex; align-items: center; gap: 6px; flex: none; }
+.app-shell .hs-sensor-graph__icon { display: grid; place-items: center; opacity: .9; }
+.app-shell .hs-sensor-graph__val-top { font: 700 calc(var(--u)*1.85)/1 var(--f-body); font-variant-numeric: tabular-nums; }
+.app-shell .hs-sensor-graph__reading { display: flex; align-items: baseline; gap: calc(var(--u)*.5); flex-wrap: wrap; }
+.app-shell .hs-sensor-graph__reading strong { font: 400 calc(var(--u)*3.4)/1 var(--f-display); letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--ink); }
+.app-shell .hs-sensor-graph__reading small { font: 500 calc(var(--u)*1.5)/1 var(--f-body); color: var(--ink-2); }
+.app-shell .hs-sensor-graph__sub { font: 500 calc(var(--u)*1.25)/1.2 var(--f-body); color: var(--ink-3); width: 100%; }
+.app-shell .hs-sensor-graph__sub--grad { margin-top: calc(var(--u)*-.2); }
+.app-shell .hs-sensor-graph__chart {
+  flex: 1; min-height: calc(var(--u)*6.4); margin: 0 calc(var(--u)*-2);
+  display: flex; align-items: flex-end; position: relative;
+}
+.app-shell .hs-sensor-graph__chart .hd-spark { width: 100%; height: 100%; position: relative; }
+.app-shell .hs-sensor-graph__chart svg { width: 100%; height: 100%; display: block; }
+.app-shell .hs-sensor-graph__empty { width: 100%; padding: calc(var(--u)*1.2); text-align: center; opacity: .5; font-size: calc(var(--u)*1.3); }
+.app-shell .hs-sensor-graph__flat { width: 100%; height: 4px; border-radius: 2px; margin: 0 calc(var(--u)*2) calc(var(--u)*1.8); }
+
+.app-shell .hd-spark__bounds {
+  position: absolute; left: calc(var(--u)*1.2); top: calc(var(--u)*.4); bottom: calc(var(--u)*.6);
+  display: flex; flex-direction: column; justify-content: space-between; pointer-events: none; z-index: 2;
+}
+.app-shell .hd-spark__bounds span {
+  background: rgba(0, 0, 0, .48); color: rgba(255, 255, 255, .92);
+  border-radius: 999px; padding: 2px 6px; font: 600 calc(var(--u)*1.1)/1.1 var(--f-body); font-variant-numeric: tabular-nums;
+}
+
+.app-shell .hs-sensor-style-picker { display: flex; flex-direction: column; gap: calc(var(--u)*1.2); margin: calc(var(--u)*.8) 0; }
+.app-shell .hs-style-chips { display: flex; flex-wrap: wrap; gap: calc(var(--u)*.6); }
+.app-shell .hs-style-chip {
+  border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.07); color: var(--ink-2);
+  border-radius: var(--hd-pill, 99px); padding: calc(var(--u)*.7) calc(var(--u)*1.3);
+  font: 600 calc(var(--u)*1.45)/1.2 var(--f-body); cursor: pointer; transition: background .15s, color .15s, border-color .15s;
+}
+.app-shell .hs-style-chip--on { background: rgba(255,255,255,.92); color: #1d1a17; border-color: transparent; }
+.app-shell .hs-color-swatches { display: flex; flex-wrap: wrap; gap: calc(var(--u)*.8); align-items: center; }
+.app-shell .hs-color-swatch {
+  width: calc(var(--u)*3.4); height: calc(var(--u)*3.4); border-radius: 50%;
+  border: 2px solid rgba(255,255,255,.22); padding: 0; cursor: pointer;
+  display: grid; place-items: center; transition: transform .15s, border-color .15s;
+}
+.app-shell .hs-color-swatch--auto { background: rgba(255,255,255,.14); color: var(--ink); }
+.app-shell .hs-color-swatch--on { border-color: #fff; transform: scale(1.12); box-shadow: 0 0 0 2px rgba(255,255,255,.35); }
+.app-shell .hs-range-inputs { display: flex; gap: calc(var(--u)*1); align-items: center; }
+.app-shell .hs-range-inputs label { flex: 1; display: flex; align-items: center; gap: calc(var(--u)*.6); font-size: calc(var(--u)*1.35); color: var(--ink-2); }
+.app-shell .hs-range-inputs input { width: 100%; min-width: 0; padding: calc(var(--u)*.6) calc(var(--u)*.9); height: calc(var(--u)*4); min-height: 0; }
+
+/* ---------- Climate Mode Colors ("Every Mode, In Its Own Colour") ---------- */
+.app-shell .device-tile--climate-colored {
+  background: var(--cm-bg) !important;
+  border-color: var(--cm-border) !important;
+  color: var(--ink) !important;
+  box-shadow: 0 0 calc(var(--u)*2.2) color-mix(in srgb, var(--cm-accent) 26%, transparent), 0 6px calc(var(--u)*2) rgba(0,0,0,.16) !important;
+}
+.app-shell .device-tile--climate-colored .device-tile__icon {
+  background: var(--cm-accent) !important;
+  color: var(--cm-ink) !important;
+}
+.app-shell .device-tile--climate-colored .device-tile__copy span {
+  color: var(--ink-2) !important;
+  display: flex; align-items: center; gap: calc(var(--u)*.6);
+}
+.app-shell .climate-mode-dot { width: calc(var(--u)*.85); height: calc(var(--u)*.85); border-radius: 50%; flex: none; box-shadow: 0 0 6px currentColor; }
+.app-shell .device-tile--climate-colored .climate-quick-control__stepper {
+  background: rgba(0,0,0,.22); border: 1px solid var(--cm-border);
+}
+.app-shell .device-tile--climate-colored .climate-quick-control__stepper button {
+  background: rgba(255,255,255,.14); color: var(--ink);
+}
+.app-shell .device-tile--climate-colored .climate-quick-control__target {
+  color: var(--cm-accent); font-weight: 600;
+}
+.app-shell .device-tile--climate-colored .device-sub-btn {
+  background: rgba(255,255,255,.14); border-color: rgba(255,255,255,.22); color: var(--ink);
+}
+.app-shell .device-tile--climate-colored .tile-seg { background: rgba(0,0,0,.22); }
+.app-shell .tile-ring strong { display: flex; flex-direction: column; align-items: center; line-height: 1; }
+.app-shell .tile-ring__room { font: 600 calc(var(--u)*1.35)/1.2 var(--f-body); font-style: normal; opacity: .72; margin-top: 2px; }
+
+/* ---------- Mobile Performance & UX Optimizations ---------- */
+@media (max-width: 720px) {
+  .app-shell {
+    /* Reduce compositor blur stacking cost on mobile GPUs while keeping glass sheen */
+    --hd-blur: 10px;
+  }
+  /* Replace continuous triple blur(74px) animations with crisp zero-cost static radial gradient */
+  .app-shell .ambient-background {
+    background:
+      radial-gradient(circle at 15% 15%, color-mix(in srgb, var(--ambient-1) 70%, transparent) 0%, transparent 55%),
+      radial-gradient(circle at 85% 85%, color-mix(in srgb, var(--ambient-2) 65%, transparent) 0%, transparent 55%),
+      radial-gradient(circle at 50% 45%, color-mix(in srgb, var(--ambient-3) 50%, transparent) 0%, transparent 60%),
+      var(--ambient-4);
+  }
+  .app-shell .ambient-background i { display: none !important; animation: none !important; }
+  /* Avoid costly SVG drop-shadow filter repaints per sensor gauge on phones */
+  .app-shell .sys-gauge-svg__arc { filter: none !important; }
+  /* Skip off-screen grid tile paint/layout until scrolled near */
+  .app-shell .hd-item:not(.hd-item--dragging) {
+    content-visibility: auto;
+    contain-intrinsic-size: auto calc(var(--u)*18);
+  }
+  /* Larger touch-friendly sub-buttons */
+  .app-shell .device-sub-btn { width: calc(var(--u)*4.6); height: calc(var(--u)*4.6); }
+  .app-shell .sys-gauge-cfg-btn { width: 34px; height: 34px; top: 8px; right: 8px; }
+}
+
+@media (max-width: 480px) {
+  .app-shell .sys-gauge-card__ring { width: 76px; height: 76px; }
+  .app-shell .sys-gauge-value { font-size: calc(var(--u)*2.2); }
+}
+
+@media (pointer: coarse) {
+  .app-shell .device-sub-btn { min-width: 34px; min-height: 34px; }
+  .app-shell .sys-gauge-cfg-btn { min-width: 34px; min-height: 34px; }
+}
+
 `;

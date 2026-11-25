@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useScrollFades } from "../scrollFades";
 import { useOverlayFit } from "../overlayFit";
 import type { CSSProperties, ReactNode } from "react";
@@ -222,7 +222,7 @@ export function DynamicShell({ children, config, data, hass, mode = "grid", seas
   // The Kids layout draws its own animated scene instead of the regular background.
   const kids = mode === "kids";
   const kidsScene = config.kids_background ?? "sky";
-  const level = activityLevel(config, data, hass);
+  const level = useMemo(() => activityLevel(config, data, hass), [config.background.include_devices, data, hass.states]);
   const highlight = /^#[0-9a-f]{6}$/i.test(config.highlight_color ?? "") ? config.highlight_color : "#ffc94d";
   const palette = FIXED[config.background.preset] ?? paletteAt(ADAPTIVE[config.background.preset] ?? ADAPTIVE.adaptive_ember, level);
   const style = {

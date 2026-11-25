@@ -52,8 +52,25 @@ export function personalize(data: DiscoveryResponse, names: HomeSmartConfig["nam
           // The tile's icon: the one chosen for this device, else Home Assistant's when that option is on.
           const icon = own.icon || (haIcons ? "ha" : undefined);
           const off = hidden.has(`entity:${entity.entity_id}`);
-          if (!nickname && !icon && !own.confirm && !own.child_lock && !own.light_accent && !own.visible_when && !own.not_security && !own.cover_control && !COVER_FLAGS.some((flag) => own[flag]) && !off) return entity;
-          return { ...entity, ...(nickname ? { name: nickname, original_name: entity.name } : {}), ...(icon ? { display_icon: icon } : {}), ...(own.confirm ? { confirm: true } : {}), ...(own.child_lock ? { child_lock: true } : {}), ...(own.light_accent ? { light_accent: true } : {}), ...(own.visible_when ? { visible_when: own.visible_when } : {}), ...(own.not_security ? { not_security: true } : {}), ...(own.cover_control === "buttons" || own.cover_control === "slider" ? { cover_control: own.cover_control } : {}), ...Object.fromEntries(COVER_FLAGS.filter((flag) => own[flag]).map((flag) => [flag, true])), ...(off ? { hidden: true } : {}) };
+          if (!nickname && !icon && !own.confirm && !own.child_lock && !own.light_accent && !own.visible_when && !own.not_security && !own.cover_control && !own.sensor_style && !own.sensor_color && typeof own.sensor_min !== "number" && typeof own.sensor_max !== "number" && typeof own.climate_color_mode !== "boolean" && !COVER_FLAGS.some((flag) => own[flag]) && !off) return entity;
+          return {
+            ...entity,
+            ...(nickname ? { name: nickname, original_name: entity.name } : {}),
+            ...(icon ? { display_icon: icon } : {}),
+            ...(own.confirm ? { confirm: true } : {}),
+            ...(own.child_lock ? { child_lock: true } : {}),
+            ...(own.light_accent ? { light_accent: true } : {}),
+            ...(own.visible_when ? { visible_when: own.visible_when } : {}),
+            ...(own.not_security ? { not_security: true } : {}),
+            ...(own.cover_control === "buttons" || own.cover_control === "slider" ? { cover_control: own.cover_control } : {}),
+            ...(own.sensor_style && own.sensor_style !== "default" ? { sensor_style: own.sensor_style } : {}),
+            ...(own.sensor_color ? { sensor_color: own.sensor_color } : {}),
+            ...(typeof own.sensor_min === "number" ? { sensor_min: own.sensor_min } : {}),
+            ...(typeof own.sensor_max === "number" ? { sensor_max: own.sensor_max } : {}),
+            ...(typeof own.climate_color_mode === "boolean" ? { climate_color_mode: own.climate_color_mode } : {}),
+            ...Object.fromEntries(COVER_FLAGS.filter((flag) => own[flag]).map((flag) => [flag, true])),
+            ...(off ? { hidden: true } : {}),
+          };
         }),
       };
     }),
@@ -134,7 +151,16 @@ export function withNickname(config: HomeSmartConfig, entityId: string, name: st
 
 export function withEntityOptions(config: HomeSmartConfig, entityId: string, change: HomeSmartEntityOptions): HomeSmartConfig {
   const next = { ...(config.entity_options?.[entityId] ?? {}), ...change };
-  const clean = Object.fromEntries(Object.entries(next).filter(([, value]) => value === true || (typeof value === "string" && value) || (typeof value === "object" && value)));
+  const clean = Object.fromEntries(
+    Object.entries(next).filter(
+      ([key, value]) =>
+        value === true ||
+        (key === "climate_color_mode" && value === false) ||
+        (typeof value === "number" && Number.isFinite(value)) ||
+        (typeof value === "string" && value) ||
+        (typeof value === "object" && value !== null),
+    ),
+  );
   const { [entityId]: _previous, ...rest } = config.entity_options ?? {};
   return { ...config, entity_options: Object.keys(clean).length > 0 ? { ...rest, [entityId]: clean } : rest };
 }
