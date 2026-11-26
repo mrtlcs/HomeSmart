@@ -1,5 +1,6 @@
 """Persistent local storage for homesmart."""
 
+from asyncio import Lock
 from copy import deepcopy
 import re
 from typing import Any
@@ -12,6 +13,12 @@ from .models import ENERGY_FIELDS, homesmartConfig, default_config
 
 _CONFIG_DATA = "config"
 _STORE_DATA = "store"
+_CONFIG_LOCK = "config_lock"
+
+
+class ConfigConflict(Exception):
+    """The submitted configuration revision is no longer current."""
+
 _ALLOWED_BACKGROUNDS = {
     "adaptive_ember",
     "adaptive_aurora",
@@ -988,29 +995,34 @@ def normalize_config(value: Any) -> homesmartConfig:
             }
             for num_k in ("flat_rate", "vat_percent", "fixed_monthly_fee"):
                 nv = tariff.get(num_k)
-                if isinstance(nv, (int, float)) and not isinstance(nv, bool):
+                if type(nv) in (int, float) and 0 <= nv <= 1e12:
                     clean_tariff[num_k] = nv
             if isinstance(tariff.get("preset"), str):
                 clean_tariff["preset"] = tariff["preset"][:40]
             if isinstance(tariff.get("tiers"), list):
                 clean_tiers = []
-                for tier in tariff["tiers"][:20]:
+                previous = 0
+                tiers = tariff["tiers"]
+                for index, tier in enumerate(tiers[:20]):
                     if not isinstance(tier, dict):
-                        continue
+                        break
                     rate = tier.get("rate")
-                    if not isinstance(rate, (int, float)) or isinstance(rate, bool):
-                        continue
+                    if type(rate) not in (int, float) or not 0 <= rate <= 1e12:
+                        break
                     mx = tier.get("max")
-                    item: dict[str, Any] = {
-                        "max": mx if isinstance(mx, (int, float)) and not isinstance(mx, bool) else None,
-                        "rate": rate,
-                    }
+                    if index < len(tiers) - 1:
+                        if type(mx) not in (int, float) or not previous < mx <= 1e12:
+                            break
+                        previous = mx
+                    else:
+                        mx = None
+                    item: dict[str, Any] = {"max": mx, "rate": rate}
                     if isinstance(tier.get("name"), str) and tier["name"].strip():
                         item["name"] = tier["name"].strip()[:60]
                     if isinstance(tier.get("id"), str) and tier["id"]:
                         item["id"] = tier["id"][:40]
                     clean_tiers.append(item)
-                if clean_tiers:
+                if clean_tiers and len(clean_tiers) == len(tiers):
                     clean_tariff["tiers"] = clean_tiers
             config["energy"]["tariff"] = clean_tariff
 
@@ -1109,16 +1121,26 @@ async def async_load_config(hass: HomeAssistant) -> homesmartConfig:
 
     stored = await _store(hass).async_load()
     config = normalize_config(stored)
-    domain_data[_CONFIG_DATA] = config
-    return deepcopy(config)
+    if isinstance(stored, dict):
+        revision = stored.get("revision")
+        if type(revision) is int and revision >= 0:
+            config["revision"] = revision
+    return deepcopy(domain_data.setdefault(_CONFIG_DATA, config))
 
 
 async def async_save_config(
-    hass: HomeAssistant, value: dict[str, Any]
+    hass: HomeAssistant, value: dict[str, Any], revision: int
 ) -> homesmartConfig:
-    """Validate, persist and cache local configuration."""
-    config = normalize_config(value)
-    await _store(hass).async_save(config)
-    hass.data.setdefault(DOMAIN, {})[_CONFIG_DATA] = config
-    return deepcopy(config)
+    """Persist only if the client edited the current revision."""
+    domain_data = hass.data.setdefault(DOMAIN, {})
+    lock = domain_data.setdefault(_CONFIG_LOCK, Lock())
+    async with lock:
+        current = await async_load_config(hass)
+        if revision != current["revision"]:
+            raise ConfigConflict
+        config = normalize_config(value)
+        config["revision"] = revision + 1
+        await _store(hass).async_save(config)
+        domain_data[_CONFIG_DATA] = config
+        return deepcopy(config)
 

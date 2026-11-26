@@ -16,9 +16,10 @@ import { SidebarLayout, type NavLink } from "./screens/layouts/SidebarLayout";
 import { PhotoLayout } from "./screens/layouts/PhotoLayout";
 import { Screensaver } from "./components/Screensaver";
 import { pauseCameras } from "./cameraPause";
+import { PinPadModal } from "./components/PinPadModal";
 import { DoorbellPopup, useDoorbell } from "./components/Doorbell";
 import { forgetCalendarColors, useOccasion } from "./components/Agenda";
-import { batteryGuard, childLocked, childLockNote, deviceBackground, deviceKidsScene, deviceLanguage, deviceViewMode, editingLocked, keepAwakeMode, presenceWakeSensor, useChildLockNote, useDevicePref } from "./devicePrefs";
+import { devicePin, batteryGuard, childLocked, childLockNote, deviceBackground, deviceKidsScene, deviceLanguage, deviceViewMode, editingLocked, keepAwakeMode, presenceWakeSensor, useChildLockNote, useDevicePref } from "./devicePrefs";
 import { guardHass, type ChildLockState } from "./childLock";
 import { VIEW_MODES } from "./components/LayoutPicker";
 import { KIDS_SCENES } from "./components/KidsScene";
@@ -62,7 +63,46 @@ function onThisDevice(config: HomeSmartConfig, view: string, background: string,
 export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: string }) {
   // Every screen gets hass through the child lock, which drops calls to locked devices while it is on.
   const childLock = useRef<ChildLockState>({ locked: false, ids: new Set() });
-  const hass = useMemo(() => guardHass(haHass, childLock), [haHass]);
+  const unlockPending = useRef<((approved: boolean) => void) | null>(null);
+  const [unlockPin, setUnlockPin] = useState("");
+  const [unlockFailed, setUnlockFailed] = useState(false);
+  const [saveError, setSaveError] = useState<"configConflict" | "settingsNotSaved" | null>(null);
+  const canEdit = haHass.user?.is_admin === true;
+  const approvalText = useRef("");
+  const finishUnlock = useCallback((approved: boolean) => {
+    const resolve = unlockPending.current;
+    unlockPending.current = null;
+    setUnlockPin("");
+    resolve?.(approved);
+  }, []);
+  useEffect(() => {
+    setUnlockPin("");
+    return () => { unlockPending.current?.(false); unlockPending.current = null; };
+  }, [haHass.connection]);
+  const hass = useMemo<HomeAssistant>(() => {
+    const guarded = guardHass(haHass, childLock);
+    return {
+      ...guarded,
+      async callService(...args) {
+        const [domain, service] = args;
+        if (domain !== "lock" || (service !== "unlock" && service !== "open")) {
+          return guarded.callService(...args);
+        }
+        if (unlockPending.current) return;
+        setUnlockFailed(false);
+        const pin = devicePin();
+        const approved = pin
+          ? await new Promise<boolean>((resolve) => { unlockPending.current = resolve; setUnlockPin(pin); })
+          : window.confirm(approvalText.current);
+        if (!approved) return;
+        try {
+          return await guarded.callService(...args);
+        } catch {
+          setUnlockFailed(true);
+        }
+      },
+    };
+  }, [haHass]);
   setStateText(hass);
   const [rawData, setData] = useState<DiscoveryResponse | null>(null);
   const [config, setConfig] = useState<HomeSmartConfig | null>(null);
@@ -79,13 +119,15 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const [creatingPage, setCreatingPage] = useState(false);
   const saveQueue = useRef(Promise.resolve());
   const configRef = useRef<HomeSmartConfig | null>(null);
+  const persistedConfig = useRef<HomeSmartConfig | null>(null);
+  const conflicting = useRef(false);
   const lastActivity = useRef(Date.now());
   const [saverOn, setSaverOn] = useState(false);
   const devLang = useDevicePref(deviceLanguage);
   const rawLang = devLang && devLang !== "auto" ? devLang : (hass.locale?.language ?? hass.language);
   const language = normalizeLanguage(rawLang);
   const t = useMemo(() => createTranslator(language), [language]);
-  configRef.current = config;
+  approvalText.current = t("unlockConfirmPrompt");
   const pro = license?.plan === "pro" || legacyBackend;
   // Nicknames and room options apply to every screen through the discovery data, and "Who can see" (Pro) too.
   const named = useMemo(() => (rawData ? personalize(rawData, config?.names, config?.rooms, config?.entity_options, config?.ha_icons, config?.layouts, config?.ha_room_icons) : null), [rawData, config?.names, config?.rooms, config?.entity_options, config?.ha_icons, config?.layouts, config?.ha_room_icons]);
@@ -95,6 +137,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const load = useCallback(async () => {
     setError(false);
     try {
+      await saveQueue.current;
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error("Timeout waiting for HomeSmart data")), 8000);
       });
@@ -103,6 +146,10 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
         timeoutPromise,
       ]);
       setData(discovery);
+      persistedConfig.current = savedConfig;
+      configRef.current = savedConfig;
+      conflicting.current = false;
+      setSaveError(null);
       setConfig(savedConfig);
     } catch (err) {
       console.error("[HomeSmart] Load error:", err);
@@ -163,32 +210,45 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     setUpsellReason("general");
   }, [license]);
 
-  // Changes apply on screen at once and build on the latest config, so quick successive edits
-  // never undo each other; saves run in order. A save refused by the free plan reloads the config.
+  // The server checks revisions across clients. Within this tab, apply edits in order.
   const updateConfig = useCallback((update: (current: HomeSmartConfig) => HomeSmartConfig) => {
     const current = configRef.current;
-    if (!current) return Promise.resolve();
+    if (!current || !canEdit || conflicting.current) {
+      const refused = Promise.reject(new Error("HomeSmart configuration cannot be edited"));
+      void refused.catch(() => undefined);
+      return refused;
+    }
     const next = update(current);
     configRef.current = next;
     setConfig(next);
-    const run = saveQueue.current.then(async () => { await persistConfig(hass, next); });
-    saveQueue.current = run.catch(async (err) => {
-      if ((err as { code?: string })?.code !== "pro_required") return;
-      const saved = await getConfig(hass);
-      configRef.current = saved;
-      setConfig(saved);
-      setUpsellReason("devices");
+    const run = saveQueue.current.then(async () => {
+      if (conflicting.current) throw new Error("HomeSmart configuration conflict");
+      const saved = await persistConfig(hass, next, persistedConfig.current?.revision ?? 0);
+      persistedConfig.current = saved;
+      setSaveError(null);
+      if (configRef.current === next) {
+        configRef.current = saved;
+        setConfig(saved);
+      }
+    });
+    saveQueue.current = run.catch((err) => {
+      if ((err as { code?: string })?.code === "config_conflict") conflicting.current = true;
+      setSaveError(conflicting.current ? "configConflict" : "settingsNotSaved");
+      if (configRef.current === next && persistedConfig.current) {
+        configRef.current = persistedConfig.current;
+        setConfig(persistedConfig.current);
+      }
     });
     return run;
-  }, [hass.connection]);
+  }, [hass.connection, canEdit]);
   const saveConfig = useCallback((next: HomeSmartConfig) => updateConfig(() => next), [updateConfig]);
 
   // One-time move from the 0.3 visibility options to per-screen layouts.
   useEffect(() => {
-    if (!config || !data || !config.onboarding_complete) return;
+    if (!canEdit || saveError || !config || !data || !config.onboarding_complete) return;
     const migrated = migrateLayouts(config, data);
     if (migrated) void saveConfig(migrated);
-  }, [config, data, saveConfig]);
+  }, [canEdit, config, data, saveConfig, saveError]);
 
   const limits = license?.limits ?? DEFAULT_LIMITS;
   const allowed = useMemo(() => (pro || !config || !data ? null : new Set(freeDevices(config, data.rooms))), [pro, config, data]);
@@ -264,6 +324,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
 
   useEffect(() => { pauseCameras("screensaver", saverOn); }, [saverOn]);
 
+  const confirmingUnlock = unlockPin !== "";
   // Screensaver: any touch, click, scroll or key counts as activity.
   const saver = view?.screensaver;
   useEffect(() => {
@@ -273,13 +334,13 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     return () => events.forEach((name) => window.removeEventListener(name, touch, { capture: true }));
   }, []);
   useEffect(() => {
-    if (!saver?.enabled || editing || settingsOpen) { setSaverOn(false); return; }
+    if (!saver?.enabled || editing || settingsOpen || confirmingUnlock) { setSaverOn(false); return; }
     lastActivity.current = Date.now();
     const timer = window.setInterval(() => {
       if (Date.now() - lastActivity.current >= saver.delay * 1000) setSaverOn(true);
     }, 2_000);
     return () => window.clearInterval(timer);
-  }, [saver?.enabled, saver?.delay, editing, settingsOpen]);
+  }, [saver?.enabled, saver?.delay, editing, settingsOpen, confirmingUnlock]);
   const dismissSaver = useCallback(() => { lastActivity.current = Date.now(); setSaverOn(false); }, []);
 
   // Doorbell (Pro): a ring wakes the panel and shows the camera above everything.
@@ -287,7 +348,8 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   // A wall tablet can lock editing: no Edit button, and Edit mode closes if it was open.
   const childOn = useDevicePref(childLocked);
   // While the child lock is on, editing stays locked too, so the lock cannot be turned off from Settings.
-  const locked = useDevicePref(editingLocked) || childOn;
+  const locallyLocked = useDevicePref(editingLocked);
+  const locked = !canEdit || locallyLocked || childOn || saveError === "configConflict";
   childLock.current = { locked: childOn, ids: new Set(Object.entries(config?.entity_options ?? {}).filter(([, options]) => options.child_lock).map(([id]) => id)) };
   const lockNote = useChildLockNote();
   // Echo Show and other wall screens: keep the browser open and the display on (per device).
@@ -328,7 +390,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   useEffect(() => { if (view && !opened.current) { opened.current = true; if (startPage !== "home") setActivePage(startPage); } }, [view, startPage]);
   const cameraPage = activePage === "cameras" || view?.pages.some((page) => page.id === activePage && page.type === "cameras");
   useEffect(() => {
-    if ((activePage === startPage && !selectedRoomId) || editing || settingsOpen || saverOn || ringing || cameraPage) return;
+    if ((activePage === startPage && !selectedRoomId) || editing || settingsOpen || saverOn || ringing || cameraPage || confirmingUnlock) return;
     const timer = window.setInterval(() => {
       if (Date.now() - lastActivity.current < IDLE_HOME_MS) return;
       const root = probe.current?.getRootNode() as Document | ShadowRoot | undefined;
@@ -337,7 +399,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
       setActivePage(startPage);
     }, 5_000);
     return () => window.clearInterval(timer);
-  }, [activePage, startPage, selectedRoomId, editing, settingsOpen, saverOn, ringing, cameraPage]);
+  }, [activePage, startPage, selectedRoomId, editing, settingsOpen, saverOn, ringing, cameraPage, confirmingUnlock]);
 
   // Special dates (Pro): the occasion near or happening now, and New Year's fireworks.
   const season = useOccasion(view, hass, t);
@@ -405,6 +467,13 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   };
   const withPlan = (node: ReactNode) => <PlanContext.Provider value={plan}><CustomizeContext.Provider value={customize}>
     {node}
+    {unlockPin && <PinPadModal expectedPin={unlockPin} onCancel={() => finishUnlock(false)} onSuccess={() => finishUnlock(true)} t={t} />}
+    {(saveError || unlockFailed) && <div className="hd-operation-alert" role="alert">
+      {saveError ? t(saveError) : t("unlockFailed")}
+      {saveError
+        ? <button className="hd-pill" onClick={() => { setSettingsOpen(false); setDraft(null); void load(); }} type="button">{t("refresh")}</button>
+        : <button className="hd-pill" onClick={() => setUnlockFailed(false)} type="button">{t("close")}</button>}
+    </div>}
     {upsellReason && <div className="app-shell app-shell--overlay" style={{ "--hd-accent": "#f4edd9" } as CSSProperties}><ProSheet hass={hass} language={language} license={license} onActivate={activate} onClose={() => setUpsellReason(null)} onLicense={setLicense} reason={upsellReason} t={t} /></div>}
   </CustomizeContext.Provider></PlanContext.Provider>;
 
@@ -444,6 +513,10 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     );
   }
 
+  if (!canEdit && !config.onboarding_complete) {
+    return <main className="screen center-state"><p>{t("adminSetupRequired")}</p><button className="secondary-button" onClick={() => void load()} type="button">{t("refresh")}</button></main>;
+  }
+
   if (!config.onboarding_complete) {
     return withPlan(<OnboardingScreen config={config} data={data} hass={hass} onComplete={async (next) => { await saveConfig(next); }} t={t} />);
   }
@@ -468,7 +541,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
           onClose={() => { setSettingsOpen(false); setDraft(null); }}
           onDraft={setDraft}
           onLicense={setLicense}
-          onReload={() => void load()}
+          onReload={() => { setSettingsOpen(false); setDraft(null); void load(); }}
           onSave={async (next) => { await saveConfig(next); }}
           rooms={data.rooms}
           t={t}

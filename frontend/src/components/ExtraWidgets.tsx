@@ -277,128 +277,96 @@ export interface TariffCalculationResult {
   breakdown: TariffBreakdownItem[];
 }
 
+function currencyDigits(currency: string): number {
+  if (["đ", "₫", "VND"].includes(currency)) return 0;
+  return 2;
+}
+
 export function formatCurrency(amount: number, currency: string, position: "prefix" | "suffix", language?: string): string {
   const loc = safeIntlLocale(language);
-  const formattedNumber = new Intl.NumberFormat(loc, { maximumFractionDigits: amount >= 1000 ? 0 : 2 }).format(amount);
+  const formattedNumber = new Intl.NumberFormat(loc, { maximumFractionDigits: currencyDigits(currency) }).format(amount);
   return position === "prefix" ? `${currency}${formattedNumber}` : `${formattedNumber} ${currency}`;
 }
 
-/** Generalized electricity cost calculation engine (1 bậc hoặc nhiều bậc lũy tiến tùy biến). */
+export function validTariff(config: EnergyTariffConfig): boolean {
+  const validRate = (value: number) => Number.isFinite(value) && value >= 0 && value <= 1e12;
+  if (!validRate(config.fixed_monthly_fee ?? 0) || !validRate(config.vat_percent ?? 0)) return false;
+  if (config.mode === "flat") return validRate(config.flat_rate ?? 0);
+  const { tiers } = config;
+  if (!tiers?.length || tiers.length > 20) return false;
+  let previousMax = 0;
+  for (const [index, tier] of tiers.entries()) {
+    if (!validRate(tier.rate)) return false;
+    if (index === tiers.length - 1) return tier.max === null;
+    if (tier.max === null || !validRate(tier.max) || tier.max <= previousMax) return false;
+    previousMax = tier.max;
+  }
+  return false;
+}
+
+/** Calculate a period's bill from imported energy and the configured tariff. */
 export function calculateElectricityCost(
   kwh: number,
   tariffConfig?: EnergyTariffConfig,
   language?: string,
   translate?: (key: TranslationKey) => string,
 ): TariffCalculationResult {
-  const cfg: EnergyTariffConfig = tariffConfig ?? DEFAULT_ENERGY_TARIFF;
+  const requested = tariffConfig ?? DEFAULT_ENERGY_TARIFF;
+  const cfg = validTariff(requested) ? requested : DEFAULT_ENERGY_TARIFF;
   const currency = cfg.currency || "đ";
   const position = cfg.currency_position || "suffix";
-  const vatPercent = Number(cfg.vat_percent ?? 0);
-  const includeVat = cfg.include_vat !== false;
-  const fixedFee = Number(cfg.fixed_monthly_fee ?? 0);
-  const flatLabel = translate ? translate("tariffFlatName") : "Flat Rate";
-  const tierFallback = (n: number) => (translate ? translate("tariffTierFallback").replace("{n}", String(n)) : `Tier ${n}`);
+  const factor = 10 ** currencyDigits(currency);
+  const round = (value: number) => Math.round((value + Number.EPSILON) * factor) / factor;
+  const vatPercent = cfg.vat_percent ?? 0;
+  const fixedFee = cfg.fixed_monthly_fee ?? 0;
+  const usage = Number.isFinite(kwh) && kwh > 0 ? kwh : 0;
+  const tiers = cfg.mode === "flat" ? [{
+    max: null,
+    rate: cfg.flat_rate ?? 0,
+    name: translate?.("tariffFlatName") ?? "Flat Rate",
+  }] : cfg.tiers;
+  const label = (index: number) => tiers[index].name || (translate?.("tariffTierFallback") ?? "Tier {n}").replace("{n}", String(index + 1));
 
-  if (kwh <= 0) {
-    const subtotal = fixedFee;
-    const vatAmount = includeVat ? (subtotal * vatPercent) / 100 : 0;
-    const totalCost = Math.round(subtotal + vatAmount);
-    return {
-      totalCost,
-      subtotal,
-      vatAmount,
-      currentTier: 1,
-      currentRate: cfg.mode === "flat" ? (cfg.flat_rate ?? 0) : (cfg.tiers[0]?.rate ?? 0),
-      tierName: cfg.mode === "flat" ? flatLabel : (cfg.tiers[0]?.name ?? tierFallback(1)),
-      formattedTotal: formatCurrency(totalCost, currency, position, language),
-      currency,
-      currencyPosition: position,
-      vatPercent,
-      fixedMonthlyFee: fixedFee,
-      breakdown: [],
-    };
-  }
-
-  // Flat mode (1 bậc cố định)
-  if (cfg.mode === "flat") {
-    const rate = Number(cfg.flat_rate ?? 0);
-    const subtotal = kwh * rate + fixedFee;
-    const vatAmount = includeVat ? (subtotal * vatPercent) / 100 : 0;
-    const totalCost = Math.round(subtotal + vatAmount);
-    return {
-      totalCost,
-      subtotal,
-      vatAmount,
-      currentTier: 1,
-      currentRate: rate,
-      tierName: flatLabel,
-      formattedTotal: formatCurrency(totalCost, currency, position, language),
-      currency,
-      currencyPosition: position,
-      vatPercent,
-      fixedMonthlyFee: fixedFee,
-      breakdown: [
-        {
-          name: translate ? translate("tariffKwhUsed") : "Energy usage",
-          kwhUsed: Number(kwh.toFixed(1)),
-          rate,
-          cost: Math.round(kwh * rate),
-        },
-      ],
-    };
-  }
-
-  // Tiered mode (Lũy tiến nhiều bậc)
-  const tiers = cfg.tiers && cfg.tiers.length > 0 ? cfg.tiers : DEFAULT_ENERGY_TARIFF.tiers;
-  let remaining = kwh;
-  let subtotal = fixedFee;
-  let currentTier = 1;
-  let currentRate = tiers[0]?.rate ?? 0;
-  let currentTierName = tiers[0]?.name ?? tierFallback(1);
-  let prevMax = 0;
+  let remaining = usage;
+  let lowerBound = 0;
+  let current = 0;
   const breakdown: TariffBreakdownItem[] = [];
-
-  for (let i = 0; i < tiers.length; i++) {
-    const tierItem = tiers[i];
-    const max = tierItem.max != null && Number.isFinite(tierItem.max) ? tierItem.max : Infinity;
-    const span = max - prevMax;
-
-    if (remaining > 0) {
-      currentTier = i + 1;
-      currentRate = tierItem.rate;
-      currentTierName = tierItem.name ?? tierFallback(i + 1);
-      const usedInTier = Math.min(remaining, span);
-      const tierCost = Math.round(usedInTier * tierItem.rate);
-      subtotal += tierCost;
-      remaining -= usedInTier;
-
-      breakdown.push({
-        name: tierItem.name ?? tierFallback(i + 1),
-        kwhUsed: Number(usedInTier.toFixed(1)),
-        rate: tierItem.rate,
-        cost: tierCost,
-      });
-    }
-    prevMax = max;
+  for (const [index, tier] of tiers.entries()) {
+    if (remaining <= 0) break;
+    const used = Math.min(remaining, tier.max === null ? remaining : tier.max - lowerBound);
+    breakdown.push({
+      name: cfg.mode === "flat" ? translate?.("tariffKwhUsed") ?? "Energy usage" : label(index),
+      kwhUsed: used,
+      rate: tier.rate,
+      cost: round(used * tier.rate),
+    });
+    remaining -= used;
+    lowerBound = tier.max ?? lowerBound;
+    current = index;
   }
-
-  const vatAmount = includeVat ? Math.round((subtotal * vatPercent) / 100) : 0;
-  const totalCost = Math.round(subtotal + vatAmount);
-
+  const subtotal = round(fixedFee + breakdown.reduce((total, row) => total + row.cost, 0));
+  const vatAmount = cfg.include_vat === false ? 0 : round(subtotal * vatPercent / 100);
+  const totalCost = round(subtotal + vatAmount);
   return {
-    totalCost,
-    subtotal,
-    vatAmount,
-    currentTier,
-    currentRate,
-    tierName: currentTierName,
+    totalCost, subtotal, vatAmount, vatPercent, currency, breakdown,
+    currentTier: current + 1,
+    currentRate: tiers[current].rate,
+    tierName: label(current),
     formattedTotal: formatCurrency(totalCost, currency, position, language),
-    currency,
     currencyPosition: position,
-    vatPercent,
     fixedMonthlyFee: fixedFee,
-    breakdown,
   };
+}
+
+export function energyKwh(state?: HassEntity): number | null {
+  const value = Number(state?.state);
+  if (!state?.state.trim() || !Number.isFinite(value) || value < 0) return null;
+  switch (state.attributes.unit_of_measurement) {
+    case "Wh": return value / 1000;
+    case "kWh": return value;
+    case "MWh": return value * 1000;
+    default: return null;
+  }
 }
 
 /** Backward-compatible alias */
@@ -437,11 +405,8 @@ export function EnergyWidget({ config, hass, language, onOpen, t }: { config: Ho
   const main = home ?? solar;
   const first = st(e.consumption) ?? st(e.solar) ?? lines[0]?.state;
 
-  // Electricity tariff estimation
-  const todayKwh = Number.parseFloat(today?.state ?? "0") || 0;
-  const estDailyKwh = todayKwh > 0 ? todayKwh : (home != null ? (home * 24) / 1000 : 0);
-  const estMonthlyKwh = estDailyKwh * 30;
-  const tariffRes = calculateElectricityCost(estMonthlyKwh, e.tariff, language, t);
+  const periodKwh = energyKwh(st(e.grid_import_period));
+  const tariffRes = periodKwh === null ? null : calculateElectricityCost(periodKwh, e.tariff, language, t);
 
   if (wide) {
     return <div className={`widget-card widget-card--wide widget-card--energy ${surplus ? "widget-card--playing" : ""}`}>
@@ -449,7 +414,7 @@ export function EnergyWidget({ config, hass, language, onOpen, t }: { config: Ho
       <span className="widget-card__label">{t("energy")}</span>
       <strong>{main != null ? formatPower(main, language) : "—"}</strong>
       <p>{home != null ? t("energyHome") : t("energySolar")}</p>
-      {estMonthlyKwh > 0 && (
+      {tariffRes && (
         <div style={{ marginTop: 4 }}>
           <button
             className="energy-tariff-badge"
@@ -475,7 +440,7 @@ export function EnergyWidget({ config, hass, language, onOpen, t }: { config: Ho
           >
             <span>{tariffRes.tierName} ({formatCurrency(tariffRes.currentRate, tariffRes.currency, tariffRes.currencyPosition, language)}/kWh)</span>
             <span>·</span>
-            <span>~{tariffRes.formattedTotal}</span>
+            <span>{tariffRes.formattedTotal}</span>
             <HDIcon name="chevron" size={11} />
           </button>
         </div>
@@ -492,9 +457,9 @@ export function EnergyWidget({ config, hass, language, onOpen, t }: { config: Ho
       />
       <ul className="widget-list">{lines.slice(home != null ? 1 : 0, 5).map((line) => <li key={line.key}><button onClick={() => line.state && onOpen(asEntity(line.state))} type="button"><span>{line.label}</span><small>{line.value}</small></button></li>)}</ul>
       {tall && points && points.length > 1 && <div className="widget-card__chart"><Sparkline compact hours={24} language={language} points={points} /></div>}
-      {breakdownOpen && (
+      {breakdownOpen && periodKwh !== null && (
         <EnergyBreakdownModal
-          estMonthlyKwh={estMonthlyKwh}
+          periodKwh={periodKwh}
           language={language}
           onClose={() => setBreakdownOpen(false)}
           t={t}
@@ -523,6 +488,7 @@ export function energyCandidates(hass: HomeAssistant) {
     grid_export: rank(powerSensors, /export|feed|einspeis|inje/i),
     solar: rank(powerSensors, /solar|pv|inverter|inversor|wechselrichter/i),
     battery: rank(byClass("battery"), /home.?battery|storage|akku|speicher|bateria|batterie/i),
+    grid_import_period: rank(sensors.filter((state) => ["Wh", "kWh", "MWh"].includes(String(state.attributes.unit_of_measurement))), /grid.*import|import.*grid|monthly|billing/i),
     solar_today: rank(byClass("energy"), /solar|pv|yield|produ|today|hoje|heute/i),
   };
 }

@@ -69,11 +69,6 @@ async def async_refresh(hass: HomeAssistant) -> dict[str, Any]:
     return await async_license_status(hass)
 
 
-async def async_feedback(hass: HomeAssistant, payload: dict[str, Any]) -> None:
-    """Feedback stub."""
-    pass
-
-
 async def async_signed_key(hass: HomeAssistant) -> dict[str, Any]:
     """Return dummy signed key."""
     return {"key": "HOMESMART-UNLOCKED", "installation_id": "homesmart"}

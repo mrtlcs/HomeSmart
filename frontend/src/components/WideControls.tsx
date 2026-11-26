@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { CSSProperties, KeyboardEvent, PointerEvent } from "react";
 import { climateModeStyle } from "./SensorVisuals";
 import { hvacLabel, safeIntlLocale, type TranslationKey } from "../i18n";
@@ -283,15 +283,10 @@ function FanControls({ entity, state, t, call }: WideProps & { call: Call }) {
   </div>;
 }
 
-/** Unlocking asks for a second tap, so a brushed card never opens a door. */
 function LockControls({ state, t, call }: WideProps & { call: Call }) {
-  const [confirm, setConfirm] = useState(false);
   const locked = state.state === "locked";
-  useEffect(() => { if (!confirm) return; const timer = window.setTimeout(() => setConfirm(false), 4000); return () => window.clearTimeout(timer); }, [confirm]);
   return <div className="tile-wide__controls"><div className="tile-buttons">
-    {locked
-      ? <button className={confirm ? "tile-buttons__warn" : undefined} onClick={() => { if (confirm) { setConfirm(false); call("lock", "unlock"); } else setConfirm(true); }} type="button"><HDIcon name="lock" size={15} />{confirm ? t("confirmUnlock") : t("unlock")}</button>
-      : <button onClick={() => call("lock", "lock")} type="button"><HDIcon name="lock" size={15} />{t("lock")}</button>}
+    <button onClick={() => call("lock", locked ? "unlock" : "lock")} type="button"><HDIcon name="lock" size={15} />{locked ? t("unlock") : t("lock")}</button>
   </div></div>;
 }
 

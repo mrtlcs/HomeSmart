@@ -143,6 +143,7 @@ export interface HomeSmartEntityList {
 }
 
 export interface HomeSmartConfig {
+  revision?: number;
   version: number;
   onboarding_complete: boolean;
   theme: HOMESMARTTheme;
@@ -518,6 +519,8 @@ export interface HOMESMARTEnergy {
   battery: string;
   /** Energy produced today (kWh). */
   solar_today: string;
+  /** Energy imported from the grid since the start of this billing period. */
+  grid_import_period: string;
   /** Customizable electricity tariff settings (rates, tiers, currency, VAT). */
   tariff?: EnergyTariffConfig;
 }

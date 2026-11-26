@@ -96,10 +96,14 @@ export function discoverVacuumDevice(hass: HomeAssistant, vacuumId: string): Vac
   const deviceId = hass.entities?.[vacuumId]?.device_id ?? null;
   const slug = vacuumId.replace(/^vacuum\./, "").toLowerCase();
 
-  const siblingIds = Object.keys(hass.states).filter((id) => {
-    if (deviceId && hass.entities?.[id]?.device_id === deviceId) return true;
-    return slug.length > 3 && id.toLowerCase().includes(slug);
+  const stateIds = Object.keys(hass.states);
+  const sameDevice = deviceId ? stateIds.filter((id) => hass.entities?.[id]?.device_id === deviceId) : [];
+  const byName = stateIds.filter((id) => {
+    if (hass.entities?.[id]?.device_id) return false;
+    const objectId = id.split(".")[1]?.toLowerCase() ?? "";
+    return slug.length > 3 && (objectId === slug || objectId.startsWith(`${slug}_`));
   });
+  const siblingIds = [...sameDevice, ...byName];
 
   const pick = (rx: RegExp, domainPrefix?: string) =>
     siblingIds.find((id) => (!domainPrefix || id.startsWith(domainPrefix)) && rx.test(id));

@@ -17,16 +17,12 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from .const import DOMAIN, VERSION
 from .discovery import discover_home
 from .license import (
-    CONTROLLABLE_DOMAINS,
-    FREE_DEVICES,
-    FREE_ROOMS,
     LicenseError,
     async_activate,
     async_cancel_checkout,
     async_checkout,
     async_claim,
     async_deactivate,
-    async_feedback,
     async_is_pro,
     async_license_status,
     async_portal,
@@ -35,7 +31,7 @@ from .license import (
 )
 from .notices import SIGNAL_DISMISSED, async_dismiss, async_dismissed
 from .frontend import PLANS_DIR, PLANS_URL
-from .storage import async_load_config, async_save_config, normalize_config
+from .storage import ConfigConflict, async_load_config, async_save_config
 
 _COMMANDS_REGISTERED = "commands_registered"
 
@@ -53,7 +49,7 @@ def websocket_get_rooms(
     except Exception:
         connection.send_result(
             msg["id"],
-            {"version": "1.3.2", "rooms": [], "counts": {"rooms": 0, "devices": 0, "entities": 0}},
+            {"version": VERSION, "rooms": [], "counts": {"rooms": 0, "devices": 0, "entities": 0}},
         )
 
 
@@ -65,17 +61,14 @@ async def websocket_get_config(
     msg: dict[str, Any],
 ) -> None:
     """Return local homesmart configuration."""
-    try:
-        connection.send_result(msg["id"], await async_load_config(hass))
-    except Exception:
-        from .storage import normalize_config
-        connection.send_result(msg["id"], normalize_config({}))
+    connection.send_result(msg["id"], await async_load_config(hass))
 
 
 @websocket_api.websocket_command(
     {
         vol.Required("type"): f"{DOMAIN}/config/save",
         vol.Required("config"): dict,
+        vol.Required("revision"): vol.All(int, vol.Range(min=0)),
     }
 )
 @websocket_api.async_response
@@ -85,40 +78,15 @@ async def websocket_save_config(
     msg: dict[str, Any],
 ) -> None:
     """Validate and persist local homesmart configuration."""
-    if not await async_is_pro(hass):
-        current = _free_usage(hass, await async_load_config(hass))
-        wanted = _free_usage(hass, normalize_config(msg["config"]))
-        # Only block changes that grow past the free limits, so a panel that was already
-        # over them before an update can still be rearranged while it is being reduced.
-        for key, limit in (("rooms", FREE_ROOMS), ("devices", FREE_DEVICES)):
-            if wanted[key] > limit and wanted[key] > current[key]:
-                connection.send_error(msg["id"], "pro_required", f"Free plan allows up to {limit} {key}")
-                return
-    config = await async_save_config(hass, msg["config"])
+    if not connection.user.is_admin:
+        connection.send_error(msg["id"], "unauthorized", "Only administrators can edit shared HomeSmart settings")
+        return
+    try:
+        config = await async_save_config(hass, msg["config"], msg["revision"])
+    except ConfigConflict:
+        connection.send_error(msg["id"], "config_conflict", "HomeSmart settings changed. Reload before editing again.")
+        return
     connection.send_result(msg["id"], config)
-
-
-def _free_usage(hass: HomeAssistant, config: dict[str, Any]) -> dict[str, int]:
-    """Rooms in the panel and controllable devices that count toward the free plan."""
-    rooms = discover_home(hass)["rooms"]
-    ids = [room["id"] for room in rooms]
-    # The free plan keeps its own room choice, so the full selection is intact for Pro.
-    selected = (
-        [room_id for room_id in config["free_rooms"] if room_id in ids]
-        or [room_id for room_id in config["selected_rooms"] if room_id in ids]
-        or ids
-    )
-    devices = config["free_devices"]
-    if not devices:
-        # No explicit choice yet: every controllable device of the selected rooms counts.
-        devices = [
-            entity["entity_id"]
-            for room in rooms
-            if room["id"] in selected
-            for entity in room["entities"]
-            if entity["domain"] in CONTROLLABLE_DOMAINS
-        ]
-    return {"rooms": len(selected), "devices": len(devices)}
 
 
 @websocket_api.websocket_command(
@@ -224,30 +192,6 @@ async def websocket_license_portal(
         connection.send_result(msg["id"], await async_portal(hass, msg.get("return_url")))
     except LicenseError as err:
         connection.send_error(msg["id"], str(err), "The license server could not open the portal")
-
-
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): f"{DOMAIN}/feedback",
-        vol.Required("email"): vol.All(str, vol.Length(max=200)),
-        vol.Required("kind"): vol.In(["problem", "idea", "praise"]),
-        vol.Required("message"): vol.All(str, vol.Length(min=10, max=5000)),
-        vol.Optional("locale"): vol.All(str, vol.Length(max=12)),
-        vol.Optional("user_agent"): vol.All(str, vol.Length(max=300)),
-    }
-)
-@websocket_api.async_response
-async def websocket_feedback(
-    hass: HomeAssistant,
-    connection: websocket_api.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    """E-mail the Pro feedback form to homesmart support through the license server."""
-    fields = {name: msg[name] for name in ("email", "kind", "message", "locale", "user_agent") if name in msg}
-    try:
-        connection.send_result(msg["id"], await async_feedback(hass, fields))
-    except LicenseError as err:
-        connection.send_error(msg["id"], str(err), "The feedback could not be sent")
 
 
 @websocket_api.websocket_command({vol.Required("type"): f"{DOMAIN}/notices/subscribe"})
@@ -440,75 +384,6 @@ async def websocket_releases_list(
     })
 
 
-@websocket_api.websocket_command(
-    {
-        vol.Required("type"): f"{DOMAIN}/version/switch",
-        vol.Required("tag"): str,
-    }
-)
-@websocket_api.async_response
-async def websocket_version_switch(
-    hass: HomeAssistant,
-    connection: websocket_api.ActiveConnection,
-    msg: dict[str, Any],
-) -> None:
-    """Download and switch to a selected release version of HomeSmart."""
-    if not connection.user.is_admin:
-        connection.send_error(msg["id"], "unauthorized", "Only administrators can install or switch versions")
-        return
-
-    tag = msg["tag"].strip()
-    if not tag.startswith("v"):
-        tag = f"v{tag}"
-
-    zip_url = f"https://github.com/mrtlcs/HomeSmart/releases/download/{tag}/homesmart.zip"
-    session = async_get_clientsession(hass)
-
-    try:
-        headers = {"User-Agent": "HomeSmart-HA-Component"}
-        async with session.get(zip_url, headers=headers, timeout=30) as resp:
-            if resp.status != 200:
-                connection.send_error(msg["id"], "download_failed", f"Could not download release {tag} (HTTP {resp.status})")
-                return
-            content = await resp.read()
-    except Exception as err:
-        connection.send_error(msg["id"], "download_failed", f"Download failed: {err}")
-        return
-
-    def extract_zip() -> bool:
-        import io
-        import zipfile
-        target_dir = Path(__file__).parent
-        with zipfile.ZipFile(io.BytesIO(content)) as zf:
-            for member in zf.infolist():
-                filename = member.filename
-                if filename.startswith("custom_components/homesmart/"):
-                    subpath = filename[len("custom_components/homesmart/"):]
-                    if not subpath:
-                        continue
-                    target_file = target_dir / subpath
-                else:
-                    target_file = target_dir / filename
-                if member.is_dir():
-                    target_file.mkdir(parents=True, exist_ok=True)
-                else:
-                    target_file.parent.mkdir(parents=True, exist_ok=True)
-                    target_file.write_bytes(zf.read(member))
-        return True
-
-    try:
-        await hass.async_add_executor_job(extract_zip)
-    except Exception as err:
-        connection.send_error(msg["id"], "extraction_failed", f"Failed to extract files: {err}")
-        return
-
-    connection.send_result(msg["id"], {
-        "success": True,
-        "version": tag,
-        "message": f"Successfully switched to {tag}. Please restart Home Assistant to complete the update.",
-    })
-
-
 def async_register_websocket_commands(hass: HomeAssistant) -> None:
     """Register homesmart commands once per Home Assistant process."""
     domain_data = hass.data.setdefault(DOMAIN, {})
@@ -525,10 +400,8 @@ def async_register_websocket_commands(hass: HomeAssistant) -> None:
     websocket_api.async_register_command(hass, websocket_license_checkout)
     websocket_api.async_register_command(hass, websocket_license_claim)
     websocket_api.async_register_command(hass, websocket_license_portal)
-    websocket_api.async_register_command(hass, websocket_feedback)
     websocket_api.async_register_command(hass, websocket_notices_subscribe)
     websocket_api.async_register_command(hass, websocket_notices_dismiss)
     websocket_api.async_register_command(hass, websocket_floorplan_upload)
     websocket_api.async_register_command(hass, websocket_releases_list)
-    websocket_api.async_register_command(hass, websocket_version_switch)
     domain_data[_COMMANDS_REGISTERED] = True

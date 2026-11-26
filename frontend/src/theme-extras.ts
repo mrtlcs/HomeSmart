@@ -937,6 +937,24 @@ export const themeExtras = String.raw`
   mask: radial-gradient(farthest-side, transparent calc(100% - 3.5px), #000 calc(100% - 3px)); }
 .app-shell .hd-child-lock--holding .hd-child-lock__ring { opacity: 1; }
 .app-shell.view-kids .hd-child-lock__ring { inset: calc(var(--kid-edge, 3px) * -1); background: conic-gradient(#ffd43b calc(var(--hold, 0) * 1turn), transparent 0); }
+.hd-operation-alert {
+  position: fixed;
+  z-index: 11001;
+  top: calc(12px + env(safe-area-inset-top, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: var(--card-background-color, #24292f);
+  color: var(--primary-text-color, #fff);
+  box-shadow: 0 8px 28px #0006;
+}
+.hd-operation-alert button { flex-shrink: 0; }
 .app-shell .hd-lock-note { position: fixed; z-index: 60; left: 50%; top: calc(16px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); display: flex; align-items: center; gap: 8px; max-width: calc(100vw - 32px); padding: 10px 16px; border-radius: var(--hd-pill, 99px); background: rgba(20,18,16,.88); color: #fff; font: 600 14px/1.3 var(--f-body); box-shadow: 0 8px 28px rgba(0,0,0,.35); backdrop-filter: blur(10px); animation: hd-lock-note .25s ease; pointer-events: none; }
 @keyframes hd-lock-note { from { opacity: 0; transform: translate(-50%, -8px); } }
 .app-shell .device-tile__lock { position: absolute; z-index: 2; right: calc(var(--u)*1.2); top: calc(var(--u)*1.2); display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; pointer-events: none; }
@@ -1653,7 +1671,7 @@ export const themeExtras = String.raw`
 .app-shell .pin-modal-backdrop {
   position: fixed;
   inset: 0;
-  z-index: 999;
+  z-index: 11000;
   display: flex;
   align-items: center;
   justify-content: center;

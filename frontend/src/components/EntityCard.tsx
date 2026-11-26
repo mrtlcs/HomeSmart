@@ -238,7 +238,7 @@ function DeviceCard({ entity, hass, language, onLongPress, state: passedState, t
       openDetails(entity);
     };
 
-    if (currentPin && (entity.domain === "lock" || (entity as unknown as { pin_protect?: boolean }).pin_protect)) {
+    if (currentPin && entity.domain !== "lock" && (entity as unknown as { pin_protect?: boolean }).pin_protect) {
       setPinPrompt(() => executeAction);
       return;
     }

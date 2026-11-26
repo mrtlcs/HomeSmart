@@ -27,6 +27,7 @@ export const EMPTY_ENERGY: HomeSmartConfig["energy"] = {
   solar: "",
   battery: "",
   solar_today: "",
+  grid_import_period: "",
   tariff: DEFAULT_ENERGY_TARIFF,
 };
 export const EMPTY_SYSTEM_MONITOR: NonNullable<HomeSmartConfig["system_monitor"]> = { cpu: "", memory: "", disk: "", temperature: "", network_in: "", network_out: "", uptime: "" };
@@ -158,9 +159,11 @@ export async function getConfig(hass: HomeAssistant): Promise<HomeSmartConfig> {
 export async function saveConfig(
   hass: HomeAssistant,
   config: HomeSmartConfig,
+  revision: number,
 ): Promise<HomeSmartConfig> {
   return withDefaults(await hass.connection.sendMessagePromise<HomeSmartConfig>({
     type: "homesmart/config/save",
+    revision,
     config,
   }));
 }

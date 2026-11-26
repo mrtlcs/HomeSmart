@@ -123,7 +123,7 @@ HomeSmart kết hợp giữa thiết kế **Bento Grid kính mờ (Glassmorphism
 
 #### Cách 2: Cài đặt thủ công (Manual)
 1. Tải file `homesmart.zip` từ trang [Releases](https://github.com/mrtlcs/HomeSmart/releases).
-2. Giải nén và sao chép thư mục `custom_components/homesmart` vào thư mục `<config>/custom_components/` của Home Assistant.
+2. Giải nén nội dung gói vào thư mục `<config>/custom_components/homesmart/` của Home Assistant. Tệp `manifest.json` phải nằm trực tiếp trong thư mục này.
 3. Khởi động lại Home Assistant.
 4. Vào **Cài đặt** ➔ **Thiết bị & Dịch vụ** ➔ **Thêm tích hợp** ➔ Tìm **HomeSmart**.
 
@@ -231,11 +231,19 @@ It brings together a modern **Glassmorphic Cyber Bento Grid** aesthetic, 60–12
 
 #### Method 2: Manual Installation
 1. Download `homesmart.zip` from [GitHub Releases](https://github.com/mrtlcs/HomeSmart/releases).
-2. Extract and copy the `custom_components/homesmart` directory into your Home Assistant `<config_dir>/custom_components/`.
+2. Extract the contents into `<config_dir>/custom_components/homesmart/`. The `manifest.json` file belongs directly in that directory.
 3. Restart Home Assistant.
 4. Go to **Settings** ➔ **Devices & Services** ➔ **Add Integration** ➔ Search **HomeSmart**.
 
 ---
+
+## Phát triển / Development
+
+- Home Assistant 2024.7 trở lên / Home Assistant 2024.7 or newer.
+- Trong / In `frontend/`: `npm ci`, `npm test`, `npm run build`.
+- Chạy dashboard với thiết bị mô phỏng / Run the dashboard with sample devices: `npm run dev`.
+- Để tính tiền điện, chọn cảm biến Utility Meter đo điện nhập lưới trong kỳ hóa đơn trong cài đặt thẻ năng lượng. / For tariff calculations, select a Utility Meter sensor measuring grid imports for the billing period in the energy card settings.
+- Chỉnh sửa cấu hình chung cần quyền quản trị Home Assistant. Dùng HACS để đổi phiên bản. / Shared dashboard settings require a Home Assistant admin. Use HACS to switch releases.
 
 ## 🛠️ Tech Stack & Architecture
 

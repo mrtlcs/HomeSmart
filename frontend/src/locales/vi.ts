@@ -1,6 +1,15 @@
 // HomeSmart panel strings (vi) - 100% Vietnamese Localization.
 const locale = {
   "messages": {
+    "adminSetupRequired": "Quản trị viên Home Assistant cần hoàn tất thiết lập HomeSmart.",
+    "configConflict": "Màn hình khác đã sửa cấu hình chung. Hãy tải lại để lấy bản mới nhất.",
+    "unlockConfirmPrompt": "Bạn muốn mở khóa cửa này?",
+    "unlockFailed": "Lệnh mở khóa thất bại. Hãy kiểm tra thiết bị trong Home Assistant.",
+    "versionUpdateViaHacs": "Dùng HACS để cài hoặc đổi phiên bản, hoặc tải ZIP để cài thủ công.",
+    "versionGithubReleases": "Bản phát hành GitHub",
+    "energyGridPeriod": "Điện nhập lưới trong kỳ hóa đơn",
+    "tariffPeriodUsage": "Điện nhập lưới trong kỳ hóa đơn: {kwh} kWh",
+    "tariffInvalid": "Hãy nhập giá không âm và ngưỡng tăng dần. Bậc cuối không giới hạn.",
     "accentColor": "Màu thẻ",
     "accentColorDescription": "Một màu chủ đạo cho các thẻ đang bật, nút bấm, vùng chọn và chi tiết bảng điều khiển.",
     "accentDescription": "Áp dụng trên các thẻ đang sáng, nút bấm và mục được chọn.",

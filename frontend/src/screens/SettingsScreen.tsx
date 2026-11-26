@@ -28,7 +28,6 @@ import { deactivateLicense, getLicense, openPortal, type LicenseStatus } from ".
 import { LICENSE_ERRORS } from "../components/ProSheet";
 import { getDefaultPanel, setSystemDefault, setUserDefault, type DefaultPanelState } from "../api/defaultPanel";
 import { EntityPicker } from "../components/EntityPicker";
-import { FeedbackSheet } from "../components/FeedbackSheet";
 import { PageCreatorModal } from "../components/PageStudio";
 import { pageScreen } from "../layout";
 import { VersionModal } from "../components/VersionModal";
@@ -122,14 +121,14 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
   // The shell the import sheet opens over: rendered there, not inside the panel, so it centers on the screen.
   const [importing, setImporting] = useState<Element | null>(null);
   const [imported, setImported] = useState(false);
-  const [feedback, setFeedback] = useState(false);
+  const canEdit = hass.user?.is_admin === true;
   const [creatingPage, setCreatingPage] = useState(false);
   const [versionModal, setVersionModal] = useState(false);
   const [hideHaSidebar, setHideHaSidebar] = useState(hideSidebarPreferred);
   // Pro-only options stay visible with a lock; choosing one opens the Pro sheet.
   const locked = (condition: boolean) => !plan.pro && condition;
   const Lock = () => <span className="st-lock" aria-hidden="true"><HDIcon name="lock" size={11} /></span>;
-  const [section, setSection] = useState<Section>("layout");
+  const [section, setSection] = useState<Section>(canEdit ? "layout" : "device");
   // On a phone the menu is a sideways strip: keep the chosen section in view.
   const sectionList = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -161,14 +160,16 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
     highlight_color: current.highlight_color === (SUGGESTED[current.accent_color] ?? "#ffc94d") ? (SUGGESTED[color] ?? current.highlight_color) : current.highlight_color,
   }));
   const save = async (next = draft) => {
-    if (next.selected_rooms.length === 0) return;
+    if (!canEdit || next.selected_rooms.length === 0) return;
     setSaving(true);
     try {
       await onSave({ ...next, pages: next.pages.map((page) => page.title.trim() ? page : { ...page, title: t("newPage") }) });
       saved.current = JSON.stringify(next);
       setSaveState("saved");
+      return true;
     } catch {
       setSaveState("failed");
+      return false;
     } finally { setSaving(false); }
   };
   // Every change is saved on its own a moment after it is made (no Save button); closing saves what is left.
@@ -183,7 +184,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
   }, [draft]);
   const close = async () => {
     window.clearTimeout(pending.current);
-    if (JSON.stringify(draft) !== saved.current) await save(draft).catch(() => undefined);
+    if (canEdit && JSON.stringify(draft) !== saved.current && !await save(draft)) return;
     onClose();
   };
 
@@ -245,7 +246,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
     <div className="room-workspace">
       <aside className="room-selector st-nav" aria-label={t("settings")}>
         <div className="room-selector__list" ref={sectionList} role="tablist">
-          {SECTIONS.filter(([id]) => id !== "cameras" || Object.keys(hass.states).some((entity) => entity.startsWith("camera."))).map(([id, icon, label]) => <button aria-selected={section === id} key={id} onClick={() => setSection(id)} role="tab" type="button"><span className="room-selector__icon"><HDIcon name={icon} size={18} /></span><span>{t(label)}</span></button>)}
+          {SECTIONS.filter(([id]) => canEdit ? id !== "cameras" || Object.keys(hass.states).some((entity) => entity.startsWith("camera.")) : id === "device").map(([id, icon, label]) => <button aria-selected={section === id} key={id} onClick={() => setSection(id)} role="tab" type="button"><span className="room-selector__icon"><HDIcon name={icon} size={18} /></span><span>{t(label)}</span></button>)}
         </div>
       </aside>
 
@@ -470,7 +471,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
             <Row description={t("manageDevicesDescription")} label={t("gateDevices")}><button className="hd-pill" onClick={() => setManaging(true)} type="button">{t("manageDevices")}</button></Row>
             <div className="st-actions"><button className="hd-pill hd-pill--solid" onClick={() => plan.upsell("general")} type="button"><HDIcon name="star" size={16} />{t("proSeePro")}</button></div>
           </>}
-          <Row description={t("feedbackDescription")} label={t("feedback")}>{plan.pro ? <button className="hd-pill hd-pill--solid" onClick={() => setFeedback(true)} type="button"><HDIcon name="check" size={16} />{t("feedbackOpen")}</button> : <button className="hd-pill" onClick={() => plan.upsell("feature")} type="button"><HDIcon name="lock" size={14} />Pro</button>}</Row>
+          <Row label={t("feedback")}><a className="hd-pill" href="https://github.com/mrtlcs/HomeSmart/issues" rel="noopener noreferrer" target="_blank">{t("feedbackOpen")}</a></Row>
           <Row description={t("supportDescription")} label={t("support")}><a className="hd-pill" href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</a></Row>
           <Row description={t("installationIdDescription")} label={t("installationId")}><code className="st-code">{plan.license?.installation_id ?? "—"}</code></Row>
         </section>}
@@ -499,6 +500,7 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
 
         {section === "device" && <section className="st-panel">
           <h2>{t("sectionDevice")}</h2><p>{t("sectionDeviceDescription")}</p>
+          <Row description={t("deviceLanguageDescription")} label={t("language")}><HDSegmented ariaLabel={t("language")} onChange={(val) => setDeviceLanguage(val as "auto" | "vi" | "en")} options={[{ value: "auto", label: t("languageAuto") }, { value: "vi", label: "Tiếng Việt" }, { value: "en", label: "English" }]} value={devLang} /></Row>
           <DevicePrefsRows general={draft.view_mode} generalBackground={draft.background.preset} generalKids={draft.kids_background ?? "sky"} hass={hass} onUpsell={() => plan.upsell("feature")} pro={plan.pro} sidebarRow={<Row description={t("hideHaSidebarDescription")} label={t("hideHaSidebar")}><Switch checked={hideHaSidebar} label={t("hideHaSidebar")} onChange={(hidden) => { setHideHaSidebar(hidden); setHideSidebarPreferred(hidden); }} /></Row>} t={t} />
         </section>}
 
@@ -507,15 +509,13 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
 
         {section === "system" && <section className="st-panel">
           <h2>{t("sectionSystem")}</h2>
-          <Row description={t("deviceLanguageDescription")} label={t("language")}><HDSegmented ariaLabel={t("language")} onChange={(val) => setDeviceLanguage(val as "auto" | "vi" | "en")} options={[{ value: "auto", label: t("languageAuto") }, { value: "vi", label: "Tiếng Việt" }, { value: "en", label: "English" }]} value={devLang} /></Row>
           <Row description={t("reloadDevicesDescription")} label={t("reloadDevices")}><button className="hd-pill" onClick={onReload} type="button"><HDIcon name="refresh" size={16} />{t("refresh")}</button></Row>
           <BackupRows draft={draft} onImport={(imported) => setDraft((current) => ({ ...current, ...imported }))} t={t} version={version} />
-          <Row description={t("restartSetupDescription")} label={t("restartSetup")}><button className="hd-pill" disabled={saving} onClick={() => void save({ ...draft, onboarding_complete: false }).then(onClose)} type="button">{t("restartSetup")}</button></Row>
+          <Row description={t("restartSetupDescription")} label={t("restartSetup")}><button className="hd-pill" disabled={saving} onClick={() => void save({ ...draft, onboarding_complete: false }).then((saved) => { if (saved) onClose(); })} type="button">{t("restartSetup")}</button></Row>
           <VersionRow onManageVersion={() => setVersionModal(true)} t={t} version={version} />
         </section>}
       </section>
     </div>
-    {feedback && <FeedbackSheet hass={hass} language={language} onClose={() => setFeedback(false)} t={t} />}
     {versionModal && <VersionModal currentVersion={version} hass={hass} onClose={() => setVersionModal(false)} t={t} />}
     {managing && <EntityPicker filter={isControllable} language={language} onClose={() => setManaging(false)} onToggle={(id) => {
       const current = freeDevices(draft, rooms);
@@ -606,15 +606,15 @@ function ExtraCardsPanel({ draft, hass, onUpsell, pro, t, update }: { draft: Hom
   const turnOnEnergy = (on: boolean) => {
     if (on && !pro) { onUpsell(); return; }
     // The first time, each field starts with the sensor that best fits it.
-    const empty = Object.values(energy).every((id) => !id);
+    const empty = Object.keys(candidates).every((key) => !energy[key as keyof typeof candidates]);
     const guess = (key: keyof typeof candidates) => candidates[key][0]?.entity_id ?? "";
     update({
       widgets: { ...widgets, energy: on },
-      ...(on && empty ? { energy: { consumption: guess("consumption"), grid_import: guess("grid_import"), grid_export: "", solar: guess("solar"), battery: guess("battery"), solar_today: guess("solar_today") } } : {}),
+      ...(on && empty ? { energy: { ...energy, consumption: guess("consumption"), grid_import: guess("grid_import"), grid_export: "", solar: guess("solar"), battery: guess("battery"), solar_today: guess("solar_today") } } : {}),
     });
   };
-  type EnergyFieldKey = "consumption" | "solar" | "grid_import" | "grid_export" | "battery" | "solar_today";
-  const fields: Array<[EnergyFieldKey, TranslationKey]> = [["consumption", "energyHome"], ["solar", "energySolar"], ["grid_import", "energyGrid"], ["grid_export", "energyGridExport"], ["battery", "energyBattery"], ["solar_today", "energyToday"]];
+  type EnergyFieldKey = "consumption" | "solar" | "grid_import" | "grid_export" | "battery" | "solar_today" | "grid_import_period";
+  const fields: Array<[EnergyFieldKey, TranslationKey]> = [["consumption", "energyHome"], ["solar", "energySolar"], ["grid_import", "energyGrid"], ["grid_export", "energyGridExport"], ["battery", "energyBattery"], ["solar_today", "energyToday"], ["grid_import_period", "energyGridPeriod"]];
   return <section className="st-panel">
     <h2>{t("moreHomeCards")}</h2><p>{t("homeCardsDescription")}</p>
     <Row label={t("weatherCard")}><Switch checked={widgets.weather} label={t("weatherCard")} onChange={(weather) => set({ weather })} /></Row>

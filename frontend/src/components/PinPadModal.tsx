@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { TranslationKey } from "../i18n";
 import { HDIcon } from "./HDIcon";
@@ -12,6 +12,13 @@ interface Props {
 }
 
 export function PinPadModal({ expectedPin, onCancel, onSuccess, t, title }: Props) {
+  const anchor = useRef<HTMLSpanElement>(null);
+  const [shell, setShell] = useState<Element | null>(null);
+  useLayoutEffect(() => {
+    const node = anchor.current;
+    const root = node?.getRootNode() as Document | ShadowRoot | undefined;
+    setShell(node?.closest(".app-shell") ?? root?.querySelector(".app-shell") ?? null);
+  }, []);
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
 
@@ -104,5 +111,5 @@ export function PinPadModal({ expectedPin, onCancel, onSuccess, t, title }: Prop
     </div>
   );
 
-  return typeof document !== "undefined" ? createPortal(modal, document.body) : modal;
+  return <><span hidden ref={anchor} />{shell && createPortal(modal, shell)}</>;
 }

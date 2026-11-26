@@ -4,7 +4,7 @@ import type { EnergyTariffConfig, EnergyTier } from "../types/config";
 import type { TranslationKey } from "../i18n";
 import { HDIcon } from "./HDIcon";
 import { HDSegmented, HDSelect } from "./HDSelect";
-import { calculateElectricityCost, formatCurrency } from "./ExtraWidgets";
+import { calculateElectricityCost, formatCurrency, validTariff } from "./ExtraWidgets";
 import { DEFAULT_ENERGY_TARIFF } from "../api/config";
 
 export const PRESET_EVN_5: EnergyTariffConfig = {
@@ -93,18 +93,17 @@ export function EnergyTariffModal({
   const handleAddTier = () => {
     const curTiers = draft.tiers ?? [];
     const lastTier = curTiers[curTiers.length - 1];
-    const prevMax = lastTier?.max ?? 100;
-    const newMax = prevMax != null ? prevMax + 100 : 200;
+    const nextMax = (curTiers.at(-2)?.max ?? 0) + 100;
     const newTier: EnergyTier = {
       id: `tier-${Date.now()}`,
-      max: newMax,
+      max: null,
       name: t("tariffTierFallback").replace("{n}", String(curTiers.length + 1)),
       rate: (lastTier?.rate ?? 2000) + 200,
     };
     setDraft((cur) => ({
       ...cur,
       preset: "custom",
-      tiers: [...cur.tiers, newTier],
+      tiers: [...cur.tiers.slice(0, -1), { ...lastTier, max: nextMax }, newTier],
     }));
   };
 
@@ -113,7 +112,7 @@ export function EnergyTariffModal({
     setDraft((cur) => ({
       ...cur,
       preset: "custom",
-      tiers: cur.tiers.filter((_, idx) => idx !== index),
+      tiers: cur.tiers.filter((_, idx) => idx !== index).map((tier, idx) => idx === cur.tiers.length - 2 ? { ...tier, max: null } : tier),
     }));
   };
 
@@ -126,7 +125,8 @@ export function EnergyTariffModal({
   };
 
   // Live simulation result
-  const sim = calculateElectricityCost(testKwh, draft, undefined, t);
+  const valid = validTariff(draft);
+  const sim = valid ? calculateElectricityCost(testKwh, draft, undefined, t) : null;
 
   return createPortal(
     <div
@@ -413,6 +413,7 @@ export function EnergyTariffModal({
           )}
 
           {/* Live Simulator */}
+          {sim ? (
           <div
             style={{
               marginTop: 16,
@@ -456,6 +457,7 @@ export function EnergyTariffModal({
               </div>
             </div>
           </div>
+          ) : <p role="alert">{t("tariffInvalid")}</p>}
         </div>
 
         <footer
@@ -473,6 +475,7 @@ export function EnergyTariffModal({
           </button>
           <button
             className="hd-pill hd-pill--primary"
+            disabled={!valid}
             onClick={() => {
               onSave(draft);
               onClose();
@@ -489,21 +492,21 @@ export function EnergyTariffModal({
 }
 
 export function EnergyBreakdownModal({
-  estMonthlyKwh,
+  periodKwh,
   language,
   onClose,
   onOpenSettings,
   t,
   tariffConfig,
 }: {
-  estMonthlyKwh: number;
+  periodKwh: number;
   language?: string;
   onClose: () => void;
   onOpenSettings?: () => void;
   t: (key: TranslationKey) => string;
   tariffConfig?: EnergyTariffConfig;
 }) {
-  const res = calculateElectricityCost(estMonthlyKwh, tariffConfig, language, t);
+  const res = calculateElectricityCost(periodKwh, tariffConfig, language, t);
   const cfg = tariffConfig ?? DEFAULT_ENERGY_TARIFF;
   const currency = cfg.currency || "đ";
   const pos = cfg.currency_position || "suffix";
@@ -559,9 +562,7 @@ export function EnergyBreakdownModal({
                 {t("tariffReceipt")}
               </h3>
               <p style={{ margin: "2px 0 0", fontSize: "0.85em", opacity: 0.7 }}>
-                {t("tariffEstMonthlyLabel")
-                  .replace("{monthly}", estMonthlyKwh.toFixed(1))
-                  .replace("{daily}", (estMonthlyKwh / 30).toFixed(1))}
+                {t("tariffPeriodUsage").replace("{kwh}", periodKwh.toFixed(1))}
               </p>
             </div>
           </div>

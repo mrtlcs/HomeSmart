@@ -1,11 +1,12 @@
 {
   "name": "homesmart-frontend",
   "private": true,
-  "version": "2.2.3",
+  "version": "2.2.4",
   "type": "module",
   "scripts": {
     "build": "tsc --noEmit && vite build",
     "dev": "vite",
+    "test": "node --test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

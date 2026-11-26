@@ -72,8 +72,9 @@ export function computeHomeInsights(
     // 2. Climate active while window or door in same room is open
     const activeClimate = room.entities.find((entity) => {
       if (entity.hidden || entity.domain !== "climate") return false;
-      const st = hass.states[entity.entity_id]?.state;
-      return Boolean(st && !["off", "unavailable", "unknown", "idle"].includes(st));
+      const state = hass.states[entity.entity_id];
+      if (!state || ["off", "unavailable", "unknown"].includes(state.state)) return false;
+      return ["heating", "cooling", "drying"].includes(String(state.attributes.hvac_action));
     });
     if (activeClimate) {
       const openSensor = room.entities.find((entity) => {

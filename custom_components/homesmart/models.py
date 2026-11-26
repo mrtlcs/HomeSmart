@@ -174,6 +174,7 @@ class homesmartConfig(TypedDict):
     """Persisted homesmart configuration."""
 
     version: int
+    revision: int
     onboarding_complete: bool
     theme: str
     accent_color: str
@@ -226,12 +227,13 @@ class homesmartConfig(TypedDict):
     seasons: dict[str, Any]
 
 
-ENERGY_FIELDS = ("consumption", "grid_import", "grid_export", "solar", "battery", "solar_today")
+ENERGY_FIELDS = ("consumption", "grid_import", "grid_export", "solar", "battery", "solar_today", "grid_import_period")
 
 
 def default_config() -> homesmartConfig:
     """Return a fresh default configuration."""
     return {
+        "revision": 0,
         "version": 9,
         "onboarding_complete": False,
         "theme": "glass",
