@@ -53,6 +53,8 @@ export interface HassEntity {
 }
 
 export interface HomeAssistant {
+  connected?: boolean;
+  formatEntityState?(state: HassEntity): string;
   states: Record<string, HassEntity>;
   /** Entity registry as the Home Assistant frontend keeps it (device of each entity). */
   entities?: Record<string, { entity_id: string; device_id?: string | null }>;
@@ -80,6 +82,9 @@ export interface HomeAssistant {
   /** REST call through Home Assistant (calendar events). */
   callApi?<T>(method: "GET" | "POST", path: string): Promise<T>;
   connection: {
+    connected?: boolean;
+    addEventListener?(event: string, callback: () => void): void;
+    removeEventListener?(event: string, callback: () => void): void;
     sendMessagePromise<T>(message: Record<string, unknown>): Promise<T>;
     subscribeMessage?<T>(
       callback: (message: T) => void,

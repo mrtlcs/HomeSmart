@@ -730,11 +730,53 @@ def _normalize_pages(value: Any) -> list[dict[str, Any]]:
     return pages
 
 
+_SCREEN_PROFILES = ("classic", "auto", "phone", "wall", "desktop", "tv")
+_SCREEN_TABS = ("home", "rooms", "favorites", "alerts", "more")
+
+
+def _normalize_screen_profiles(value: dict) -> dict:
+    default = value.get("default")
+    users = value.get("users")
+    options = value.get("options")
+    clean: dict[str, Any] = {
+        "default": default if default in _SCREEN_PROFILES else "classic",
+        "users": {
+            key: profile
+            for key, profile in list(users.items())[:100]
+            if isinstance(key, str) and 0 < len(key) <= 64 and profile in _SCREEN_PROFILES
+        } if isinstance(users, dict) else {},
+        "options": {},
+    }
+    if not isinstance(options, dict):
+        return clean
+    for kind in _SCREEN_PROFILES[2:]:
+        if not isinstance(preset := options.get(kind), dict):
+            continue
+        tabs = [tab for tab in _unique_strings(preset.get("tabs")) if tab in _SCREEN_TABS]
+        tabs = ["home", *(tab for tab in tabs if tab != "home")]
+        start = preset.get("start")
+        idle = preset.get("idle")
+        quiet_start = preset.get("quiet_start")
+        quiet_end = preset.get("quiet_end")
+        clean["options"][kind] = {
+            "tabs": tabs,
+            "start": start if start in tabs else "home",
+            "density": "compact" if preset.get("density") == "compact" else "comfortable",
+            "idle": idle if type(idle) is int and 0 <= idle <= 3600 else 0,
+            "quiet_start": quiet_start if type(quiet_start) is int and 0 <= quiet_start < 24 else 0,
+            "quiet_end": quiet_end if type(quiet_end) is int and 0 <= quiet_end < 24 else 0,
+        }
+    return clean
+
+
 def normalize_config(value: Any) -> homesmartConfig:
     """Normalize stored or user-provided configuration."""
     config = default_config()
     if not isinstance(value, dict):
         return config
+
+    if isinstance(screen_profiles := value.get("screen_profiles"), dict):
+        config["screen_profiles"] = _normalize_screen_profiles(screen_profiles)
 
     if "onboarding_complete" in value:
         config["onboarding_complete"] = bool(value["onboarding_complete"])

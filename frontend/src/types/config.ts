@@ -1,3 +1,4 @@
+import type { ScreenProfiles } from "../screenProfiles";
 export type HOMESMARTTheme = "glass" | "minimal" | "dark";
 export type HOMESMARTDensity = "compact" | "comfortable";
 export type HomeSmartBackgroundPreset =
@@ -144,6 +145,7 @@ export interface HomeSmartEntityList {
 
 export interface HomeSmartConfig {
   revision?: number;
+  screen_profiles?: ScreenProfiles;
   version: number;
   onboarding_complete: boolean;
   theme: HOMESMARTTheme;

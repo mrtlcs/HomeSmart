@@ -11,6 +11,11 @@ const { calculateElectricityCost, energyKwh, validTariff } = await server.ssrLoa
 const { discoverVacuumDevice } = await server.ssrLoadModule("/src/components/DreameVacuum.tsx");
 const { computeHomeInsights } = await server.ssrLoadModule("/src/components/AIInsightsCard.tsx");
 
+const { isQuietHour, resolveScreenProfile, screenOptions } = await server.ssrLoadModule("/src/screenProfiles.ts");
+const { nextDirectionalItem } = await server.ssrLoadModule("/src/dashboardNavigation.ts");
+const { captureLayout, layoutChanged } = await server.ssrLoadModule("/src/layoutHistory.ts");
+
+
 const flat = { mode: "flat", flat_rate: 0.16, currency: "$", fixed_monthly_fee: 10, include_vat: false };
 const tiered = { ...flat, mode: "tiered", fixed_monthly_fee: 0, tiers: [{ max: 100, rate: 1 }, { max: null, rate: 2 }] };
 
@@ -68,4 +73,39 @@ test("an open window alerts only while the HVAC is actively conditioning", () =>
   assert.equal(computeHomeInsights({}, home, { states }, "en", (key) => key).length, 0);
   states["climate.living"].attributes.hvac_action = "cooling";
   assert.equal(computeHomeInsights({}, home, { states }, "en", (key) => key).length, 1);
+});
+
+
+test("the active profile follows device, account and home precedence and preserves legacy layouts", () => {
+  const shared = { default: "auto", users: { a: "tv" }, options: {} };
+  assert.equal(resolveScreenProfile("", "a", undefined, 390, true), "classic");
+  assert.equal(resolveScreenProfile("wall", "a", shared, 390, true), "wall");
+  assert.equal(resolveScreenProfile("", "a", shared, 390, true), "tv");
+  assert.equal(resolveScreenProfile("", "b", shared, 390, true), "phone");
+  assert.equal(resolveScreenProfile("", "b", shared, 900, true), "wall");
+  assert.equal(resolveScreenProfile("", "b", shared, 900, false), "desktop");
+});
+
+test("wall standby defaults are independent and quiet hours work across midnight", () => {
+  assert.equal(screenOptions("phone").idle, 0);
+  assert.equal(screenOptions("wall").idle, 90);
+  assert.equal(isQuietHour(23, 22, 7), true);
+  assert.equal(isQuietHour(6, 22, 7), true);
+  assert.equal(isQuietHour(7, 22, 7), false);
+  assert.equal(isQuietHour(18, 0, 0), false);
+});
+
+test("remote navigation follows the nearest target in the requested direction", () => {
+  const options = [{ x: 0, y: 0 }, { x: 200, y: 0 }, { x: 80, y: 90 }, { x: 0, y: 104 }];
+  assert.equal(nextDirectionalItem(options[0], options, "ArrowRight"), 1);
+  assert.equal(nextDirectionalItem(options[0], options, "ArrowDown"), 3);
+  assert.equal(nextDirectionalItem(options[1], options, "ArrowRight"), -1);
+  assert.equal(nextDirectionalItem(options[1], options, "ArrowLeft"), 0);
+});
+
+test("layout snapshots preserve tabs and navigation without restoring unrelated system settings", () => {
+  const original = { pages: [{ id: "energy" }], layouts: { "page:energy": { order: ["widget:energy"] } }, navigation: { order: ["energy"] }, accent_color: "#fff" };
+  assert.equal(layoutChanged(original, { ...original, accent_color: "#000" }), false);
+  assert.equal(layoutChanged(original, { ...original, pages: [] }), true);
+  assert.deepEqual(Object.keys(captureLayout(original)).sort(), ["layouts", "navigation", "pages"]);
 });

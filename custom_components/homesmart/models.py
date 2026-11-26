@@ -175,6 +175,7 @@ class homesmartConfig(TypedDict):
 
     version: int
     revision: int
+    screen_profiles: dict[str, Any]
     onboarding_complete: bool
     theme: str
     accent_color: str
@@ -234,6 +235,7 @@ def default_config() -> homesmartConfig:
     """Return a fresh default configuration."""
     return {
         "revision": 0,
+        "screen_profiles": {"default": "classic", "users": {}, "options": {}},
         "version": 9,
         "onboarding_complete": False,
         "theme": "glass",

@@ -8,6 +8,10 @@ const fixtures: Array<[string, string, string, HassEntity["attributes"]]> = [
   ["light.living_room", "Living room lights", "on", { brightness: 180 }],
   ["sensor.temperature", "Room temperature", "23", { device_class: "temperature", unit_of_measurement: "°C" }],
   ["sensor.grid_energy_monthly", "Monthly grid energy", "123", { device_class: "energy", unit_of_measurement: "kWh" }],
+  ["climate.living_room", "Living room thermostat", "cool", { temperature: 23, current_temperature: 25, hvac_modes: ["off", "cool", "heat"] }],
+  ["binary_sensor.window", "Living room window", "on", { device_class: "window" }],
+  ["sensor.offline", "Offline sensor", "unavailable", {}],
+  ["scene.relax", "Relax", "unknown", {}],
   ["lock.front_door", "Front door", "locked", {}],
 ];
 const states: HomeAssistant["states"] = {};
@@ -16,11 +20,11 @@ const entities: DiscoveredEntity[] = fixtures.map(([entity_id, name, state, attr
   return { entity_id, name, domain: entity_id.split(".")[0], area_id: "living", device_id: null, device_class: attributes.device_class ?? null, icon: null };
 });
 const discovery: DiscoveryResponse = {
-  version: "2.2.4",
+  version: "2.2.5",
   rooms: [{ id: "living", name: "Living room", aliases: [], floor_id: null, icon: null, device_count: 0, entities }],
   counts: { rooms: 1, devices: 0, entities: entities.length },
 };
-let config: Partial<HomeSmartConfig> = { revision: 0, onboarding_complete: true, selected_rooms: ["living"] };
+let config: Partial<HomeSmartConfig> = { revision: 0, onboarding_complete: true, selected_rooms: ["living"], favorites: ["scene.relax"] };
 const panel = document.querySelector<HTMLElement & { hass: HomeAssistant; panel: HomeSmartPanelInfo }>("#dashboard");
 if (!panel) throw new Error("Missing HomeSmart preview panel");
 
@@ -51,7 +55,10 @@ const hass: HomeAssistant = {
       : domain === "lock" ? (service === "unlock" ? "unlocked" : "locked")
       : service === "turn_on" ? "on" : service === "turn_off" ? "off" : current.state;
     const changed = new Date().toISOString();
-    hass.states = { ...hass.states, [id]: { ...current, state, last_changed: changed, last_updated: changed } };
+    const attributes = domain === "climate" && service === "set_temperature" && typeof data?.temperature === "number"
+      ? { ...current.attributes, temperature: data.temperature } : current.attributes;
+    const newState = domain === "climate" && service === "set_hvac_mode" && typeof data?.hvac_mode === "string" ? data.hvac_mode : state;
+    hass.states = { ...hass.states, [id]: { ...current, attributes, state: newState, last_changed: changed, last_updated: changed } };
     panel.hass = { ...hass };
   },
 };

@@ -44,7 +44,7 @@ export default defineConfig({
         format: "es",
         entryFileNames: "homesmart-panel.js",
         assetFileNames: "fonts/[name]-[hash][extname]",
-        inlineDynamicImports: true,
+        chunkFileNames: "chunks/[name]-[hash].js",
       },
     },
   },

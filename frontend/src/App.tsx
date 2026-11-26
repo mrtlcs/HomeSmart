@@ -1,5 +1,5 @@
 import { setClockFormat } from "./clock";
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { getConfig, saveConfig as persistConfig } from "./api/config";
 import { discoverRooms } from "./api/discovery";
@@ -39,13 +39,18 @@ import { HomeScreen } from "./screens/HomeScreen";
 import { OnboardingScreen } from "./screens/OnboardingScreen";
 import { PlanGateScreen } from "./screens/PlanGateScreen";
 import { RoomScreen } from "./screens/RoomScreen";
-import { SettingsScreen } from "./screens/SettingsScreen";
-import { SystemMonitorScreen } from "./screens/SystemMonitorScreen";
+import { resolveScreenProfile, screenOptions, setScreenProfile, useScreenProfile } from "./screenProfiles";
+import { layoutChanged, useLayoutHistory } from "./layoutHistory";
+
 import { VacuumScreen } from "./components/DreameVacuum";
 import type { ScreenProps } from "./screens/types";
 import type { HomeSmartEntityOptions, HomeSmartConfig, ScreenLayout } from "./types/config";
 import type { DiscoveryResponse } from "./types/discovery";
 import type { HomeAssistant } from "./types/home-assistant";
+
+const SettingsScreen = lazy(() => import("./screens/SettingsScreen").then((module) => ({ default: module.SettingsScreen })));
+const AdaptiveDashboard = lazy(() => import("./components/AdaptiveDashboard").then((module) => ({ default: module.AdaptiveDashboard })));
+const SystemMonitorScreen = lazy(() => import("./screens/SystemMonitorScreen").then((module) => ({ default: module.SystemMonitorScreen })));
 
 const DEFAULT_LIMITS = { rooms: 4, devices: 10 };
 /** A minute without a touch brings the panel back to Home. */
@@ -60,7 +65,7 @@ function onThisDevice(config: HomeSmartConfig, view: string, background: string,
   return { ...config, ...(mode ? { view_mode: mode } : {}), ...(scene ? { kids_background: scene } : {}), ...(preset ? { background: { ...config.background, preset } } : {}) };
 }
 
-export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: string }) {
+export function App({ hass: haHass, version, availableWidth }: { hass: HomeAssistant; version?: string; availableWidth?: number }) {
   // Every screen gets hass through the child lock, which drops calls to locked devices while it is on.
   const childLock = useRef<ChildLockState>({ locked: false, ids: new Set() });
   const unlockPending = useRef<((approved: boolean) => void) | null>(null);
@@ -111,6 +116,12 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const [legacyBackend, setLegacyBackend] = useState(false);
   const [upsellReason, setUpsellReason] = useState<UpsellReason | null>(null);
   const [error, setError] = useState(false);
+  const [connection, setConnection] = useState<"online" | "offline" | "reconnecting">(() => navigator.onLine ? "reconnecting" : "offline");
+  const [syncedAt, setSyncedAt] = useState(0);
+  const [legacyPage, setLegacyPage] = useState(false);
+  const [conflictDraft, setConflictDraft] = useState<HomeSmartConfig>();
+  const deviceProfile = useScreenProfile(hass.user?.id);
+  const { versions, remember } = useLayoutHistory(hass.user?.id);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [draft, setDraft] = useState<HomeSmartConfig | null>(null);
   const [editing, setEditing] = useState(false);
@@ -122,6 +133,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const persistedConfig = useRef<HomeSmartConfig | null>(null);
   const conflicting = useRef(false);
   const lastActivity = useRef(Date.now());
+  const profile = resolveScreenProfile(deviceProfile, hass.user?.id, config?.screen_profiles, availableWidth ?? window.innerWidth, window.matchMedia("(pointer: coarse)").matches);
   const [saverOn, setSaverOn] = useState(false);
   const devLang = useDevicePref(deviceLanguage);
   const rawLang = devLang && devLang !== "auto" ? devLang : (hass.locale?.language ?? hass.language);
@@ -136,16 +148,20 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
 
   const load = useCallback(async () => {
     setError(false);
+    setConnection(navigator.onLine ? "reconnecting" : "offline");
+    let timeout: number | undefined;
     try {
       await saveQueue.current;
       const timeoutPromise = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Timeout waiting for HomeSmart data")), 8000);
+        timeout = window.setTimeout(() => reject(new Error("Timeout waiting for HomeSmart data")), 8000);
       });
       const [discovery, savedConfig] = await Promise.race([
         Promise.all([discoverRooms(hass), getConfig(hass)]),
         timeoutPromise,
       ]);
       setData(discovery);
+      setSyncedAt(Date.now());
+      setConnection(navigator.onLine && hass.connection.connected !== false ? "online" : "offline");
       persistedConfig.current = savedConfig;
       configRef.current = savedConfig;
       conflicting.current = false;
@@ -153,7 +169,11 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
       setConfig(savedConfig);
     } catch (err) {
       console.error("[HomeSmart] Load error:", err);
-      setError(true);
+      setConnection("offline");
+      if (!configRef.current) setError(true);
+      return;
+    } finally {
+      window.clearTimeout(timeout);
     }
     try {
       const status = await getLicense(hass);
@@ -167,6 +187,35 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   }, [hass.connection]);
 
   useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    const socket = hass.connection;
+    let active = true;
+    let generation = 0;
+    const offline = () => { generation += 1; setConnection("offline"); };
+    const reconnect = () => {
+      const attempt = ++generation;
+      setConnection("reconnecting");
+      if (socket.connected === false) return;
+      if (!configRef.current) { void load(); return; }
+      void discoverRooms(hass).then((next) => {
+        if (!active || attempt !== generation) return;
+        setData(next);
+        setSyncedAt(Date.now());
+        setConnection("online");
+      }).catch(() => { if (active && attempt === generation) setConnection("offline"); });
+    };
+    socket.addEventListener?.("disconnected", offline);
+    socket.addEventListener?.("ready", reconnect);
+    window.addEventListener("offline", offline);
+    window.addEventListener("online", reconnect);
+    return () => {
+      active = false;
+      socket.removeEventListener?.("disconnected", offline);
+      socket.removeEventListener?.("ready", reconnect);
+      window.removeEventListener("offline", offline);
+      window.removeEventListener("online", reconnect);
+    };
+  }, [hass.connection, load]);
 
   // Areas, devices and entities added or moved in Home Assistant show up without a manual refresh.
   useEffect(() => {
@@ -223,7 +272,9 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     setConfig(next);
     const run = saveQueue.current.then(async () => {
       if (conflicting.current) throw new Error("HomeSmart configuration conflict");
-      const saved = await persistConfig(hass, next, persistedConfig.current?.revision ?? 0);
+      const before = persistedConfig.current;
+      const saved = await persistConfig(hass, next, before?.revision ?? 0);
+      if (before && layoutChanged(before, saved)) remember(before);
       persistedConfig.current = saved;
       setSaveError(null);
       if (configRef.current === next) {
@@ -232,7 +283,10 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
       }
     });
     saveQueue.current = run.catch((err) => {
-      if ((err as { code?: string })?.code === "config_conflict") conflicting.current = true;
+      if ((err as { code?: string })?.code === "config_conflict") {
+        conflicting.current = true;
+        setConflictDraft(configRef.current ?? next);
+      }
       setSaveError(conflicting.current ? "configConflict" : "settingsNotSaved");
       if (configRef.current === next && persistedConfig.current) {
         configRef.current = persistedConfig.current;
@@ -240,7 +294,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
       }
     });
     return run;
-  }, [hass.connection, canEdit]);
+  }, [hass.connection, canEdit, remember]);
   const saveConfig = useCallback((next: HomeSmartConfig) => updateConfig(() => next), [updateConfig]);
 
   // One-time move from the 0.3 visibility options to per-screen layouts.
@@ -334,13 +388,13 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     return () => events.forEach((name) => window.removeEventListener(name, touch, { capture: true }));
   }, []);
   useEffect(() => {
-    if (!saver?.enabled || editing || settingsOpen || confirmingUnlock) { setSaverOn(false); return; }
+    if ((profile !== "classic" && !legacyPage) || !saver?.enabled || editing || settingsOpen || confirmingUnlock) { setSaverOn(false); return; }
     lastActivity.current = Date.now();
     const timer = window.setInterval(() => {
       if (Date.now() - lastActivity.current >= saver.delay * 1000) setSaverOn(true);
     }, 2_000);
     return () => window.clearInterval(timer);
-  }, [saver?.enabled, saver?.delay, editing, settingsOpen, confirmingUnlock]);
+  }, [saver?.enabled, saver?.delay, editing, settingsOpen, confirmingUnlock, profile, legacyPage]);
   const dismissSaver = useCallback(() => { lastActivity.current = Date.now(); setSaverOn(false); }, []);
 
   // Doorbell (Pro): a ring wakes the panel and shows the camera above everything.
@@ -428,8 +482,8 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
 
   // Cards, rich notifications and companion deep links (?hs_room= / #hs-room= / #hs-page=) navigate via events & URL.
   useEffect(() => {
-    const go = (event: Event) => { const page = (event as CustomEvent<string>).detail; if (typeof page === "string") { setSelectedRoomId(null); setActivePage(page); } };
-    const goRoom = (event: Event) => { const roomId = (event as CustomEvent<string>).detail; if (typeof roomId === "string" && roomId) { setSelectedRoomId(roomId); setActivePage("rooms"); } };
+    const go = (event: Event) => { setLegacyPage(true); const page = (event as CustomEvent<string>).detail; if (typeof page === "string") { setSelectedRoomId(null); setActivePage(page); } };
+    const goRoom = (event: Event) => { setLegacyPage(true); const roomId = (event as CustomEvent<string>).detail; if (typeof roomId === "string" && roomId) { setSelectedRoomId(roomId); setActivePage("rooms"); } };
     const applyDeepLink = () => {
       try {
         const params = new URLSearchParams(window.location.search);
@@ -438,8 +492,8 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
         const hashPage = /hs-page=([^&]+)/.exec(hash)?.[1];
         const roomParam = params.get("hs_room") ?? (hashRoom ? decodeURIComponent(hashRoom) : null);
         const pageParam = params.get("hs_page") ?? (hashPage ? decodeURIComponent(hashPage) : null);
-        if (roomParam) { setSelectedRoomId(roomParam); setActivePage("rooms"); }
-        else if (pageParam) { setSelectedRoomId(null); setActivePage(pageParam); }
+        if (roomParam) { setLegacyPage(true); setSelectedRoomId(roomParam); setActivePage("rooms"); }
+        else if (pageParam) { setLegacyPage(true); setSelectedRoomId(null); setActivePage(pageParam); }
       } catch { /* ignore malformed URLs */ }
     };
     applyDeepLink();
@@ -465,11 +519,22 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     setLicense(await activateLicense(hass, key));
     setUpsellReason(null);
   };
+  const downloadDraft = () => {
+    const latest = draft ?? conflictDraft;
+    if (!latest) return;
+    const url = URL.createObjectURL(new Blob([JSON.stringify(latest, null, 2)], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "homesmart-conflict-draft.json";
+    link.click();
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
   const withPlan = (node: ReactNode) => <PlanContext.Provider value={plan}><CustomizeContext.Provider value={customize}>
-    {node}
+    <Suspense fallback={<main className="screen center-state" role="status">{t("loadingShort")}</main>}>{node}</Suspense>
     {unlockPin && <PinPadModal expectedPin={unlockPin} onCancel={() => finishUnlock(false)} onSuccess={() => finishUnlock(true)} t={t} />}
     {(saveError || unlockFailed) && <div className="hd-operation-alert" role="alert">
       {saveError ? t(saveError) : t("unlockFailed")}
+      {saveError === "configConflict" && (draft || conflictDraft) && <button className="hd-pill" onClick={downloadDraft} type="button">{t("conflictDownload")}</button>}
       {saveError
         ? <button className="hd-pill" onClick={() => { setSettingsOpen(false); setDraft(null); void load(); }} type="button">{t("refresh")}</button>
         : <button className="hd-pill" onClick={() => setUnlockFailed(false)} type="button">{t("close")}</button>}
@@ -538,6 +603,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
           config={config}
           hass={hass}
           language={language}
+          layoutVersions={versions}
           onClose={() => { setSettingsOpen(false); setDraft(null); }}
           onDraft={setDraft}
           onLicense={setLicense}
@@ -567,6 +633,20 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
     onNavigate: navigate,
     t,
   };
+
+  if (profile !== "classic" && !legacyPage) {
+    return withPlan(<AdaptiveDashboard
+      {...screenProps}
+      connection={connection}
+      syncedAt={syncedAt}
+      presenceDetected={wakeState === "on"}
+      onReconnect={() => void load()}
+      profile={profile}
+      options={screenOptions(profile, view.screen_profiles)}
+      onClassic={() => setScreenProfile(hass.user?.id, "classic")}
+      onLegacyPage={(page) => { navigate(page); setLegacyPage(true); }}
+    />);
+  }
 
   const selectedRoom = activePage === "rooms" ? (visibleData.rooms.find((room) => room.id === selectedRoomId) ?? visibleData.rooms[0]) : undefined;
   const customPage = view.pages.find((page) => page.id === activePage);
@@ -617,6 +697,7 @@ export function App({ hass: haHass, version }: { hass: HomeAssistant; version?: 
   const pageKey = mode === "sidebar" || mode === "photo" ? mode : selectedRoom ? "rooms" : activePage;
   return withPlan(
     <DynamicShell config={view} data={visibleData} hass={hass} mode={mode} season={season}>
+      {profile !== "classic" && <button className="hd-pill hs-return-adaptive" onClick={() => setLegacyPage(false)} type="button">{t("adaptiveReturn")}</button>}
       <div className="hs-screen-wrapper" key={pageKey}>{screen}</div>
       {mode !== "sidebar" && mode !== "photo" && <NavigationDock active={active} config={view} editing={editing} hasMedia={hasMedia} hasScenes={hasScenes} hasSecurity={hasSecurity} hasCameras={hasCameras} hasVacuums={hasVacuums} onAddPage={openPageCreator} onNavigate={navigate} onOrder={(order) => void updateConfig((current) => ({ ...current, navigation: { ...current.navigation, order } }))} t={t} />}
       {!locked && <button aria-label={editing ? t("doneEditing") : t("editScreen")} aria-pressed={editing} className={editing ? "edit-fab edit-fab--on" : "edit-fab"} onClick={() => setEditing((current) => !current)} type="button">

@@ -1,3 +1,4 @@
+import { adaptiveStyles } from "./theme-adaptive";
 import { pauseCameras } from "./cameraPause";
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -65,6 +66,9 @@ class HomeSmartPanel extends HTMLElement {
   private _hass?: HomeAssistant;
   private _panel?: HomeSmartPanelInfo;
   private readonly root: Root;
+  private readonly mount: HTMLDivElement;
+  private availableWidth?: number;
+  private sizeObserver?: ResizeObserver;
   private showScrollbars?: () => void;
 
   constructor() {
@@ -72,9 +76,10 @@ class HomeSmartPanel extends HTMLElement {
     installFonts();
     const shadow = this.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = scaleFonts(`@layer legacy{${styles}}${theme}${themeEditing}${themeExtras}${themePlan}${themeLayouts}${themeKids}${themePhoto}${CIRCADIAN_OVERLAY_CSS}${ROOM_POPUP_CSS}${ENERGY_FLOW_CSS}${VACUUM_STUDIO_CSS}${PAGE_STUDIO_CSS}${themeV2}`);
+    style.textContent = adaptiveStyles + scaleFonts(`@layer legacy{${styles}}${theme}${themeEditing}${themeExtras}${themePlan}${themeLayouts}${themeKids}${themePhoto}${CIRCADIAN_OVERLAY_CSS}${ROOM_POPUP_CSS}${ENERGY_FLOW_CSS}${VACUUM_STUDIO_CSS}${PAGE_STUDIO_CSS}${themeV2}`);
     const mount = document.createElement("div");
     shadow.append(style, mount);
+    this.mount = mount;
     this.root = createRoot(mount);
   }
 
@@ -92,6 +97,14 @@ class HomeSmartPanel extends HTMLElement {
 
   connectedCallback() {
     pauseCameras("panel-closed", false);
+    this.availableWidth = this.mount.getBoundingClientRect().width || undefined;
+    if (typeof ResizeObserver !== "undefined") {
+      this.sizeObserver = new ResizeObserver(([entry]) => {
+        const width = Math.round(entry.contentRect.width);
+        if (width > 0 && width !== this.availableWidth) { this.availableWidth = width; this.renderPanel(); }
+      });
+      this.sizeObserver.observe(this.mount);
+    }
     this.renderPanel();
     window.addEventListener("homesmart-sidebar-pref", this.applySidebar);
     this.applySidebar();
@@ -101,6 +114,8 @@ class HomeSmartPanel extends HTMLElement {
 
   disconnectedCallback() {
     pauseCameras("panel-closed", true);
+    this.sizeObserver?.disconnect();
+    this.sizeObserver = undefined;
     window.removeEventListener("homesmart-sidebar-pref", this.applySidebar);
     this.showScrollbars?.();
     this.showScrollbars = undefined;
@@ -117,7 +132,7 @@ class HomeSmartPanel extends HTMLElement {
     if (!this._hass) return;
     this.root.render(
       <PanelErrorBoundary>
-        <App hass={this._hass} version={this._panel?.config?.version} />
+        <App availableWidth={this.availableWidth} hass={this._hass} version={this._panel?.config?.version} />
       </PanelErrorBoundary>
     );
   }

@@ -1,3 +1,6 @@
+import { ScreenProfileSettings } from "../components/ScreenProfileSettings";
+import { LayoutHistoryPanel } from "../components/LayoutHistoryPanel";
+import { captureLayout, type LayoutVersion } from "../layoutHistory";
 import { isRecentMediaSensor } from "../components/RecentMedia";
 import { inDesktopApp } from "../desktop";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
@@ -102,6 +105,7 @@ interface SettingsScreenProps {
   rooms: Room[];
   t: (key: TranslationKey) => string;
   version?: string;
+  layoutVersions: LayoutVersion[];
 }
 
 function Row({ children, description, label }: { children: ReactNode; description?: string; label: string }) {
@@ -112,7 +116,7 @@ function Switch({ checked, label, onChange }: { checked: boolean; label: string;
   return <input aria-label={label} checked={checked} className="st-switch" onChange={(event) => onChange(event.target.checked)} type="checkbox" />;
 }
 
-export function SettingsScreen({ config, hass, language, onClose, onDraft, onLicense, onReload, onSave, rooms, t, version }: SettingsScreenProps) {
+export function SettingsScreen({ config, hass, language, onClose, onDraft, onLicense, onReload, onSave, rooms, t, version, layoutVersions }: SettingsScreenProps) {
   const plan = usePlan();
   const devView = useDevicePref(deviceViewMode);
   const devBackground = useDevicePref(deviceBackground);
@@ -501,9 +505,17 @@ export function SettingsScreen({ config, hass, language, onClose, onDraft, onLic
         {section === "device" && <section className="st-panel">
           <h2>{t("sectionDevice")}</h2><p>{t("sectionDeviceDescription")}</p>
           <Row description={t("deviceLanguageDescription")} label={t("language")}><HDSegmented ariaLabel={t("language")} onChange={(val) => setDeviceLanguage(val as "auto" | "vi" | "en")} options={[{ value: "auto", label: t("languageAuto") }, { value: "vi", label: "Tiếng Việt" }, { value: "en", label: "English" }]} value={devLang} /></Row>
+          <ScreenProfileSettings hass={hass} shared={draft.screen_profiles} onChange={canEdit ? (screen_profiles) => update({ screen_profiles }) : undefined} t={t} />
           <DevicePrefsRows general={draft.view_mode} generalBackground={draft.background.preset} generalKids={draft.kids_background ?? "sky"} hass={hass} onUpsell={() => plan.upsell("feature")} pro={plan.pro} sidebarRow={<Row description={t("hideHaSidebarDescription")} label={t("hideHaSidebar")}><Switch checked={hideHaSidebar} label={t("hideHaSidebar")} onChange={(hidden) => { setHideHaSidebar(hidden); setHideSidebarPreferred(hidden); }} /></Row>} t={t} />
         </section>}
 
+        {section === "system" && <LayoutHistoryPanel current={captureLayout(draft)} versions={layoutVersions} t={t} onMove={(ids) => {
+          update({ navigation: { ...draft.navigation, order: [...(draft.navigation.order ?? []).filter((id) => !ids.includes(id)), ...ids] } });
+        }} onRestore={async (layout) => {
+          const restored = { ...draft, ...layout };
+          if (!await save(restored)) throw new Error("Layout restore failed");
+          setDraft(restored);
+        }} />}
         {section === "system" && <SystemMonitorPanel draft={draft} hass={hass} t={t} update={update} />}
         {section === "system" && <StartScreenPanel hass={hass} t={t} />}
 
@@ -547,16 +559,17 @@ function BackupRows({ draft, onImport, t, version }: { draft: HomeSmartConfig; o
     setError(false);
     setPending(null);
     if (!chosen) return;
+    if (chosen.size > 5 * 1024 * 1024) { setError(true); return; }
     void chosen.text().then((text) => {
       const parsed = JSON.parse(text) as Partial<HomeSmartConfig> & { HOMESMART_export?: unknown };
-      if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.selected_rooms) || typeof parsed.layouts !== "object") throw new Error("not a HOMESMART file");
+      if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.selected_rooms) || !parsed.selected_rooms.every((id) => typeof id === "string") || !parsed.layouts || Array.isArray(parsed.layouts) || typeof parsed.layouts !== "object" || (parsed.pages !== undefined && (!Array.isArray(parsed.pages) || !parsed.pages.every((page) => page && typeof page.id === "string" && typeof page.title === "string" && Array.isArray(page.entity_ids))))) throw new Error("not a HOMESMART file");
       const { HOMESMART_export: _info, ...config } = parsed;
       setPending({ ...config, onboarding_complete: true });
     }).catch(() => setError(true));
   };
   return <>
     <Row description={t("backupExportDescription")} label={t("backupExport")}><button className="hd-pill" onClick={exportFile} type="button"><HDIcon name="arrow" size={16} />{t("backupExportAction")}</button></Row>
-    <Row description={error ? t("backupImportError") : pending ? t("backupImportConfirm") : t("backupImportDescription")} label={t("backupImport")}>
+    <Row description={error ? t("backupImportError") : pending ? `${t("backupImportConfirm")} ${t("backupImportPreview").replace("{rooms}", String(pending.selected_rooms?.length ?? 0)).replace("{tabs}", String(Array.isArray(pending.pages) ? pending.pages.length : 0))}` : t("backupImportDescription")} label={t("backupImport")}>
       <input accept="application/json,.json" hidden onChange={(event) => { read(event.target.files?.[0]); event.target.value = ""; }} ref={file} type="file" />
       {pending
         ? <span className="hd-backup-confirm"><button className="hd-pill" onClick={() => setPending(null)} type="button">{t("cancel")}</button><button className="hd-pill hd-pill--danger" onClick={() => { onImport(pending); setPending(null); }} type="button">{t("backupImportApply")}</button></span>

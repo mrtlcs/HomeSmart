@@ -256,3 +256,10 @@ It brings together a modern **Glassmorphic Cyber Bento Grid** aesthetic, 60–12
 ## 📄 License
 
 This project is open-source and licensed under the **MIT License**. Free for personal and commercial smart home deployments.
+
+## HomeSmart 2.2.5
+
+- **Tiếng Việt:** Vào Cài đặt → Thiết bị này để chọn Điện thoại, Tablet treo tường, Máy tính hoặc TV. Quản trị viên có thể đặt hồ sơ mặc định, hồ sơ từng tài khoản, tab khởi động và giờ nghỉ. Hồ sơ cổ điển tiếp tục dùng bố cục cũ.
+- **English:** In Settings → This device, choose Phone, Wall tablet, Desktop or TV. Administrators can set the household and account defaults, startup tabs and standby schedules. Classic mode uses existing layouts.
+- **Lịch sử / History:** Cài đặt → Hệ thống lưu tối đa 10 bố cục gần nhất trên trình duyệt đã chỉnh sửa. Settings → System shows up to ten snapshots from the editing browser. To transfer settings between browsers, use the JSON backup.
+- **TV:** Dùng phím mũi tên, OK và Back. Chế độ TV dành cho trình duyệt có hỗ trợ các phím remote tương ứng. Use arrows, OK and Back on a browser that exposes those remote keys.
